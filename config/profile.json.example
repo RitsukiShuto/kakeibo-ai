@@ -6,7 +6,7 @@
         "hobbies": ["趣味1", "趣味2"],
         "investment_policy": "NISA (方針など)",
         "target": {
-            "date": "2026-09-01",
+            "date": "YYYY-MM-DD",
             "description": "達成したい目標"
         }
     },
