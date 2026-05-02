@@ -1,0 +1,43 @@
+# --- Python Standard ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+dist/
+*.egg-info/
+
+# --- IDE ---
+.vscode/
+.idea/
+
+# --- Secrets & Credentials (CRITICAL) ---
+.env
+mf_session/
+
+# --- Databases & Raw Data (PERSONAL INFO) ---
+*.db
+*.db-journal
+data/csv/*.csv
+input_data.json
+
+# --- User Profiles (PERSONAL INFO) ---
+# 雛形としての .example だけ残し、実データは除外
+config/profile.json
+
+# --- Reports & Temporary Outputs (PERSONAL INFO) ---
+reports/
+latest_review.md
+debug_output.txt
+
+# --- Logs ---
+logs/*.log
+*.log
+
+# --- System / OS ---
+.DS_Store
+Thumbs.db

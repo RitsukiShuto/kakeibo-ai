@@ -1,0 +1,29 @@
+name: Deploy to Raspberry Pi
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    # 前のステップ（テスト）が成功した時のみ実行
+    # needs: [ test ] # test.yml の job 名に合わせて後で有効化も可能
+    runs-on: self-hosted
+    
+    steps:
+      - name: Update code in production directory
+        run: |
+          cd /home/r410/kakeibo-ai
+          git pull origin main
+          
+      - name: Update Conda environment
+        run: |
+          cd /home/r410/kakeibo-ai
+          /home/r410/miniconda3/bin/conda env update -n kakeibo-ai -f environment.yml
+          
+      - name: Slack Notification (Success)
+        if: success()
+        run: |
+          cd /home/r410/kakeibo-ai
+          # 運用スクリプトを使ってテスト送信（任意）
+          # /home/r410/miniconda3/bin/conda run -n kakeibo-ai python tools/test_slack.py

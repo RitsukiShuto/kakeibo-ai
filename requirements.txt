@@ -1,0 +1,10 @@
+pyzaim
+google-generativeai
+python-dotenv
+requests
+slack-sdk
+playwright
+pandas
+pydantic
+pytest
+pytest-mock

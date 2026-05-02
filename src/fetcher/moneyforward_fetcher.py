@@ -1,0 +1,252 @@
+import os
+import time
+import logging
+import pandas as pd
+from datetime import datetime, date
+from typing import List, Optional
+from playwright.sync_api import sync_playwright
+from dotenv import load_dotenv
+from src.models import Transaction, Asset
+from src.fetcher.base_fetcher import BaseFetcher
+
+load_dotenv()
+
+# ログの設定
+log_dir = os.path.join(os.getcwd(), "logs")
+os.makedirs(log_dir, exist_ok=True)
+
+class MoneyForwardFetcher(BaseFetcher):
+    def __init__(self):
+        self.user_id = os.getenv("MF_USER_ID")
+        self.password = os.getenv("MF_PASSWORD")
+        self.user_data_dir = os.path.join(os.getcwd(), "mf_session")
+        self.logger = logging.getLogger(__name__)
+
+    def _login_and_update(self, page, headless: bool):
+        self.logger.info("Navigating to sign_in page...")
+        page.goto("https://moneyforward.com/users/sign_in")
+        
+        if "sign_in" in page.url:
+            if not headless:
+                self.logger.warning("--- SETUP MODE --- Please complete login in the browser.")
+                page.wait_for_url("https://moneyforward.com/", timeout=300000)
+            else:
+                self.logger.info("Logging in to MoneyForward...")
+                try:
+                    page.fill('input[name="user[email]"]', self.user_id)
+                    page.click('input[type="submit"]')
+                    page.fill('input[name="user[password]"]', self.password)
+                    page.click('input[type="submit"]')
+                    time.sleep(5)
+                except Exception as e:
+                    self.logger.error(f"Auto login failed: {e}")
+                    return False
+
+        self.logger.info("Updating financial data...")
+        page.goto("https://moneyforward.com/", wait_until="networkidle")
+        try:
+            update_button = page.locator('button:has-text("金融機関からのデータ一括更新"), a:has-text("金融機関からのデータ一括更新"), button:has-text("一括更新"), a:has-text("一括更新")').first
+            if update_button.is_visible():
+                update_button.click()
+                time.sleep(2)
+        except Exception as e:
+            self.logger.warning(f"Update button click failed: {e}")
+
+        # 3. 更新完了を監視
+        page.goto("https://moneyforward.com/accounts", wait_until="networkidle")
+        start_time = time.time()
+        while time.time() - start_time < 300:
+            try:
+                # ページの状態が落ち着くまで少し待機
+                time.sleep(5)
+                updating_elements = page.query_selector_all('section#account-table td:has-text("更新中")')
+                if len(updating_elements) == 0:
+                    self.logger.info("All accounts updated.")
+                    break
+                self.logger.info(f"Waiting for {len(updating_elements)} accounts to update...")
+            except Exception as e:
+                self.logger.warning(f"Error during update check (might be navigating): {e}")
+            
+            time.sleep(30)
+            try:
+                page.reload(wait_until="networkidle")
+            except Exception as e:
+                self.logger.warning(f"Reload failed: {e}")
+        
+        return True
+
+    def fetch_transactions(self, headless: bool = True) -> List[Transaction]:
+        self.logger.info(f"Starting MF transaction fetch (headless={headless})")
+        with sync_playwright() as p:
+            browser_context = self._launch_browser(p, headless)
+            page = browser_context.new_page()
+            
+            if not self._login_and_update(page, headless):
+                browser_context.close()
+                return []
+
+            page.goto("https://moneyforward.com/cf", wait_until="networkidle")
+            time.sleep(5)
+
+            try:
+                dropdown_toggle = page.locator('a.dropdown-toggle:has-text("ダウンロード")')
+                dropdown_toggle.click()
+                time.sleep(1)
+
+                csv_link_selector = '#js-csv-dl a'
+                page.wait_for_selector(csv_link_selector, timeout=10000)
+                
+                with page.expect_download(timeout=60000) as download_info:
+                    page.click(csv_link_selector)
+                
+                download = download_info.value
+                csv_dir = os.path.join(os.getcwd(), "data", "csv")
+                os.makedirs(csv_dir, exist_ok=True)
+                csv_path = os.path.join(csv_dir, f"temp_mf_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv")
+                download.save_as(csv_path)
+
+                transactions = self._parse_csv(csv_path)
+                browser_context.close()
+                return transactions
+
+            except Exception as e:
+                self.logger.error(f"Failed to fetch transactions: {e}")
+                browser_context.close()
+                return []
+
+    def fetch_assets(self, headless: bool = True) -> List[Asset]:
+        self.logger.info(f"Starting MF asset fetch (headless={headless})")
+        with sync_playwright() as p:
+            browser_context = self._launch_browser(p, headless)
+            page = browser_context.new_page()
+            
+            if not self._login_and_update(page, headless):
+                browser_context.close()
+                return []
+
+            self.logger.info("Navigating to portfolio page...")
+            page.goto("https://moneyforward.com/bs/portfolio", wait_until="networkidle")
+            time.sleep(3)
+
+            assets = []
+            today = date.today()
+
+            try:
+                sections = {
+                    "預金・現金": "section#portfolio_det_depo",
+                    "株式": "section#portfolio_det_eq",
+                    "投資信託": "section#portfolio_det_mf",
+                    "年金": "section#portfolio_det_pns",
+                    "ポイント": "section#portfolio_det_po",
+                    "債券": "section#portfolio_det_bd",
+                    "保険": "section#portfolio_det_ins",
+                    "暗号資産": "section#portfolio_det_crypto",
+                    "その他": "section#portfolio_det_oth"
+                }
+
+                for asset_type, selector in sections.items():
+                    section = page.query_selector(selector)
+                    if not section:
+                        continue
+                    
+                    self.logger.info(f"--- Analyzing section: {asset_type} ---")
+                    
+                    # セクション内の各テーブルを処理
+                    tables = section.query_selector_all('table.table-bordered')
+                    for table in tables:
+                        # 1. ヘッダーから「評価額」または「残高」の列インデックスを探す
+                        headers = table.query_selector_all('th')
+                        value_col_idx = -1
+                        for i, th in enumerate(headers):
+                            header_text = th.inner_text().strip()
+                            if any(k in header_text for k in ["評価額", "残高", "現在の価値", "金額"]):
+                                value_col_idx = i
+                                break
+                        
+                        # ヘッダーが見つからない場合のフォールバック（預金などは2列目のことが多い）
+                        if value_col_idx == -1:
+                            value_col_idx = 1
+                            self.logger.warning(f"  Value column not found in headers, falling back to index {value_col_idx}")
+
+                        # 2. 各行のデータを取得
+                        rows = table.query_selector_all('tr')
+                        for row in rows:
+                            if row.query_selector('th') or "total" in (row.get_attribute("class") or ""):
+                                continue
+
+                            cols = row.query_selector_all('td')
+                            if len(cols) > value_col_idx:
+                                name = cols[0].inner_text().strip().split('\n')[0]
+                                amount_text = cols[value_col_idx].inner_text().strip().replace(',', '').replace('円', '')
+                                
+                                # 数値のみを抽出（カッコ内の数値などは無視）
+                                amount_text = amount_text.split('(')[0].strip()
+                                
+                                try:
+                                    if amount_text and amount_text.lstrip('-').isdigit():
+                                        amount = int(amount_text)
+                                        self.logger.info(f"  Found asset: {name} = {amount:,}円 (at col {value_col_idx})")
+                                        assets.append(Asset(
+                                            acquired_date=today,
+                                            asset_type=asset_type,
+                                            amount=amount,
+                                            source="MoneyForward",
+                                            institution=name
+                                        ))
+                                except ValueError:
+                                    continue
+
+                browser_context.close()
+                return assets
+
+            except Exception as e:
+                self.logger.error(f"Failed to fetch assets: {e}")
+                browser_context.close()
+                return []
+
+    def _launch_browser(self, p, headless: bool):
+        browser_context = p.chromium.launch_persistent_context(
+            self.user_data_dir,
+            headless=headless,
+            slow_mo=500,
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            args=["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-infobars"]
+        )
+        page = browser_context.pages[0]
+        page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        return browser_context
+
+    def _parse_csv(self, csv_path: str) -> List[Transaction]:
+        df = pd.read_csv(csv_path, encoding="cp932")
+        
+        def find_col(possible_names):
+            for col in df.columns:
+                if any(name in col for name in possible_names): return col
+            return None
+
+        col_id = find_col(["ID"])
+        col_date = find_col(["日付"])
+        col_content = find_col(["内容"])
+        col_amount = find_col(["金額"])
+        col_major = find_col(["大項目"])
+        col_minor = find_col(["中項目"])
+        col_calc = find_col(["計算対象"])
+
+        transactions = []
+        for _, row in df.iterrows():
+            if col_calc and str(row[col_calc]) == "0": continue
+            
+            amount_val = str(row[col_amount]).replace(",", "")
+            amount = int(float(amount_val))
+            
+            transactions.append(Transaction(
+                transaction_id=str(row[col_id]) if col_id else None,
+                transaction_date=datetime.strptime(str(row[col_date]), "%Y/%m/%d").date(),
+                category=str(row[col_major]) if col_major else "未分類",
+                genre=str(row[col_minor]) if col_minor else "",
+                amount=abs(amount),
+                comment=str(row[col_content]) if col_content else "",
+                source="MoneyForward",
+                mode="payment" if amount < 0 else "income"
+            ))
+        return transactions

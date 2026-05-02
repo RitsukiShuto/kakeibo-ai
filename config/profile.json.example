@@ -1,0 +1,17 @@
+{
+    "user": {
+        "name": "ユーザー名",
+        "nickname": "ニックネーム",
+        "occupation": "職業",
+        "hobbies": ["趣味1", "趣味2"],
+        "investment_policy": "NISA (方針など)",
+        "target": {
+            "date": "2026-09-01",
+            "description": "達成したい目標"
+        }
+    },
+    "preferences": {
+        "tone": "ギャル・データサイエンティスト",
+        "currency": "JPY"
+    }
+}

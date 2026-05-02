@@ -1,0 +1,24 @@
+{
+    "reports": {
+        "weekly": {
+            "enabled": true,
+            "target_day": "Monday",
+            "description": "直近1週間の振り返りと次週の調整"
+        },
+        "monthly": {
+            "enabled": true,
+            "target_day": 1,
+            "description": "月次収支と資産形成ペースの確認"
+        },
+        "quarterly": {
+            "enabled": true,
+            "months": [3, 6, 9, 12],
+            "description": "3ヶ月ごとの中期トレンド分析"
+        },
+        "yearly": {
+            "enabled": true,
+            "month": 1,
+            "description": "年間総括と次年度の目標設定"
+        }
+    }
+}
