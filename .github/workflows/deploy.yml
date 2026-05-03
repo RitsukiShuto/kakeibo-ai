@@ -26,8 +26,8 @@ jobs:
         if: success()
         run: |
           cd /home/r410/kakeibo-ai
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-          /home/r410/miniconda3/bin/conda run -n kakeibo-ai python -c "import os; from src.output.slack_notifier import SlackNotifier; from src import __version__; SlackNotifier().send_notification('🚀 アップデート完了', f'Kakeibo AI (v{__version__}) が本番環境に正常にデプロイされました！\n\n*更新内容:*\n> {os.environ.get(\"COMMIT_MSG\", \"'\"$COMMIT_MSG\"'\")}')"
+          export COMMIT_MSG="$(git log -1 --pretty=format:'%s')"
+          /home/r410/miniconda3/bin/conda run -n kakeibo-ai python -c "import os; from src.output.slack_notifier import SlackNotifier; from src import __version__; msg = os.environ.get('COMMIT_MSG', '取得できませんでした'); SlackNotifier().send_notification('🚀 アップデート完了', f'Kakeibo AI (v{__version__}) が本番環境に正常にデプロイされました！\n\n*更新内容:*\n> {msg}')"
 
       - name: Slack Notification (Failure)
         if: failure()
