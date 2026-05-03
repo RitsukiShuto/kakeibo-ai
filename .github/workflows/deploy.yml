@@ -25,5 +25,10 @@ jobs:
         if: success()
         run: |
           cd /home/r410/kakeibo-ai
-          # 運用スクリプトを使ってテスト送信（任意）
-          # /home/r410/miniconda3/bin/conda run -n kakeibo-ai python tools/test_slack.py
+          /home/r410/miniconda3/bin/conda run -n kakeibo-ai python -c "from src.output.slack_notifier import SlackNotifier; from src import __version__; SlackNotifier().send_notification('🚀 アップデート完了', f'Kakeibo AI (v{__version__}) が本番環境に正常にデプロイされました！')"
+
+      - name: Slack Notification (Failure)
+        if: failure()
+        run: |
+          cd /home/r410/kakeibo-ai
+          /home/r410/miniconda3/bin/conda run -n kakeibo-ai python -c "from src.output.slack_notifier import SlackNotifier; SlackNotifier().send_notification('❌ デプロイ失敗', '本番環境へのアップデート中にエラーが発生しました。エラーログを確認してください。')"
