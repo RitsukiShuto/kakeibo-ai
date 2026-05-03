@@ -9,7 +9,12 @@ def mock_genai():
     with patch('src.analyzer.gemini_analyzer.genai') as mock:
         yield mock
 
-def test_analyze_kakeibo_success(mock_genai):
+@pytest.fixture
+def mock_env():
+    with patch.dict('os.environ', {'GEMINI_API_KEY': 'fake_key'}):
+        yield
+
+def test_analyze_kakeibo_success(mock_genai, mock_env):
     # Mock model response
     mock_model = MagicMock()
     mock_genai.GenerativeModel.return_value = mock_model
@@ -50,7 +55,7 @@ def test_analyze_kakeibo_success(mock_genai):
     assert result.budget_status[0].category == "食費"
     mock_model.generate_content.assert_called_once()
 
-def test_analyze_kakeibo_failure(mock_genai):
+def test_analyze_kakeibo_failure(mock_genai, mock_env):
     mock_model = MagicMock()
     mock_genai.GenerativeModel.return_value = mock_model
     mock_model.generate_content.side_effect = Exception("API Error")
