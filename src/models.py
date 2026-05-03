@@ -33,10 +33,17 @@ class AssetBreakdown(BaseModel):
     category: str = Field(..., description="資産カテゴリ（例：預金・現金、投資信託、株式など）")
     amount: int = Field(..., description="そのカテゴリの合計金額")
 
+class BudgetStatus(BaseModel):
+    category: str = Field(..., description="カテゴリ名")
+    budget: int = Field(..., description="予算額")
+    actual: int = Field(..., description="実績額")
+    status: str = Field(..., description="状態（OK, 警告, 超過など）")
+
 class AIResponse(BaseModel):
     slack_summary: str = Field(..., description="Slack用要約")
     obsidian_report: str = Field(..., description="Obsidian用レポート")
     actions: List[AIAction] = Field(..., description="アクションリスト")
     asset_breakdown: List[AssetBreakdown] = Field(..., description="資産のカテゴリ別内訳")
+    budget_status: List[BudgetStatus] = Field(default_factory=list, description="予算の達成状況")
     totonoi_score: int = Field(..., description="ととのい指数")
     savings_potential: int = Field(..., description="節約可能額")

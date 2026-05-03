@@ -74,6 +74,7 @@ def main():
 
     schedule = load_config("config/schedule.json")
     profile = load_config("config/profile.json")
+    budget = load_config("config/budget.json")
 
     timeframe = args.timeframe
     fetch_only = args.fetch_only
@@ -123,6 +124,7 @@ def main():
             assets_summary=asset_summary,
             timeframe=timeframe,
             profile=profile,
+            budget=budget,
             previous_summary=previous_summary
         )
 
@@ -150,6 +152,11 @@ def main():
             output_text += "-" * 50 + "\n"
             output_text += f"【要約】\n{ai_response.slack_summary}\n\n"
             
+            output_text += f"【予算状況 (予実)】:\n"
+            for b in ai_response.budget_status:
+                output_text += f" - {b.category}: {b.actual:,} / {b.budget:,}円 ({b.status})\n"
+            output_text += "\n"
+
             output_text += f"【資産内訳】:\n"
             total_calc = 0
             for asset in ai_response.asset_breakdown:

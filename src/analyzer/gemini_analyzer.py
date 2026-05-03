@@ -34,7 +34,7 @@ class GeminiAnalyzer:
         except Exception:
             return genai.GenerativeModel('gemini-2.0-flash', generation_config={"response_mime_type": "application/json"})
 
-    def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, previous_summary: Optional[str] = None) -> Optional[AIResponse]:
+    def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None) -> Optional[AIResponse]:
         system_prompt_template = self._load_prompt_file("prompts/system_prompt.md")
         timeframe_prompt = self._load_prompt_file(f"prompts/{timeframe}_prompt.md")
         
@@ -49,7 +49,7 @@ class GeminiAnalyzer:
             target_description=target.get('description', '目標なし')
         )
 
-        user_input = self._create_user_input_text(data, assets_summary, timeframe, previous_summary)
+        user_input = self._create_user_input_text(data, assets_summary, timeframe, budget, previous_summary)
 
         # JSONスキーマの明示
         json_schema = {
@@ -60,6 +60,9 @@ class GeminiAnalyzer:
             ],
             "asset_breakdown": [
                 {"category": "資産カテゴリ名", "amount": 10000}
+            ],
+            "budget_status": [
+                {"category": "食費", "budget": 40000, "actual": 42000, "status": "超過"}
             ],
             "totonoi_score": "0-100の整数",
             "savings_potential": "今月あといくら節約できるかの概算額（整数）"
@@ -120,19 +123,30 @@ class GeminiAnalyzer:
         # 互換性のために残すか削除します。今回はシンプルにするため削除扱いとします。
         pass
 
-    def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, previous_summary: Optional[str]) -> str:
+    def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None) -> str:
         text = f"### 分析期間: {timeframe}\n\n"
         
         if previous_summary:
             text += f"#### 0. 前回の分析サマリー\n{previous_summary}\n\n"
 
-        text += "#### 1. 今回追加された差分明細\n"
+        if budget:
+            text += "#### 1. 設定されている予算 (月次)\n"
+            monthly_budget = budget.get("monthly", {})
+            text += f"- 月間総収入目標: {monthly_budget.get('income', 0):,}円\n"
+            text += f"- 貯蓄目標: {monthly_budget.get('savings_goal', 0):,}円\n"
+            text += f"- 投資目標: {monthly_budget.get('investment_goal', 0):,}円\n"
+            text += "  - カテゴリ別予算:\n"
+            for cat, amt in monthly_budget.get("categories", {}).items():
+                text += f"    - {cat}: {amt:,}円\n"
+            text += "\n"
+
+        text += "#### 2. 今回追加された差分明細\n"
         if not data:
             text += "なし\n"
         for t in data:
             text += f"- {t.transaction_date}: {t.category}({t.genre}) {t.amount}円 {t.comment} [{t.source}]\n"
             
-        text += "\n#### 2. 現在の資産状況（カテゴリ別集計済み）\n"
+        text += "\n#### 3. 現在の資産状況（カテゴリ別集計済み）\n"
         total_asset = 0
         for a in assets_summary:
             text += f"- {a['category']}: {a['amount']:,}円\n"
