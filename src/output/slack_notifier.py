@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from src.models import AIAction
+from src import __version__
 
 load_dotenv()
 
@@ -107,7 +108,7 @@ class SlackNotifier:
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": f"詳細レポートは Obsidian または <{self.dashboard_url}|🌐 Webダッシュボード> でチェックしてね！✨"
+                    "text": f"詳細レポートは Obsidian または <{self.dashboard_url}|🌐 Webダッシュボード> でチェックしてね！✨ (v{__version__})"
                 }
             ]
         })
