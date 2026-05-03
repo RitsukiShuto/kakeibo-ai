@@ -15,10 +15,9 @@ def mock_env():
         yield
 
 def test_analyze_kakeibo_success(mock_genai, mock_env):
-    # Mock model response
-    mock_model = MagicMock()
-    mock_genai.GenerativeModel.return_value = mock_model
-    mock_genai.list_models.return_value = [MagicMock(name='models/gemini-2.0-flash', supported_generation_methods=['generateContent'])]
+    # Mock client and response
+    mock_client = MagicMock()
+    mock_genai.Client.return_value = mock_client
     
     mock_response = MagicMock()
     mock_response.text = '''{
@@ -30,7 +29,7 @@ def test_analyze_kakeibo_success(mock_genai, mock_env):
         "totonoi_score": 80,
         "savings_potential": 500
     }'''
-    mock_model.generate_content.return_value = mock_response
+    mock_client.models.generate_content.return_value = mock_response
 
     analyzer = GeminiAnalyzer()
     
@@ -53,12 +52,12 @@ def test_analyze_kakeibo_success(mock_genai, mock_env):
     assert result.totonoi_score == 80
     assert len(result.budget_status) == 1
     assert result.budget_status[0].category == "食費"
-    mock_model.generate_content.assert_called_once()
+    mock_client.models.generate_content.assert_called_once()
 
 def test_analyze_kakeibo_failure(mock_genai, mock_env):
-    mock_model = MagicMock()
-    mock_genai.GenerativeModel.return_value = mock_model
-    mock_model.generate_content.side_effect = Exception("API Error")
+    mock_client = MagicMock()
+    mock_genai.Client.return_value = mock_client
+    mock_client.models.generate_content.side_effect = Exception("API Error")
 
     analyzer = GeminiAnalyzer()
     result = analyzer.analyze_kakeibo([], [], "monthly", {"user": {"target": {}}})
