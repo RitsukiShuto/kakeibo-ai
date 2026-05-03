@@ -39,7 +39,35 @@ class SlackNotifier:
         """
         簡易的なテキスト通知
         """
-        self.send_block_kit(title, text, [], 0)
+        if not self.client or not self.user_id:
+            return
+
+        blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"ℹ️ {title}",
+                    "emoji": True
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": text
+                }
+            }
+        ]
+
+        try:
+            self.client.chat_postMessage(
+                channel=self.user_id,
+                text=title,
+                blocks=blocks
+            )
+        except Exception as e:
+            print(f"Failed to send simple notification: {e}")
 
     def send_block_kit(self, title: str, summary: str, actions: List[AIAction], score: int):
         """

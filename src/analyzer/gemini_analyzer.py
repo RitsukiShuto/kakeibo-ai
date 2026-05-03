@@ -1,6 +1,7 @@
 import os
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from datetime import datetime
 from typing import List, Optional
 from dotenv import load_dotenv
@@ -14,25 +15,14 @@ class GeminiAnalyzer:
         if not api_key:
             raise ValueError("GEMINI_API_KEY is missing.")
         
-        genai.configure(api_key=api_key)
-        self.model = self._select_best_model()
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = self._select_best_model()
 
     def _select_best_model(self):
-        try:
-            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            # 未来のモデル (2.0, 2.5) を優先
-            priority_keywords = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
-            for keyword in priority_keywords:
-                for model_name in available_models:
-                    if keyword in model_name:
-                        print(f"Selected model: {model_name}")
-                        return genai.GenerativeModel(
-                            model_name,
-                            generation_config={"response_mime_type": "application/json"}
-                        )
-            return genai.GenerativeModel('gemini-2.0-flash', generation_config={"response_mime_type": "application/json"})
-        except Exception:
-            return genai.GenerativeModel('gemini-2.0-flash', generation_config={"response_mime_type": "application/json"})
+        # より高度で正確な推論・着地予測を行うため、最強クラスのProモデルを採用
+        model = 'gemini-2.0-pro-exp'
+        print(f"Selected model: {model}")
+        return model
 
     def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None) -> Optional[AIResponse]:
         system_prompt_template = self._load_prompt_file("prompts/system_prompt.md")
@@ -82,7 +72,14 @@ class GeminiAnalyzer:
         print(f"AI analyzing {len(data)} transactions and {len(assets_summary)} asset categories...")
         
         try:
-            response = self.model.generate_content(full_prompt)
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.7
+                )
+            )
             raw_text = response.text.strip()
             
             # JSONの抽出ロジックを強化
