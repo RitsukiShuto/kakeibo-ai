@@ -49,7 +49,7 @@ def get_scheduled_timeframe(schedule):
     
     return None
 
-def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "data/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True):
+def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "data/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
     """
     家計簿レビューのメイン工程を実行する (CLIとSlackサーバーの両方から呼び出し可能)
     """
@@ -68,16 +68,19 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
 
     try:
         if not skip_fetch:
+            if progress_callback: progress_callback("🔄 マネーフォワードから入出金履歴を取得中...（少し時間がかかります）")
             print(f"Fetching transactions from {source}...")
             transactions = fetcher.fetch_transactions(headless=headless)
             if transactions:
                 db.save_transactions(transactions)
             
+            if progress_callback: progress_callback("🔄 続いて資産データを取得中...")
             print(f"Fetching assets from {source}...")
             assets = fetcher.fetch_assets(headless=headless)
             if assets:
                 db.save_assets(assets)
         
+        if progress_callback: progress_callback(f"🧠 データ取得完了！{timeframe}の家計簿をAIが分析中...（ギャルが本気出してます💅✨）")
         print(f"Starting AI Analysis ({timeframe})...")
         analyzer = GeminiAnalyzer()
         
