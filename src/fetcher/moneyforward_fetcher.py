@@ -114,6 +114,46 @@ class MoneyForwardFetcher(BaseFetcher):
                 browser_context.close()
                 return []
 
+    def fetch_historical_transactions(self, year: int, month: int, headless: bool = True, page=None) -> List[Transaction]:
+        """
+        指定された年月の明細データを取得する（直接URL指定方式）
+        """
+        self.logger.info(f"Starting MF historical fetch for {year}/{month}")
+        
+        # 外部からpageが渡されない場合は自前で起動
+        if page is None:
+            with sync_playwright() as p:
+                browser_context = self._launch_browser(p, headless)
+                page = browser_context.new_page()
+                if not self._login_and_update(page, headless):
+                    browser_context.close()
+                    return []
+                result = self._download_csv_direct(page, year, month)
+                browser_context.close()
+                return result
+        else:
+            return self._download_csv_direct(page, year, month)
+
+    def _download_csv_direct(self, page, year: int, month: int) -> List[Transaction]:
+        try:
+            # CSVダウンロード用URLを直接叩く
+            csv_url = f"https://moneyforward.com/cf/csv?month={month}&year={year}"
+            self.logger.info(f"Downloading CSV directly from: {csv_url}")
+            
+            with page.expect_download(timeout=60000) as download_info:
+                page.goto(csv_url)
+            
+            download = download_info.value
+            csv_dir = os.path.join(os.getcwd(), "data", "csv")
+            os.makedirs(csv_dir, exist_ok=True)
+            csv_path = os.path.join(csv_dir, f"history_mf_{year}{month:02d}_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv")
+            download.save_as(csv_path)
+
+            return self._parse_csv(csv_path)
+        except Exception as e:
+            self.logger.error(f"Failed to download CSV for {year}/{month}: {e}")
+            return []
+
     def fetch_assets(self, headless: bool = True) -> List[Asset]:
         self.logger.info(f"Starting MF asset fetch (headless={headless})")
         with sync_playwright() as p:
@@ -215,6 +255,27 @@ class MoneyForwardFetcher(BaseFetcher):
         page = browser_context.pages[0]
         page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         return browser_context
+
+    def get_session_cookies(self, headless: bool = True) -> dict:
+        """
+        PlaywrightのセッションからCookieを取得し、requests形式に変換する
+        """
+        self.logger.info("Extracting session cookies from Playwright...")
+        with sync_playwright() as p:
+            browser_context = self._launch_browser(p, headless)
+            page = browser_context.pages[0]
+            
+            # ログイン状態を確認
+            if not self._login_and_update(page, headless):
+                browser_context.close()
+                return {}
+
+            cookies = browser_context.cookies()
+            browser_context.close()
+            
+            # requests 用の辞書形式に変換
+            cookie_dict = {c['name']: c['value'] for c in cookies}
+            return cookie_dict
 
     def _parse_csv(self, csv_path: str) -> List[Transaction]:
         df = pd.read_csv(csv_path, encoding="cp932")

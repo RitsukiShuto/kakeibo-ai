@@ -43,7 +43,7 @@ def main():
     
     try:
         # 設定に基づいて headless モードを切り替え
-        data = fetcher.fetch_data(headless=not is_setup)
+        data = fetcher.fetch_transactions(headless=not is_setup)
         
         if data:
             # データの保存

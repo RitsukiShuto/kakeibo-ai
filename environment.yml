@@ -11,5 +11,8 @@ dependencies:
       - python-dotenv
       - requests
       - slack-sdk
+      - slack-bolt
       - playwright
       - pandas
+      - matplotlib
+      - seaborn

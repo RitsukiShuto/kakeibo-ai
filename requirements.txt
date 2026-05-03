@@ -3,8 +3,11 @@ google-generativeai
 python-dotenv
 requests
 slack-sdk
+slack-bolt
 playwright
 pandas
+matplotlib
+seaborn
 pydantic
 pytest
 pytest-mock

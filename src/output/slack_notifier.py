@@ -1,29 +1,36 @@
 import os
-import requests
 import json
 from typing import List
 from dotenv import load_dotenv
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 from src.models import AIAction
 
 load_dotenv()
 
 class SlackNotifier:
     def __init__(self):
-        self.webhook_url = os.getenv("SLACK_WEBHOOK_URL")
-        if not self.webhook_url:
-            print("Warning: SLACK_WEBHOOK_URL is not set.")
+        self.bot_token = os.getenv("SLACK_BOT_TOKEN")
+        self.user_id = os.getenv("SLACK_USER_ID")
+        self.client = WebClient(token=self.bot_token) if self.bot_token else None
+        
+        if not self.bot_token:
+            print("Warning: SLACK_BOT_TOKEN is not set.")
+        if not self.user_id:
+            print("Warning: SLACK_USER_ID is not set.")
 
     def send_notification(self, title: str, text: str):
         """
-        簡易的なテキスト通知（互換性のため残す）
+        簡易的なテキスト通知
         """
         self.send_block_kit(title, text, [], 0)
 
     def send_block_kit(self, title: str, summary: str, actions: List[AIAction], score: int):
         """
-        Slack Block Kit を使用したリッチな通知
+        Slack Web API を使用して DM を送信する
         """
-        if not self.webhook_url:
+        if not self.client or not self.user_id:
+            print("Slack notification skipped: Missing token or user ID.")
             return
 
         # スコアに応じた絵文字
@@ -64,6 +71,16 @@ class SlackNotifier:
                 "text": {
                     "type": "mrkdwn",
                     "text": f"*[{action.command}]* {action.description}"
+                },
+                "accessory": {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "やったよ！✨",
+                        "emoji": True
+                    },
+                    "value": f"{action.command}: {action.description[:50]}",
+                    "action_id": "action_done"
                 }
             })
 
@@ -80,15 +97,42 @@ class SlackNotifier:
             ]
         })
 
-        payload = {"blocks": blocks}
+        try:
+            # chat.postMessage を使用して DM を送信
+            # channel 引数に User ID を指定することで DM になる
+            response = self.client.chat_postMessage(
+                channel=self.user_id,
+                text=f"【家計簿AI】{title}", # 通知用プレーンテキスト
+                blocks=blocks
+            )
+            if not response["ok"]:
+                print(f"Error sending DM to Slack: {response['error']}")
+        except SlackApiError as e:
+            print(f"Slack API Error: {e.response['error']}")
+        except Exception as e:
+            print(f"Failed to send Slack DM: {e}")
+
+    def upload_file(self, file_path: str, title: str):
+        """
+        ファイルを Slack にアップロードし、DM に送信する
+        """
+        if not self.client or not self.user_id:
+            return
+
+        if not os.path.exists(file_path):
+            print(f"Error: File not found for upload: {file_path}")
+            return
 
         try:
-            response = requests.post(
-                self.webhook_url,
-                data=json.dumps(payload),
-                headers={'Content-Type': 'application/json'}
+            response = self.client.files_upload_v2(
+                channel=self.user_id,
+                file=file_path,
+                title=title,
+                initial_comment=f"📊 {title}"
             )
-            if response.status_code != 200:
-                print(f"Error sending to Slack: {response.status_code}, {response.text}")
+            if not response["ok"]:
+                print(f"Error uploading file to Slack: {response['error']}")
+        except SlackApiError as e:
+            print(f"Slack API Error (Upload): {e.response['error']}")
         except Exception as e:
-            print(f"Failed to send Slack notification: {e}")
+            print(f"Failed to upload file to Slack: {e}")

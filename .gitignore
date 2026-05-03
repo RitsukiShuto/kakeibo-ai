@@ -38,6 +38,10 @@ debug_output.txt
 logs/*.log
 *.log
 
+# --- Automation & Sync Tools (PERSONAL CONFIG) ---
+tools/sync_to_pi.sh
+tools/sync_to_pi.ps1
+
 # --- System / OS ---
 .DS_Store
 Thumbs.db

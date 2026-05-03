@@ -29,9 +29,11 @@ fi
 
 # 4. ディレクトリの作成
 echo -e "\n\033[0;33m[4/4] 必要なディレクトリを作成しています...\033[0m"
-mkdir -p data logs reports/Reviews/Kakeibo
+mkdir -p data logs reports/Reviews/Kakeibo data/import/transactions
 echo "Directories created."
 
 echo -e "\n\033[0;36m=== セットアップが完了しました！ ===\033[0m"
 echo "1. '.env' ファイルを開き、GEMINI_API_KEY などを設定してください。"
 echo "2. 'bash run.sh --no-headless' を実行して、MoneyForwardにログインしてください。"
+echo "3. 過去の明細CSVがある場合は 'data/import/transactions' に配置し、以下のコマンドで移行できます："
+echo "   conda run -n $ENV_NAME python tools/import_mf_csv.py [CSVパス]"

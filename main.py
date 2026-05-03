@@ -16,6 +16,7 @@ from src.fetcher.zaim_fetcher import ZaimFetcher
 from src.analyzer.gemini_analyzer import GeminiAnalyzer
 from src.output.slack_notifier import SlackNotifier
 from src.output.obsidian_writer import ObsidianWriter
+from src.output.visualizer import Visualizer
 
 def load_config(file_path):
     if os.path.exists(file_path):
@@ -131,7 +132,17 @@ def main():
 
         # --- 出力セクション ---
         saved_path = ""
+        graph_path = ""
         
+        # 0. グラフの生成
+        try:
+            visualizer = Visualizer()
+            graph_path = visualizer.generate_asset_trend_graph(db_path=args.db_path)
+            if graph_path:
+                print(f"資産推移グラフを生成しました: {graph_path}")
+        except Exception as e:
+            print(f"グラフ生成に失敗しました: {e}")
+
         # 1. コンソール出力
         if args.console:
             output_text = "\n" + "="*50 + "\n"
@@ -167,7 +178,11 @@ def main():
         # 2. Obsidian保存
         if args.obsidian:
             writer = ObsidianWriter()
-            saved_path = writer.write_report(ai_response.obsidian_report)
+            report_content = ai_response.obsidian_report
+            if graph_path:
+                # Obsidian用に画像リンクを追記（ローカルパスなので環境に依存しますが）
+                report_content += f"\n\n## 📊 Asset Trend\n![[{os.path.basename(graph_path)}]]\n"
+            saved_path = writer.write_report(report_content)
 
         # 3. Slack通知
         if args.slack:
@@ -179,6 +194,8 @@ def main():
                     actions=ai_response.actions,
                     score=ai_response.totonoi_score
                 )
+                if graph_path:
+                    notifier.upload_file(graph_path, f"資産推移グラフ ({timeframe})")
             except Exception as e:
                 print(f"Slack notification failed: {e}")
 

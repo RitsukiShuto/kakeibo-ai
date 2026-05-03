@@ -35,7 +35,6 @@ class GeminiAnalyzer:
             return genai.GenerativeModel('gemini-2.0-flash', generation_config={"response_mime_type": "application/json"})
 
     def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, previous_summary: Optional[str] = None) -> Optional[AIResponse]:
-        # ... (プロンプト組み立て部分は変更なし)
         system_prompt_template = self._load_prompt_file("prompts/system_prompt.md")
         timeframe_prompt = self._load_prompt_file(f"prompts/{timeframe}_prompt.md")
         
@@ -52,7 +51,30 @@ class GeminiAnalyzer:
 
         user_input = self._create_user_input_text(data, assets_summary, timeframe, previous_summary)
 
-        full_prompt = f"{system_prompt}\n\n## 今回の分析の特別指示 ({timeframe})\n{timeframe_prompt}\n\n## 分析対象データ\n{user_input}\n\nJSON形式で出力してください。Markdownのコードブロックなどは含めず、純粋なJSONのみを返してください。データが少ない場合や無い場合でも、現状を肯定的に分析して必ず全てのキーを含むJSONを生成してください。"
+        # JSONスキーマの明示
+        json_schema = {
+            "slack_summary": "Slack通知用の150文字程度の要約文（ギャル風）",
+            "obsidian_report": "Obsidian用のMarkdown形式の詳細レポート全文",
+            "actions": [
+                {"command": "Now/Keep/Stopなどの短いコマンド", "description": "具体的なアクション内容"}
+            ],
+            "asset_breakdown": [
+                {"category": "資産カテゴリ名", "amount": 10000}
+            ],
+            "totonoi_score": "0-100の整数",
+            "savings_potential": "今月あといくら節約できるかの概算額（整数）"
+        }
+
+        full_prompt = (
+            f"{system_prompt}\n\n"
+            f"## 今回の分析の特別指示 ({timeframe})\n{timeframe_prompt}\n\n"
+            f"## 分析対象データ\n{user_input}\n\n"
+            f"## 出力形式\n"
+            f"以下のJSONスキーマに従って、純粋なJSONオブジェクトのみを出力してください。\n"
+            f"Markdownのコードブロック（```json）は含めないでください。\n"
+            f"全ての項目を必ず埋めてください。\n\n"
+            f"JSON Schema:\n{json.dumps(json_schema, ensure_ascii=False, indent=2)}"
+        )
 
         print(f"AI analyzing {len(data)} transactions and {len(assets_summary)} asset categories...")
         
@@ -60,27 +82,31 @@ class GeminiAnalyzer:
             response = self.model.generate_content(full_prompt)
             raw_text = response.text.strip()
             
-            # Markdownのコードブロック（```json ... ```）を除去するロジック
-            if raw_text.startswith("```"):
-                # 最初と最後の ``` 行を削除
-                lines = raw_text.splitlines()
-                if lines[0].startswith("```"): lines = lines[1:]
-                if lines[-1].startswith("```"): lines = lines[:-1]
-                raw_text = "\n".join(lines).strip()
-            
-            # 余分なテキストが混じっている場合、最初の { と最後の } を探す
+            # JSONの抽出ロジックを強化
             start_idx = raw_text.find('{')
             end_idx = raw_text.rfind('}')
             if start_idx != -1 and end_idx != -1:
-                raw_text = raw_text[start_idx:end_idx+1]
+                json_candidate = raw_text[start_idx:end_idx+1]
+            else:
+                json_candidate = raw_text
 
-            result_json = json.loads(raw_text)
+            # 制御文字などの除去
+            json_candidate = json_candidate.replace('\n', ' ').replace('\r', '')
+            # 連続するスペースを1つに（パースエラー軽減）
+            import re
+            json_candidate = re.sub(r'\s+', ' ', json_candidate)
+
+            result_json = json.loads(json_candidate)
             ai_response = AIResponse(**result_json)
             return ai_response
 
         except Exception as e:
             print(f"AI Analysis error: {e}")
-            print(f"Raw text was: {response.text if 'response' in locals() else 'N/A'}")
+            try:
+                # 文字化け対策としてエンコードを考慮して出力
+                print(f"Raw text (first 500 chars): {raw_text[:500].encode('utf-8', errors='replace').decode('utf-8')}")
+            except:
+                print("Could not display raw text due to encoding issues.")
             return None
 
     def _load_prompt_file(self, file_path: str) -> str:
