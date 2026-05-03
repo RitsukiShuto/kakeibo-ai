@@ -26,16 +26,21 @@ def handle_review_command(ack, command, respond, client):
     ack()
     user_id = command["user_id"]
     raw_text = command.get("text", "").strip().lower()
-    if raw_text in ["m", "monthly"]:
+    
+    skip_fetch = "skip" in raw_text
+    timeframe_str = raw_text.replace("skip", "").strip()
+
+    if timeframe_str in ["m", "monthly"]:
         timeframe = "monthly"
-    elif raw_text in ["y", "yearly"]:
+    elif timeframe_str in ["y", "yearly"]:
         timeframe = "yearly"
-    elif raw_text in ["q", "quarterly"]:
+    elif timeframe_str in ["q", "quarterly"]:
         timeframe = "quarterly"
     else:
         timeframe = "weekly"
 
-    respond(f"🆗 了解！{timeframe}の家計簿を分析してくるから、ちょっと待っててね！✨")
+    skip_msg = " (データ取得はスキップして爆速でいくよ！🚀)" if skip_fetch else ""
+    respond(f"🆗 了解！{timeframe}の家計簿を分析してくるから、ちょっと待っててね！✨{skip_msg}")
     
     # 分析は時間がかかるため、別スレッドで実行
     def run_async_analysis():
@@ -44,7 +49,7 @@ def handle_review_command(ack, command, respond, client):
             def progress_update(msg):
                 respond(msg)
                 
-            result = run_review(timeframe=timeframe, headless=True, progress_callback=progress_update)
+            result = run_review(timeframe=timeframe, headless=True, skip_fetch=skip_fetch, progress_callback=progress_update)
             if not result:
                 respond("❌ ごめん、分析中にエラーが出ちゃったみたい...。後でもう一回試してみて！")
         except Exception as e:
