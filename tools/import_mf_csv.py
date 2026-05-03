@@ -10,11 +10,28 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.db.database import Database
 from src.models import Transaction
 
-def import_csv(file_path: str, db_path: str):
-    if not os.path.exists(file_path):
-        print(f"Error: File not found at {file_path}")
+def import_csv(path: str, db_path: str):
+    if not os.path.exists(path):
+        print(f"Error: Path not found at {path}")
         return
 
+    # フォルダが指定された場合は、中のCSVを全て処理
+    if os.path.isdir(path):
+        print(f"Directory detected: {path}")
+        csv_files = [os.path.join(path, f) for f in os.listdir(path) if f.lower().endswith('.csv')]
+        if not csv_files:
+            print("No CSV files found in the directory.")
+            return
+        
+        print(f"Found {len(csv_files)} CSV files. Starting bulk import...")
+        for csv_file in csv_files:
+            print(f"\n--- Processing: {os.path.basename(csv_file)} ---")
+            _process_single_csv(csv_file, db_path)
+        print("\nBulk import completed!")
+    else:
+        _process_single_csv(path, db_path)
+
+def _process_single_csv(file_path: str, db_path: str):
     print(f"Reading CSV: {file_path}")
     try:
         # マネーフォワードのCSVは通常 cp932 (Shift-JIS)
@@ -22,7 +39,11 @@ def import_csv(file_path: str, db_path: str):
     except Exception as e:
         print(f"Error reading CSV with cp932: {e}")
         print("Retrying with utf-8...")
-        df = pd.read_csv(file_path, encoding="utf-8")
+        try:
+            df = pd.read_csv(file_path, encoding="utf-8")
+        except Exception as e2:
+            print(f"Failed to read CSV: {e2}")
+            return
 
     def find_col(possible_names):
         for col in df.columns:
@@ -76,19 +97,20 @@ def import_csv(file_path: str, db_path: str):
                 mode="payment" if amount < 0 else "income"
             ))
         except Exception as e:
-            print(f"Skipping row due to error: {e} | Row: {row.to_dict()}")
+            # エラー行はスキップ
+            continue
 
     if transactions:
         print(f"Saving {len(transactions)} transactions to database...")
         db.save_transactions(transactions)
-        print("Import completed successfully!")
+        print("Import successful!")
     else:
-        print("No valid transactions found to import.")
+        print("No valid transactions found.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Import MoneyForward CSV to Database")
-    parser.add_argument("file", help="Path to the MoneyForward CSV file")
+    parser.add_argument("path", help="Path to a CSV file or a directory containing CSVs")
     parser.add_argument("--db", default="data/kakeibo.db", help="Path to the SQLite database")
     
     args = parser.parse_args()
-    import_csv(args.file, args.db)
+    import_csv(args.path, args.db)
