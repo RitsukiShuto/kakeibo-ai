@@ -28,6 +28,7 @@ input_data.json
 # --- User Profiles (PERSONAL INFO) ---
 # 雛形としての .example だけ残し、実データは除外
 config/profile.json
+config/budget.json
 
 # --- Reports & Temporary Outputs (PERSONAL INFO) ---
 reports/
