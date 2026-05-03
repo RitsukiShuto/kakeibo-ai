@@ -11,3 +11,4 @@ seaborn
 pydantic
 pytest
 pytest-mock
+streamlit
