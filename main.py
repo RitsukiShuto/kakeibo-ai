@@ -49,6 +49,104 @@ def get_scheduled_timeframe(schedule):
     
     return None
 
+def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "data/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True):
+    """
+    家計簿レビューのメイン工程を実行する (CLIとSlackサーバーの両方から呼び出し可能)
+    """
+    schedule = load_config("config/schedule.json")
+    profile = load_config("config/profile.json")
+    budget = load_config("config/budget.json")
+
+    if not timeframe:
+        timeframe = get_scheduled_timeframe(schedule)
+        if not timeframe:
+            print("No task scheduled. Defaulting to weekly for manual run.")
+            timeframe = "weekly"
+
+    db = Database(db_path=db_path)
+    fetcher = MoneyForwardFetcher() if source == "mf" else ZaimFetcher()
+
+    try:
+        if not skip_fetch:
+            print(f"Fetching transactions from {source}...")
+            transactions = fetcher.fetch_transactions(headless=headless)
+            if transactions:
+                db.save_transactions(transactions)
+            
+            print(f"Fetching assets from {source}...")
+            assets = fetcher.fetch_assets(headless=headless)
+            if assets:
+                db.save_assets(assets)
+        
+        print(f"Starting AI Analysis ({timeframe})...")
+        analyzer = GeminiAnalyzer()
+        
+        new_transactions = db.get_new_transactions_since_last_analysis(timeframe)
+        asset_summary = db.get_asset_category_summary()
+        latest_analysis = db.get_latest_analysis(timeframe)
+        previous_summary = latest_analysis["summary"] if latest_analysis else None
+        
+        ai_response = analyzer.analyze_kakeibo(
+            data=new_transactions, 
+            assets_summary=asset_summary,
+            timeframe=timeframe,
+            profile=profile,
+            budget=budget,
+            previous_summary=previous_summary
+        )
+
+        if not ai_response:
+            return None
+
+        # 0. グラフの生成
+        graph_path = ""
+        try:
+            visualizer = Visualizer()
+            graph_path = visualizer.generate_asset_trend_graph(db_path=db_path)
+        except Exception as e:
+            print(f"Graph generation failed: {e}")
+
+        # 1. コンソール出力
+        if output_console:
+            print(f"AI Review ({timeframe}) Generated: {ai_response.slack_summary}")
+
+        # 2. Obsidian保存
+        saved_path = ""
+        if output_obsidian:
+            writer = ObsidianWriter()
+            report_content = ai_response.obsidian_report
+            if graph_path:
+                report_content += f"\n\n## 📊 Asset Trend\n![[{os.path.basename(graph_path)}]]\n"
+            saved_path = writer.write_report(report_content)
+
+        # 3. Slack通知
+        if output_slack:
+            notifier = SlackNotifier()
+            notifier.send_block_kit(
+                title=f"家計簿AIレビュー ({timeframe})",
+                summary=ai_response.slack_summary,
+                actions=ai_response.actions,
+                score=ai_response.totonoi_score
+            )
+            if graph_path:
+                notifier.upload_file(graph_path, f"資産推移グラフ ({timeframe})")
+
+        # 4. 分析履歴を保存
+        db.save_analysis(
+            timeframe=timeframe, 
+            summary=ai_response.slack_summary, 
+            report_path=saved_path or "", 
+            score=ai_response.totonoi_score, 
+            raw_response=json.dumps(ai_response.model_dump(), ensure_ascii=False)
+        )
+        return ai_response
+
+    except Exception as e:
+        print(f"Error in run_review: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def main():
     parser = argparse.ArgumentParser(description="Kakeibo AI Review System")
     parser.add_argument("--source", type=str, choices=["mf", "zaim"], default="mf", help="データソース (mf or zaim)")

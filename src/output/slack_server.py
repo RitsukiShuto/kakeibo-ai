@@ -1,7 +1,9 @@
 import os
+import threading
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
+from main import run_review
 
 load_dotenv()
 
@@ -10,6 +12,36 @@ SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN")
 
 app = App(token=SLACK_BOT_TOKEN)
+
+@app.command("/review")
+def handle_review_command(ack, command, say, client):
+    """
+    Slackからのオンデマンド分析実行コマンド (/review)
+    """
+    ack()
+    user_id = command["user_id"]
+    timeframe = command.get("text", "weekly").strip()
+    if timeframe not in ["weekly", "monthly", "quarterly", "yearly"]:
+        timeframe = "weekly"
+
+    say(f"🆗 了解！{timeframe}の家計簿を分析してくるから、ちょっと待っててね！✨")
+    
+    # 分析は時間がかかるため、別スレッドで実行
+    def run_async_analysis():
+        try:
+            # 最新データを取得して分析 (headless=True)
+            result = run_review(timeframe=timeframe, headless=True)
+            if not result:
+                client.chat_postEphemeral(
+                    channel=command["channel_id"],
+                    user=user_id,
+                    text="❌ ごめん、分析中にエラーが出ちゃったみたい...。後でもう一回試してみて！"
+                )
+        except Exception as e:
+            print(f"Error in async analysis: {e}")
+
+    thread = threading.Thread(target=run_async_analysis)
+    thread.start()
 
 @app.action("action_done")
 def handle_action_done(ack, body, logger):
