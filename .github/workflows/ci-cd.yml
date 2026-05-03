@@ -1,13 +1,39 @@
-name: Deploy to Raspberry Pi
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run Tests
+      run: |
+        # プロジェクトルートをPythonパスとして認識させてテストを実行
+        PYTHONPATH=. python -m pytest tests/
+
   deploy:
-    # 前のステップ（テスト）が成功した時のみ実行
-    # needs: [ test ] # test.yml の job 名に合わせて後で有効化も可能
+    name: Deploy to Raspberry Pi
+    needs: test
+    # Pull Request時はテストのみ実行し、デプロイはmainにマージ(push)された時だけ走らせる
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: self-hosted
     
     steps:
