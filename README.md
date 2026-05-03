@@ -1,63 +1,74 @@
-# AI家計簿レビューシステム (MoneyForward版)
+# 🍓 Kakeibo AI Review System (v1.1.0)
 
-マネーフォワードMEから最新の家計簿データを自動取得し、Gemini API（AIデータサイエンティスト）が詳細な分析レポートを作成するシステムです。
-Raspberry Piでの自動運用を想定していますが、ローカル端末(Windows/Mac)でも動作します。
+マネーフォワードME や Zaim から最新の家計簿データを自動取得し、最新の **Gemini 2.0 Pro**（AIデータサイエンティスト「ギャル」）が詳細な分析レポートと改善アクションを提案するシステムです。
+Raspberry Piでの完全自動運用（CI/CDデプロイ対応）を想定していますが、ローカル端末(Windows/Mac)でも動作します。
 
-## 💡 特徴
-- **2フェーズ実行:** 「データ取得」と「AI分析」を分離し、デバッグやプロンプト調整が容易。
-- **自動セットアップモード:** 初回のみブラウザを表示して2段階認証をサポート。2回目以降は完全自動実行。
-- **最新データ重視:** 取得直前にマネフォの「一括更新」を実行し、銀行・カードの最新明細を反映。
-- **マルチ出力:** 詳細レポートを Obsidian (Markdown) へ保存し、要約を Slack へ通知。
+---
 
-## 🛠 セットアップ (Anaconda)
+## 💡 主な特徴と新機能
+- **🚀 Slack オンデマンド実行:** Slackのコマンド（`/review`）からいつでも分析をキックできます。急いでいる時は `/review monthly skip` でデータ取得をスキップして爆速実行も可能。
+- **📈 現実的な着地予測:** 単純な日割り計算を排除し、過去の傾向や固定費を加味した高度な「月末着地予測」を実装。
+- **🎯 アクション管理:** Slackに届く「ギャル・コマンド（改善提案）」の「やったよ！✨」ボタンを押すことで、インタラクティブにモチベーションを維持できます。
+- **📊 マルチ出力対応:** 詳細レポートを Obsidian (Markdown) へ自動保存し、要約を Slack へ通知。さらに `Streamlit` によるWebダッシュボードでグラフや履歴を確認可能。
+- **⚙️ CI/CD 自動デプロイ:** GitHub Actions に統合され、メインブランチへプッシュすると「テスト実行 ➜ 成功時のみ Raspberry Pi へ自動デプロイ ➜ Slackへ完了通知」という一連のパイプラインが稼働します。
+
+---
+
+## 🛠 セットアップ (Anaconda環境)
 
 ### 1. 仮想環境の作成と有効化
 ```bash
-# 環境の作成
 conda env create -f environment.yml
-
-# 環境の有効化
 conda activate kakeibo-ai
 ```
 
-### 2. ブラウザのインストール
+### 2. ブラウザエンジン (Playwright) のインストール
 ```bash
 python -m playwright install chromium
 ```
 
-### 3. 環境変数の設定
-`.env.example` を `.env` にリネームし、以下の情報を入力してください。
-- `MF_USER_ID`: マネーフォワードのメールアドレス
-- `MF_PASSWORD`: マネーフォワードのパスワード
+### 3. 環境変数の設定 (`.env`)
+プロジェクトルートの `.env.example` を `.env` にコピーし、以下の情報を入力してください。
+- `MF_USER_ID` / `MF_PASSWORD`: マネーフォワードのログイン情報
 - `GEMINI_API_KEY`: Google Gemini APIキー
-- `SLACK_WEBHOOK_URL`: Slackの Incoming Webhook URL
+- `SLACK_BOT_TOKEN` / `SLACK_APP_TOKEN`: Slackアプリ用のトークン（Bot権限とSocket Mode用）
+- `SLACK_USER_ID`: 通知を送るあなた個人のSlack User ID
 - `OBSIDIAN_VAULT_PATH`: ObsidianのVault（保管庫）のフルパス
 
-### 4. 初回ログイン (Setup)
-```bash
-python prepare_input.py
-```
-初回のみブラウザが立ち上がります。手動でログインと2段階認証を完了させてください。
-成功すると `config/settings.json` が更新され、次回から自動実行（画面なし）になります。
+---
 
 ## 🚀 使い方
 
-### Step 1: データの取得
+### パターンA: 手動・定期実行 (CLI)
+Cron等で自動実行させる場合の基本コマンドです。
 ```bash
-python prepare_input.py
-```
-マネーフォワードから最新明細を取得し、 `input_data.json` を作成します。
+# マネーフォワードのデータを元に、週次レビューを実行する
+python main.py --source mf --timeframe weekly
 
-### Step 2: AI分析の実行
-```bash
-python run_analysis.py
+# データ取得をスキップして、過去データで月次レビューのみ再実行する
+python main.py --source mf --timeframe monthly --skip-fetch
 ```
-`input_data.json` を読み込み、AI分析レポートを生成して Obsidian/Slack へ出力します。
+
+### パターンB: Slack連携サーバーの起動
+裏側でサーバーを立ち上げておくことで、スマホのSlackアプリからいつでも操作できるようになります。
+```bash
+python src/output/slack_server.py
+```
+> Slack側で `/review` または `/review monthly` と送信してください。
+
+### パターンC: Webダッシュボードの起動
+ブラウザで資産推移グラフや最新のレポートを確認できます。
+```bash
+streamlit run dashboard.py
+```
+
+---
 
 ## 📂 ディレクトリ構造
-- `src/fetcher/`: データ取得（MoneyForward, Zaim）
-- `src/analyzer/`: AI分析（Gemini プロンプト設計）
-- `src/output/`: 出力処理（Slack, Obsidian）
-- `config/`: システム設定・状態管理
-- `docs/`: 設計ドキュメント類
-- `input_data.json`: 一時保存される家計簿データ（AIへのインプット）
+- `src/fetcher/`: 家計簿データのスクレイピング・API取得（MoneyForward, Zaim）
+- `src/analyzer/`: Gemini API を活用したデータ分析・プロンプトエンジン
+- `src/output/`: 各種プラットフォームへの出力（Slack, Obsidian, Visualizer）
+- `src/db/`: データベース管理（SQLite）
+- `tests/`: ユニットテスト群（pytest）
+- `.github/workflows/`: CI/CDパイプライン (`ci-cd.yml`)
+- `docs/`: Raspberry Pi 構築ガイド等のドキュメント

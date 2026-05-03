@@ -55,15 +55,24 @@ scp -r ./mf_session [ユーザー名]@[IPアドレス]:~/kakeibo-ai/
 ```
 
 ## 6. 動作確認
-まずはデバッグモード（Slack/Obsidian連携オフ）で、コンソールにレポートが表示されるか確認します。
+まずはデバッグモード（Slack連携のみ、データ保存なし等）で、コンソールにレポートが表示されるか確認します。
 
 ```bash
 conda activate kakeibo-ai
-python main.py --source mf --timeframe weekly --no-slack --no-obsidian
+python main.py --source mf --timeframe weekly --no-obsidian
 ```
 
-## 7. 定期実行の設定 (Cron)
-毎週月曜の朝9時に実行する場合の設定例です。
+## 7. Slack 連携サーバーの常駐化（オンデマンド実行）
+Slackから `/review` コマンドでいつでも分析を実行できるようにするため、サーバーをバックグラウンドで起動させます。
+
+```bash
+cd ~/kakeibo-ai
+nohup /home/r410/miniconda3/bin/conda run -n kakeibo-ai python src/output/slack_server.py > slack_server.log 2>&1 &
+```
+※より本格的に運用する場合は `systemd` でのサービス化を推奨します。
+
+## 8. 定期実行の設定 (Cron)
+毎週月曜の朝9時に自動実行する場合の設定例です。
 
 ```bash
 crontab -e
@@ -77,4 +86,5 @@ crontab -e
 
 ## 🛠 トラブルシューティング
 - **Playwright エラー**: `playwright install-deps` が必要になる場合があります（スクリプト内で実行済みですが、失敗した場合は手動で実行してください）。
+- **モジュールが見つからないエラー**: Cron で実行する際、`PYTHONPATH=.` の指定が必要な場合があります。
 - **メモリ不足**: Raspberry Pi 4 (2GB以下) の場合、ブラウザ実行中にスワップメモリを増やす必要があるかもしれません。

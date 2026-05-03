@@ -47,3 +47,4 @@ tools/create_issues.py
 # --- System / OS ---
 .DS_Store
 Thumbs.db
+tools/list_issues.py
