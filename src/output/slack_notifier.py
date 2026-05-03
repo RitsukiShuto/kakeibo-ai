@@ -14,10 +14,25 @@ class SlackNotifier:
         self.user_id = os.getenv("SLACK_USER_ID")
         self.client = WebClient(token=self.bot_token) if self.bot_token else None
         
+        self.dashboard_url = os.getenv("DASHBOARD_URL")
+        if not self.dashboard_url:
+            self.dashboard_url = f"http://{self._get_local_ip()}:8501"
+
         if not self.bot_token:
             print("Warning: SLACK_BOT_TOKEN is not set.")
         if not self.user_id:
             print("Warning: SLACK_USER_ID is not set.")
+
+    def _get_local_ip(self):
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "localhost"
 
     def send_notification(self, title: str, text: str):
         """
@@ -92,7 +107,7 @@ class SlackNotifier:
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": "詳細レポートは Obsidian でチェックしてね！✨"
+                    "text": f"詳細レポートは Obsidian または <{self.dashboard_url}|🌐 Webダッシュボード> でチェックしてね！✨"
                 }
             ]
         })
