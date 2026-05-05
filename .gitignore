@@ -29,6 +29,8 @@ input_data.json
 # 雛形としての .example だけ残し、実データは除外
 config/profile.json
 config/budget.json
+config/schedule.json
+config/settings.json
 
 # --- Reports & Temporary Outputs (PERSONAL INFO) ---
 reports/
