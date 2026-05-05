@@ -7,7 +7,7 @@ dependencies:
   - pip
   - pip:
       - pyzaim
-      - google-genai
+      - google-generativeai
       - python-dotenv
       - requests
       - slack-sdk
@@ -16,3 +16,7 @@ dependencies:
       - pandas
       - matplotlib
       - seaborn
+      - pydantic
+      - pytest
+      - pytest-mock
+      - streamlit
