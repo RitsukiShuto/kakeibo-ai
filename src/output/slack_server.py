@@ -1,9 +1,13 @@
 import os
 import sys
 import threading
+from datetime import datetime
 
 # プロジェクトルートディレクトリをインポートパスに追加
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+# slack_server.py は src/output/ にあるため、3階層上がルート
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
@@ -46,10 +50,7 @@ def handle_review_command(ack, command, respond, client):
     def run_async_analysis():
         try:
             # 最新データを取得して分析 (headless=True)
-            def progress_update(msg):
-                respond(msg)
-                
-            result = run_review(timeframe=timeframe, headless=True, skip_fetch=skip_fetch, progress_callback=progress_update)
+            result = run_review(timeframe=timeframe, headless=True, skip_fetch=skip_fetch)
             if not result:
                 respond("❌ ごめん、分析中にエラーが出ちゃったみたい...。後でもう一回試してみて！")
         except Exception as e:
