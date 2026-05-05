@@ -43,6 +43,8 @@ logs/*.log
 tools/sync_to_pi.sh
 tools/sync_to_pi.ps1
 tools/create_issues.py
+tools/setup_systemd.sh
+infra/systemd/
 
 # --- System / OS ---
 .DS_Store
