@@ -21,7 +21,8 @@ SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN")
 
 # テスト実行時やインポート時のエラーを防ぐため、未設定時はダミーを入れる
-app = App(token=SLACK_BOT_TOKEN or "xoxb-dummy")
+# token_verification_enabled=False を指定して、初期化時の Slack API 通信（auth.test）を無効化する
+app = App(token=SLACK_BOT_TOKEN or "xoxb-dummy", token_verification_enabled=False)
 
 @app.command("/review")
 def handle_review_command(ack, command, respond, client):
