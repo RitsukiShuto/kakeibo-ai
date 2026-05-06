@@ -36,41 +36,36 @@ jobs:
   deploy:
     name: Deploy to Raspberry Pi
     needs: test
-    # Pull Request時はテストのみ実行し、デプロイはmainにマージ(push)された時だけ走らせる
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: self-hosted
+    # GitHub側の共通サーバーで実行
+    runs-on: ubuntu-latest
     
     steps:
-      - name: Update code in production directory
-        run: |
-          cd /home/r410/kakeibo-ai
-          git pull origin main
-          
-      - name: Update Conda environment and Systemd Services
-        run: |
-          cd /home/r410/kakeibo-ai
-          /home/r410/miniconda3/bin/conda env update -n kakeibo-ai -f environment.yml
-          /home/r410/miniconda3/bin/conda run -n kakeibo-ai pip install -r requirements.txt
-          
-          # Systemd ユニットファイルの更新
-          sudo cp infra/systemd/kakeibo-*.service /etc/systemd/system/
-          sudo cp infra/systemd/kakeibo-*.timer /etc/systemd/system/
-          sudo systemctl daemon-reload
-          
-          # 各サービスの再起動（設定変更の反映）
-          sudo systemctl restart kakeibo-slack.service
-          sudo systemctl restart kakeibo-dashboard.service
-          sudo systemctl restart kakeibo-review.timer
-          
-      - name: Slack Notification (Success)
-        if: success()
-        run: |
-          cd /home/r410/kakeibo-ai
-          export COMMIT_MSG="$(git log -1 --pretty=format:'%s')"
-          /home/r410/miniconda3/bin/conda run -n kakeibo-ai python -c "import os; from src.output.slack_notifier import SlackNotifier; from src import __version__; msg = os.environ.get('COMMIT_MSG', '取得できませんでした'); SlackNotifier().send_notification('🚀 アップデート完了', f'Kakeibo AI (v{__version__}) が本番環境に正常にデプロイされました！\n\n*更新内容:*\n> {msg}')"
-
-      - name: Slack Notification (Failure)
-        if: failure()
-        run: |
-          cd /home/r410/kakeibo-ai
-          /home/r410/miniconda3/bin/conda run -n kakeibo-ai python -c "from src.output.slack_notifier import SlackNotifier; SlackNotifier().send_notification('❌ デプロイ失敗', '本番環境へのアップデート中にエラーが発生しました。エラーログを確認してください。')"
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PI_HOST }}
+          username: ${{ secrets.PI_USER }}
+          key: ${{ secrets.PI_SSH_KEY }}
+          # ラズパイ上で実行するコマンド群
+          script: |
+            cd /home/r410/kakeibo-ai
+            git pull origin main
+            
+            # 環境の更新
+            /home/r410/miniconda3/bin/conda env update -n kakeibo-ai -f environment.yml
+            /home/r410/miniconda3/bin/conda run -n kakeibo-ai pip install -r requirements.txt
+            
+            # Systemd ユニットファイルの更新
+            sudo cp infra/systemd/kakeibo-*.service /etc/systemd/system/
+            sudo cp infra/systemd/kakeibo-*.timer /etc/systemd/system/
+            sudo systemctl daemon-reload
+            
+            # 各サービスの再起動
+            sudo systemctl restart kakeibo-slack.service
+            sudo systemctl restart kakeibo-dashboard.service
+            sudo systemctl restart kakeibo-review.timer
+            
+            # 完了通知
+            export COMMIT_MSG="$(git log -1 --pretty=format:'%s')"
+            /home/r410/miniconda3/bin/conda run -n kakeibo-ai python -c "import os; from src.output.slack_notifier import SlackNotifier; from src import __version__; msg = os.environ.get('COMMIT_MSG', '取得できませんでした'); SlackNotifier().send_notification('🚀 アップデート完了', f'Kakeibo AI (v{__version__}) が本番環境に正常にデプロイされました！\n\n*更新内容:*\n> {msg}')"
