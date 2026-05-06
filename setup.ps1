@@ -22,19 +22,20 @@ conda run -n $EnvName playwright install chromium
 
 # 3. Environment File
 Write-Host "`n[3/4] Preparing .env file..." -ForegroundColor Yellow
-if (-not (Test-Path ".env")) 
+if (-not (Test-Path "local")) { New-Item -ItemType Directory -Path "local" | Out-Null }
+if (-not (Test-Path "local/.env")) 
 {
-    Copy-Item ".env.example" ".env"
-    Write-Host ".env file created. Please set your API keys." -ForegroundColor Green
+    Copy-Item "local/.env.example" "local/.env"
+    Write-Host "local/.env file created. Please set your API keys." -ForegroundColor Green
 } 
 else 
 {
-    Write-Host ".env file already exists. Skipping."
+    Write-Host "local/.env file already exists. Skipping."
 }
 
 # 4. Directories
 Write-Host "`n[4/4] Creating directories..." -ForegroundColor Yellow
-$dirs = @("data", "logs", "reports/Reviews/Kakeibo", "data/import/transactions")
+$dirs = @("local/config", "data", "logs", "reports/Reviews/Kakeibo", "data/import/transactions")
 foreach ($dir in $dirs) 
 {
     if (-not (Test-Path $dir)) 
@@ -44,8 +45,17 @@ foreach ($dir in $dirs)
     }
 }
 
+# Copy initial config files from local/config/*.example
+Get-ChildItem "local/config/*.json.example" | ForEach-Object {
+    $dest = $_.FullName.Replace(".example", "")
+    if (-not (Test-Path $dest)) {
+        Copy-Item $_.FullName $dest
+    }
+}
+Write-Host "Directories prepared and initial config files created in local/config/."
+
 Write-Host "`n=== Setup Completed! ===" -ForegroundColor Cyan
-Write-Host "1. Edit '.env' and set GEMINI_API_KEY, etc."
+Write-Host "1. Edit 'local/.env' and set GEMINI_API_KEY, etc."
 Write-Host "2. Run 'powershell ./run.ps1 --no-headless' to login to MoneyForward."
 Write-Host "3. If you have historical CSVs, put them in 'data/import/transactions' and run:"
 Write-Host "   conda run -n $EnvName python tools/import_mf_csv.py [CSV_PATH]" -ForegroundColor Gray

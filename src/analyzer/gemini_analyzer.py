@@ -7,7 +7,7 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from src.models import Transaction, Asset, AIResponse
 
-load_dotenv()
+load_dotenv("local/.env")
 
 class GeminiAnalyzer:
     def __init__(self):

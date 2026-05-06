@@ -7,7 +7,7 @@ from slack_sdk.errors import SlackApiError
 from src.models import AIAction
 from src import __version__
 
-load_dotenv()
+load_dotenv("local/.env")
 
 class SlackNotifier:
     def __init__(self):

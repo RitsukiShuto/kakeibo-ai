@@ -2,7 +2,7 @@ import sqlite3
 import json
 
 def inspect_db():
-    db_path = "data/kakeibo.db"
+    db_path = "local/kakeibo.db"
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()

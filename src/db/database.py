@@ -6,7 +6,7 @@ from typing import List, Optional
 from src.models import Transaction, Asset
 
 class Database:
-    def __init__(self, db_path: str = "data/kakeibo.db"):
+    def __init__(self, db_path: str = "local/kakeibo.db"):
         self.db_path = db_path
         self._memory_conn = None
         if self.db_path != ":memory:":

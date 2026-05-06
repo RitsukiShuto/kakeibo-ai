@@ -27,8 +27,8 @@ conda activate kakeibo-ai
 python -m playwright install chromium
 ```
 
-### 3. 環境変数の設定 (`.env`)
-プロジェクトルートの `.env.example` を `.env` にコピーし、以下の情報を入力してください。
+### 3. 環境変数の設定 (`local/.env`)
+プロジェクトルートの `.env.example` を `local/.env` にコピーし（`setup.sh`/`setup.ps1`を実行すれば自動で行われます）、以下の情報を入力してください。
 - `MF_USER_ID` / `MF_PASSWORD`: マネーフォワードのログイン情報
 - `GEMINI_API_KEY`: Google Gemini APIキー
 - `SLACK_BOT_TOKEN` / `SLACK_APP_TOKEN`: Slackアプリ用のトークン（Bot権限とSocket Mode用）

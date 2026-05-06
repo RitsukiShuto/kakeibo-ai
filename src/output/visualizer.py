@@ -18,7 +18,7 @@ class Visualizer:
         else: # Linux/Raspberry Pi
             plt.rcParams['font.sans-serif'] = ['IPAexGothic', 'Noto Sans CJK JP']
 
-    def generate_asset_trend_graph(self, db_path: str = "data/kakeibo.db") -> str:
+    def generate_asset_trend_graph(self, db_path: str = "local/kakeibo.db") -> str:
         """
         資産推移のグラフを生成し、保存したパスを返す
         """

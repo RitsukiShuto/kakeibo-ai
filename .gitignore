@@ -16,21 +16,25 @@ dist/
 .idea/
 
 # --- Secrets & Credentials (CRITICAL) ---
-.env
-mf_session/
+# 全ての機密・ローカル設定ファイルを local/ に集約し、フォルダごと除外
+local/.env
+local/mf_session
+local/*.db
+local/config/*.json
+!local/.env.example
+!local/config/*.json.example
 
 # --- Databases & Raw Data (PERSONAL INFO) ---
 *.db
 *.db-journal
-data/csv/*.csv
 input_data.json
+data/csv/*
+data/import/transactions/*
+
 
 # --- User Profiles (PERSONAL INFO) ---
 # 雛形としての .example だけ残し、実データは除外
-config/profile.json
-config/budget.json
-config/schedule.json
-config/settings.json
+# config/ フォルダ内の実データは local/config/ へ移動済み
 
 # --- Reports & Temporary Outputs (PERSONAL INFO) ---
 reports/

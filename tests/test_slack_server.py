@@ -48,13 +48,15 @@ def test_handle_action_done(mock_app):
     mock_app.client.chat_postMessage.assert_called_once()
 
 @patch('src.output.slack_server.SocketModeHandler')
-@patch.dict('os.environ', {'SLACK_APP_TOKEN': 'xapp-123'})
 def test_start_slack_server(mock_handler):
     mock_instance = MagicMock()
     mock_handler.return_value = mock_instance
-    start_slack_server()
-    mock_instance.start.assert_called_once()
+    with patch('src.output.slack_server.SLACK_APP_TOKEN', 'xapp-123'):
+        start_slack_server()
+        mock_instance.start.assert_called_once()
 
-@patch.dict('os.environ', {'SLACK_APP_TOKEN': ''})
 def test_start_slack_server_no_token():
-    start_slack_server()
+    with patch('src.output.slack_server.SLACK_APP_TOKEN', None):
+        start_slack_server()
+    with patch('src.output.slack_server.SLACK_APP_TOKEN', ''):
+        start_slack_server()

@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from src.models import Transaction, Asset
 from src.fetcher.base_fetcher import BaseFetcher
 
-load_dotenv()
+load_dotenv("local/.env")
 
 # ログの設定
 log_dir = os.path.join(os.getcwd(), "logs")
@@ -19,7 +19,7 @@ class MoneyForwardFetcher(BaseFetcher):
     def __init__(self):
         self.user_id = os.getenv("MF_USER_ID")
         self.password = os.getenv("MF_PASSWORD")
-        self.user_data_dir = os.path.join(os.getcwd(), "mf_session")
+        self.user_data_dir = os.path.join(os.getcwd(), "local/mf_session")
         self.logger = logging.getLogger(__name__)
 
     def _login_and_update(self, page, headless: bool):

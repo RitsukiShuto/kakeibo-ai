@@ -110,7 +110,7 @@ def _process_single_csv(file_path: str, db_path: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Import MoneyForward CSV to Database")
     parser.add_argument("path", help="Path to a CSV file or a directory containing CSVs")
-    parser.add_argument("--db", default="data/kakeibo.db", help="Path to the SQLite database")
+    parser.add_argument("--db", default="local/kakeibo.db", help="Path to the SQLite database")
     
     args = parser.parse_args()
     import_csv(args.path, args.db)

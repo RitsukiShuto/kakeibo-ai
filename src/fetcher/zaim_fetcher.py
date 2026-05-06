@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from src.models import Transaction, Asset
 from src.fetcher.base_fetcher import BaseFetcher
 
-load_dotenv()
+load_dotenv("local/.env")
 
 class ZaimFetcher(BaseFetcher):
     def __init__(self):
@@ -18,7 +18,7 @@ class ZaimFetcher(BaseFetcher):
         if not all([consumer_id, consumer_secret, access_token, access_token_secret]):
             raise ValueError("Zaim API keys are missing.")
 
-        self.api = ZaimAPI(consumer_id, consumer_secret, access_token, access_token_secret)
+        self.api = ZaimAPI(consumer_id, consumer_secret, access_token, access_token_secret, oauth_verifier=None)
         self.categories = self.api.category()
         self.genres = self.api.genre()
 

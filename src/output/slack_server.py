@@ -14,7 +14,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
 from main import run_review
 
-load_dotenv()
+load_dotenv(os.path.join(ROOT_DIR, "local/.env"))
 
 # App Token (xapp-...) と Bot Token (xoxb-...) が必要です
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")

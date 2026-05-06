@@ -5,10 +5,14 @@ import os
 import io
 from datetime import datetime
 
-# Windowsでの文字化け対策
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+def setup_windows_encoding():
+    # Windowsでの文字化け対策
+    if sys.platform == "win32":
+        import io
+        if hasattr(sys.stdout, 'buffer'):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        if hasattr(sys.stderr, 'buffer'):
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 from src.db.database import Database
 from src.fetcher.moneyforward_fetcher import MoneyForwardFetcher
@@ -17,6 +21,9 @@ from src.analyzer.gemini_analyzer import GeminiAnalyzer
 from src.output.slack_notifier import SlackNotifier
 from src.output.obsidian_writer import ObsidianWriter
 from src.output.visualizer import Visualizer
+
+from dotenv import load_dotenv
+load_dotenv("local/.env")
 
 def load_config(file_path):
     if os.path.exists(file_path):
@@ -49,13 +56,13 @@ def get_scheduled_timeframe(schedule):
     
     return None
 
-def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "data/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
+def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
     """
     家計簿レビューのメイン工程を実行する (CLIとSlackサーバーの両方から呼び出し可能)
     """
-    schedule = load_config("config/schedule.json")
-    profile = load_config("config/profile.json")
-    budget = load_config("config/budget.json")
+    schedule = load_config("local/config/schedule.json")
+    profile = load_config("local/config/profile.json")
+    budget = load_config("local/config/budget.json")
 
     if not timeframe:
         timeframe = get_scheduled_timeframe(schedule)
@@ -151,6 +158,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
         return None
 
 def main():
+    setup_windows_encoding()
     parser = argparse.ArgumentParser(description="Kakeibo AI Review System")
     parser.add_argument("--source", type=str, choices=["mf", "zaim"], default="mf", help="データソース (mf or zaim)")
     parser.add_argument("--timeframe", type=str, choices=["weekly", "monthly", "quarterly", "yearly"], help="分析のタイムフレーム")
@@ -158,7 +166,7 @@ def main():
     parser.add_argument("--no-headless", action="store_false", dest="headless", help="ブラウザを表示して実行 (MF用)")
     parser.add_argument("--fetch-only", action="store_true", help="データ取得のみ実行")
     parser.add_argument("--skip-fetch", action="store_true", help="データ取得をスキップして既存DBから分析")
-    parser.add_argument("--db-path", type=str, default="data/kakeibo.db", help="SQLite DBのパス")
+    parser.add_argument("--db-path", type=str, default="local/kakeibo.db", help="SQLite DBのパス")
     
     # 出力制御フラグ
     parser.add_argument("--console", action="store_true", default=True, help="コンソールに結果を表示")
@@ -173,9 +181,9 @@ def main():
     print(f"--- Kakeibo AI Review Task Start: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
     print(f"Source: {args.source}, Headless: {args.headless}")
 
-    schedule = load_config("config/schedule.json")
-    profile = load_config("config/profile.json")
-    budget = load_config("config/budget.json")
+    schedule = load_config("local/config/schedule.json")
+    profile = load_config("local/config/profile.json")
+    budget = load_config("local/config/budget.json")
 
     timeframe = args.timeframe
     fetch_only = args.fetch_only

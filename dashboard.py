@@ -5,16 +5,20 @@ import json
 import os
 from datetime import datetime
 from src.db.database import Database
+from dotenv import load_dotenv
 
 # ページ設定 (サイドバーなし、ワイドモード)
 st.set_page_config(page_title="Kakeibo AI Dashboard", page_icon="💰", layout="wide", initial_sidebar_state="collapsed")
 
+# 環境変数の読み込み
+load_dotenv("local/.env")
+
 # データベース接続
-DB_PATH = "data/kakeibo.db"
+DB_PATH = "local/kakeibo.db"
 db = Database(db_path=DB_PATH)
 
 def load_budget():
-    budget_path = "config/budget.json"
+    budget_path = "local/config/budget.json"
     if os.path.exists(budget_path):
         with open(budget_path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -61,7 +65,7 @@ def render_dashboard_content(timeframe):
                     st.write(f"{cat}: {a_amt:,} / {b_amt:,}")
                     st.progress(progress)
         else:
-            st.info("`config/budget.json` が設定されていません。")
+            st.info("`local/config/budget.json` が設定されていません。")
 
         st.divider()
 
