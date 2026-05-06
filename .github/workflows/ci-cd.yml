@@ -46,11 +46,21 @@ jobs:
           cd /home/r410/kakeibo-ai
           git pull origin main
           
-      - name: Update Conda environment
+      - name: Update Conda environment and Systemd Services
         run: |
           cd /home/r410/kakeibo-ai
           /home/r410/miniconda3/bin/conda env update -n kakeibo-ai -f environment.yml
           /home/r410/miniconda3/bin/conda run -n kakeibo-ai pip install -r requirements.txt
+          
+          # Systemd ユニットファイルの更新
+          sudo cp infra/systemd/kakeibo-*.service /etc/systemd/system/
+          sudo cp infra/systemd/kakeibo-*.timer /etc/systemd/system/
+          sudo systemctl daemon-reload
+          
+          # 各サービスの再起動（設定変更の反映）
+          sudo systemctl restart kakeibo-slack.service
+          sudo systemctl restart kakeibo-dashboard.service
+          sudo systemctl restart kakeibo-review.timer
           
       - name: Slack Notification (Success)
         if: success()

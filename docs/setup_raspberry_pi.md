@@ -66,14 +66,20 @@ conda activate kakeibo-ai
 python main.py --source mf --timeframe weekly --no-obsidian
 ```
 
-## 6. Slack 連携サーバーの常駐化（オンデマンド実行）
-Slackから `/review` コマンドでいつでも分析を実行できるようにするため、サーバーをバックグラウンドで起動させます。
+## 6. Slack 連携・ダッシュボードサーバーの常駐化
+Slackから `/review` コマンドでいつでも分析を実行できるようにし、かつ Web ダッシュボードを常時閲覧可能にするため、Systemd でサービスを起動させます。
 
 ```bash
-cd ~/kakeibo-ai
-nohup /home/r410/miniconda3/bin/conda run -n kakeibo-ai python src/output/slack_server.py > slack_server.log 2>&1 &
+# サービスファイルのコピー
+sudo cp infra/systemd/kakeibo-*.service /etc/systemd/system/
+sudo cp infra/systemd/kakeibo-*.timer /etc/systemd/system/
+
+# デーモンのリロードと有効化
+sudo systemctl daemon-reload
+sudo systemctl enable kakeibo-slack.service kakeibo-dashboard.service kakeibo-review.timer
+sudo systemctl start kakeibo-slack.service kakeibo-dashboard.service kakeibo-review.timer
 ```
-※より本格的に運用する場合は `systemd` でのサービス化を推奨します。
+
 
 ## 7. 定期実行の設定 (Cron)
 毎週月曜の朝9時に自動実行する場合の設定例です。
