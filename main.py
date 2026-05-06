@@ -118,7 +118,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
 
         # 1. コンソール出力
         if output_console:
-            print(f"AI Review ({timeframe}) Generated: {ai_response.slack_summary}")
+            print(f"AI Review ({timeframe}) Generated: {ai_response.slack_report}")
 
         # 2. Obsidian保存
         saved_path = ""
@@ -134,7 +134,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
             notifier = SlackNotifier()
             notifier.send_block_kit(
                 title=f"家計簿AIレビュー ({timeframe})",
-                summary=ai_response.slack_summary,
+                report=ai_response.slack_report,
                 actions=ai_response.actions,
                 score=ai_response.totonoi_score
             )
@@ -144,7 +144,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
         # 4. 分析履歴を保存
         db.save_analysis(
             timeframe=timeframe, 
-            summary=ai_response.slack_summary, 
+            summary=ai_response.slack_report, 
             report_path=saved_path or "", 
             score=ai_response.totonoi_score, 
             raw_response=json.dumps(ai_response.model_dump(), ensure_ascii=False)
@@ -259,7 +259,7 @@ def main():
             output_text = "\n" + "="*50 + "\n"
             output_text += f"🤖 AI分析レポート ({timeframe})\n"
             output_text += "-" * 50 + "\n"
-            output_text += f"【要約】\n{ai_response.slack_summary}\n\n"
+            output_text += f"【詳細】\n{ai_response.slack_report}\n\n"
             
             output_text += f"【予算状況 (予実)】:\n"
             for b in ai_response.budget_status:
@@ -306,7 +306,7 @@ def main():
             try:
                 notifier.send_block_kit(
                     title=f"家計簿AIレビュー ({timeframe})",
-                    summary=ai_response.slack_summary,
+                    report=ai_response.slack_report,
                     actions=ai_response.actions,
                     score=ai_response.totonoi_score
                 )
@@ -318,7 +318,7 @@ def main():
         # 4. 分析履歴を保存
         db.save_analysis(
             timeframe=timeframe, 
-            summary=ai_response.slack_summary, 
+            summary=ai_response.slack_report, 
             report_path=saved_path or "", 
             score=ai_response.totonoi_score, 
             raw_response=json.dumps(ai_response.model_dump(), ensure_ascii=False)

@@ -69,7 +69,7 @@ class SlackNotifier:
         except Exception as e:
             print(f"Failed to send simple notification: {e}")
 
-    def send_block_kit(self, title: str, summary: str, actions: List[AIAction], score: int):
+    def send_block_kit(self, title: str, report: str, actions: List[AIAction], score: int):
         """
         Slack Web API を使用して DM を送信する
         """
@@ -93,7 +93,7 @@ class SlackNotifier:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*ととのい指数: {score_emoji} {score}*\n{summary}"
+                    "text": f"*ととのい指数: {score_emoji} {score}*\n\n{report}"
                 }
             },
             {

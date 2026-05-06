@@ -21,7 +21,7 @@ def test_analyze_kakeibo_success(mock_genai, mock_env):
     
     mock_response = MagicMock()
     mock_response.text = '''{
-        "slack_summary": "テストサマリー",
+        "slack_report": "テスト詳細レポート",
         "obsidian_report": "# テストレポート",
         "actions": [{"command": "KEEP", "description": "いい感じ"}],
         "asset_breakdown": [{"category": "現金", "amount": 100}],
@@ -48,7 +48,7 @@ def test_analyze_kakeibo_success(mock_genai, mock_env):
 
     result = analyzer.analyze_kakeibo(transactions, assets, "monthly", profile, budget)
 
-    assert result.slack_summary == "テストサマリー"
+    assert result.slack_report == "テスト詳細レポート"
     assert result.totonoi_score == 80
     assert len(result.budget_status) == 1
     assert result.budget_status[0].category == "食費"

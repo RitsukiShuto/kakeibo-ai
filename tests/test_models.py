@@ -25,14 +25,15 @@ def test_transaction_validation():
         )
 
 def test_ai_response_validation():
-    # 正常系
+    # 正常系テスト
     resp = AIResponse(
-        slack_summary="Summary",
+        slack_report="Full report text",
         obsidian_report="# Report",
         actions=[AIAction(command="Cmd", description="Desc")],
         asset_breakdown=[AssetBreakdown(category="Cash", amount=100)],
         totonoi_score=90,
         savings_potential=500
     )
-    assert resp.totonoi_score == 90
+    assert resp.slack_report == "Full report text"
+
     assert len(resp.asset_breakdown) == 1

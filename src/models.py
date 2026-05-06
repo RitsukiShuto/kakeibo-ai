@@ -40,7 +40,7 @@ class BudgetStatus(BaseModel):
     status: str = Field(..., description="状態（OK, 警告, 超過など）")
 
 class AIResponse(BaseModel):
-    slack_summary: str = Field(..., description="Slack用要約")
+    slack_report: str = Field(..., description="Slack用詳細レポート")
     obsidian_report: str = Field(..., description="Obsidian用レポート")
     actions: List[AIAction] = Field(..., description="アクションリスト")
     asset_breakdown: List[AssetBreakdown] = Field(..., description="資産のカテゴリ別内訳")

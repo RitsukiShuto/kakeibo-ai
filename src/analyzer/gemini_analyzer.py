@@ -25,6 +25,7 @@ class GeminiAnalyzer:
         return model
 
     def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None) -> Optional[AIResponse]:
+        persona_settings = self._load_prompt_file("prompts/persona_settings.md")
         system_prompt_template = self._load_prompt_file("prompts/system_prompt.md")
         timeframe_prompt = self._load_prompt_file(f"prompts/{timeframe}_prompt.md")
         
@@ -43,8 +44,8 @@ class GeminiAnalyzer:
 
         # JSONスキーマの明示
         json_schema = {
-            "slack_summary": "Slack通知用の150文字程度の要約文（ギャル風）",
-            "obsidian_report": "Obsidian用のMarkdown形式の詳細レポート全文",
+            "slack_report": "Slack用の詳細レポート全文（Markdown/絵文字を駆使して過不足なく、ギャル風に）",
+            "obsidian_report": "Obsidian用のMarkdown形式の詳細レポート全文（Callout等を使用）",
             "actions": [
                 {"command": "Now/Keep/Stopなどの短いコマンド", "description": "具体的なアクション内容"}
             ],
@@ -59,6 +60,7 @@ class GeminiAnalyzer:
         }
 
         full_prompt = (
+            f"{persona_settings}\n\n"
             f"{system_prompt}\n\n"
             f"## 今回の分析の特別指示 ({timeframe})\n{timeframe_prompt}\n\n"
             f"## 分析対象データ\n{user_input}\n\n"
