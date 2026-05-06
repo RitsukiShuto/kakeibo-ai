@@ -185,6 +185,34 @@ class Database:
             conn.close()
         return result
 
+    def get_transactions_range(self, start_date: date, end_date: date) -> List[Transaction]:
+        """
+        指定した期間の取引明細を取得
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM transactions 
+            WHERE transaction_date BETWEEN ? AND ?
+            ORDER BY transaction_date ASC
+        """, (start_date.isoformat(), end_date.isoformat()))
+        rows = cursor.fetchall()
+        
+        result = [Transaction(
+            transaction_id=row["transaction_id"],
+            transaction_date=date.fromisoformat(row["transaction_date"]),
+            category=row["category"],
+            genre=row["genre"],
+            amount=row["amount"],
+            comment=row["comment"],
+            source=row["source"],
+            mode=row["mode"]
+        ) for row in rows]
+        
+        if self.db_path != ":memory:":
+            conn.close()
+        return result
+
     def get_monthly_actual_income(self, year: int, month: int) -> int:
         """
         指定した年月の合計収入（mode='income'）を取得

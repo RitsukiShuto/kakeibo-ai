@@ -98,3 +98,21 @@ def test_analysis_history_and_diff_logic(db):
     new_items = db.get_new_transactions_since_last_analysis("weekly")
     assert len(new_items) == 1
     assert new_items[0].transaction_id == "new"
+
+def test_get_transactions_range(db):
+    # テストデータの準備（3月と4月の明細）
+    t1 = Transaction(transaction_id="mar", transaction_date=date(2024,3,15), category="C", amount=1, source="S", mode="p")
+    t2 = Transaction(transaction_id="apr1", transaction_date=date(2024,4,1), category="C", amount=1, source="S", mode="p")
+    t3 = Transaction(transaction_id="apr15", transaction_date=date(2024,4,15), category="C", amount=1, source="S", mode="p")
+    t4 = Transaction(transaction_id="may", transaction_date=date(2024,5,1), category="C", amount=1, source="S", mode="p")
+    db.save_transactions([t1, t2, t3, t4])
+    
+    # 4月1日から4月30日までの範囲で取得
+    results = db.get_transactions_range(date(2024,4,1), date(2024,4,30))
+    
+    assert len(results) == 2
+    ids = [r.transaction_id for r in results]
+    assert "apr1" in ids
+    assert "apr15" in ids
+    assert "mar" not in ids
+    assert "may" not in ids

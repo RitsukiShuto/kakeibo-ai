@@ -36,7 +36,9 @@ def handle_review_command(ack, command, respond, client):
     skip_fetch = "skip" in raw_text
     timeframe_str = raw_text.replace("skip", "").strip()
 
-    if timeframe_str in ["m", "monthly"]:
+    if timeframe_str in ["d", "daily"]:
+        timeframe = "daily"
+    elif timeframe_str in ["m", "monthly"]:
         timeframe = "monthly"
     elif timeframe_str in ["y", "yearly"]:
         timeframe = "yearly"

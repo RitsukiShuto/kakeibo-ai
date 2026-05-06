@@ -33,8 +33,11 @@ def load_config(file_path):
     return {}
 
 def get_scheduled_timeframe(schedule):
+    """
+    スケジュール設定に基づき、今日実行すべきタイムフレームを返す
+    """
     today = datetime.now()
-    weekday = today.strftime("%A")
+    weekday = today.strftime("%A") # Monday, Tuesday, ...
     day = today.day
     month = today.month
 
@@ -42,15 +45,22 @@ def get_scheduled_timeframe(schedule):
     
     if reports.get("yearly", {}).get("enabled") and month == reports["yearly"].get("month") and day == 1:
         return "yearly"
+    
     if reports.get("quarterly", {}).get("enabled") and month in reports["quarterly"].get("months", []) and day == 1:
         return "quarterly"
+    
     if reports.get("monthly", {}).get("enabled") and day == reports["monthly"].get("target_day", 1):
         return "monthly"
+    
     if reports.get("weekly", {}).get("enabled") and weekday == reports["weekly"].get("target_day", "Monday"):
         return "weekly"
+    
     return None
 
 def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
+    """
+    家計簿レビューのメイン工程を実行する (CLIとSlackサーバーの両方から呼び出し可能)
+    """
     schedule = load_config("local/config/schedule.json")
     profile = load_config("local/config/profile.json")
     budget = load_config("local/config/budget.json")
@@ -87,17 +97,20 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
         comparison_data["prev_total_assets"] = db.get_monthly_total_assets(prev_date.year, prev_date.month)
         
         if timeframe == "weekly":
-            # 前週の収支（簡易的に現在から7日前〜14日前）
-            last_week_start = now - timedelta(days=14)
-            # 本来はDBに週次集計メソッドが必要だが、一旦月次バランスで代用検討
-            # Issue #35 の範囲として月次バランスを比較対象とする
             prev_bal_info = db.get_monthly_balance(prev_date.year, prev_date.month)
             comparison_data["prev_balance"] = prev_bal_info["balance"]
         else:
             prev_bal_info = db.get_monthly_balance(prev_date.year, prev_date.month)
             comparison_data["prev_balance"] = prev_bal_info["balance"]
         
-        new_transactions = db.get_new_transactions_since_last_analysis(timeframe)
+        if timeframe == "daily":
+            # 今月の1日から今日までの明細を取得
+            start_of_month = now.replace(day=1).date()
+            today = now.date()
+            new_transactions = db.get_transactions_range(start_of_month, today)
+        else:
+            new_transactions = db.get_new_transactions_since_last_analysis(timeframe)
+        
         asset_summary = db.get_asset_category_summary()
         latest_analysis = db.get_latest_analysis(timeframe)
         previous_summary = latest_analysis["summary"] if latest_analysis else None
@@ -164,7 +177,7 @@ def main():
     setup_windows_encoding()
     parser = argparse.ArgumentParser(description="Kakeibo AI Review System")
     parser.add_argument("--source", type=str, choices=["mf", "zaim"], default="mf", help="データソース (mf or zaim)")
-    parser.add_argument("--timeframe", type=str, choices=["weekly", "monthly", "quarterly", "yearly"], help="分析のタイムフレーム")
+    parser.add_argument("--timeframe", type=str, choices=["daily", "weekly", "monthly", "quarterly", "yearly"], help="分析のタイムフレーム")
     parser.add_argument("--headless", action="store_true", default=True, help="ブラウザを非表示で実行")
     parser.add_argument("--no-headless", action="store_false", dest="headless", help="ブラウザを表示して実行")
     parser.add_argument("--fetch-only", action="store_true", help="データ取得のみ実行")
