@@ -20,7 +20,7 @@ class GeminiAnalyzer:
         self.model_name = self._select_best_model()
 
     def _select_best_model(self):
-        model = 'gemini-2.0-pro-exp'
+        model = 'gemini-3.1-pro-preview'
         print(f"Selected model: {model}")
         return model
 

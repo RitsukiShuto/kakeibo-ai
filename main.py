@@ -68,6 +68,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
     if not timeframe:
         timeframe = get_scheduled_timeframe(schedule)
         if not timeframe:
+            print("No task scheduled. Defaulting to weekly for manual run.")
             timeframe = "weekly"
 
     db = Database(db_path=db_path)
@@ -75,17 +76,19 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
 
     try:
         if not skip_fetch:
-            if progress_callback: progress_callback("🔄 マネーフォワードから入出金履歴を取得中...")
+            if progress_callback: progress_callback("🔄 データ取得中...（少し時間がかかります）")
+            print(f"Fetching transactions from {source}...")
             transactions = fetcher.fetch_transactions(headless=headless)
             if transactions:
                 db.save_transactions(transactions)
             
-            if progress_callback: progress_callback("🔄 続いて資産データを取得中...")
+            print(f"Fetching assets from {source}...")
             assets = fetcher.fetch_assets(headless=headless)
             if assets:
                 db.save_assets(assets)
         
-        if progress_callback: progress_callback(f"🧠 データ取得完了！{timeframe}の家計簿をAIが分析中...")
+        if progress_callback: progress_callback(f"🧠 {timeframe}の家計簿をAIが分析中...💅✨")
+        print(f"Starting AI Analysis ({timeframe})...")
         analyzer = GeminiAnalyzer()
         
         now = datetime.now()
@@ -96,12 +99,9 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
         prev_date = now - relativedelta(months=1)
         comparison_data["prev_total_assets"] = db.get_monthly_total_assets(prev_date.year, prev_date.month)
         
-        if timeframe == "weekly":
-            prev_bal_info = db.get_monthly_balance(prev_date.year, prev_date.month)
-            comparison_data["prev_balance"] = prev_bal_info["balance"]
-        else:
-            prev_bal_info = db.get_monthly_balance(prev_date.year, prev_date.month)
-            comparison_data["prev_balance"] = prev_bal_info["balance"]
+        # 収支実績の比較
+        prev_bal_info = db.get_monthly_balance(prev_date.year, prev_date.month)
+        comparison_data["prev_balance"] = prev_bal_info["balance"]
         
         if timeframe == "daily":
             # 今月の1日から今日までの明細を取得
@@ -110,7 +110,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
             new_transactions = db.get_transactions_range(start_of_month, today)
         else:
             new_transactions = db.get_new_transactions_since_last_analysis(timeframe)
-        
+            
         asset_summary = db.get_asset_category_summary()
         latest_analysis = db.get_latest_analysis(timeframe)
         previous_summary = latest_analysis["summary"] if latest_analysis else None
@@ -129,6 +129,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
         if not ai_response:
             return None
 
+        # 0. グラフの生成
         graph_path = ""
         try:
             visualizer = Visualizer()
@@ -136,9 +137,11 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
         except Exception as e:
             print(f"Graph generation failed: {e}")
 
+        # 1. コンソール出力
         if output_console:
-            print(f"AI Review ({timeframe}) Generated: {ai_response.slack_report}")
+            print(f"AI Review ({timeframe}) Generated.")
 
+        # 2. Obsidian保存
         saved_path = ""
         if output_obsidian:
             writer = ObsidianWriter()
@@ -147,6 +150,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
                 report_content += f"\n\n## 📊 Asset Trend\n![[{os.path.basename(graph_path)}]]\n"
             saved_path = writer.write_report(report_content)
 
+        # 3. Slack通知
         if output_slack:
             notifier = SlackNotifier()
             notifier.send_block_kit(
@@ -158,6 +162,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
             if graph_path:
                 notifier.upload_file(graph_path, f"資産推移グラフ ({timeframe})")
 
+        # 4. 分析履歴を保存
         db.save_analysis(
             timeframe=timeframe, 
             summary=ai_response.slack_report, 
@@ -181,11 +186,16 @@ def main():
     parser.add_argument("--headless", action="store_true", default=True, help="ブラウザを非表示で実行")
     parser.add_argument("--no-headless", action="store_false", dest="headless", help="ブラウザを表示して実行")
     parser.add_argument("--fetch-only", action="store_true", help="データ取得のみ実行")
-    parser.add_argument("--skip-fetch", action="store_true", help="データ取得をスキップ")
+    parser.add_argument("--skip-fetch", action="store_true", help="データ取得をスキップして既存DBから分析")
     parser.add_argument("--db-path", type=str, default="local/kakeibo.db", help="SQLite DBのパス")
-    parser.add_argument("--console", action="store_true", default=True)
-    parser.add_argument("--slack", action="store_true", default=True)
-    parser.add_argument("--obsidian", action="store_true", default=True)
+    
+    # 出力制御フラグ
+    parser.add_argument("--console", action="store_true", default=True, help="コンソールに結果を表示")
+    parser.add_argument("--no-console", action="store_false", dest="console", help="コンソール表示を無効化")
+    parser.add_argument("--slack", action="store_true", default=True, help="Slack通知を有効化")
+    parser.add_argument("--no-slack", action="store_false", dest="slack", help="Slack通知を無効化")
+    parser.add_argument("--obsidian", action="store_true", default=True, help="Obsidian保存を有効化")
+    parser.add_argument("--no-obsidian", action="store_false", dest="obsidian", help="Obsidian保存を無効化")
     
     args = parser.parse_args()
 
