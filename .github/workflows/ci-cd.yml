@@ -25,6 +25,10 @@ jobs:
         pip install -r requirements.txt
         
     - name: Run Tests
+      env:
+        SLACK_BOT_TOKEN: xoxb-dummy
+        SLACK_APP_TOKEN: xapp-dummy
+        GEMINI_API_KEY: dummy-key
       run: |
         # プロジェクトルートをPythonパスとして認識させてテストを実行
         PYTHONPATH=. python -m pytest tests/

@@ -20,7 +20,8 @@ load_dotenv(os.path.join(ROOT_DIR, "local/.env"))
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN")
 
-app = App(token=SLACK_BOT_TOKEN)
+# テスト実行時やインポート時のエラーを防ぐため、未設定時はダミーを入れる
+app = App(token=SLACK_BOT_TOKEN or "xoxb-dummy")
 
 @app.command("/review")
 def handle_review_command(ack, command, respond, client):
@@ -75,8 +76,8 @@ def handle_action_done(ack, body, logger):
     )
 
 def start_slack_server():
-    if not SLACK_APP_TOKEN:
-        print("Error: SLACK_APP_TOKEN is not set. Slack server cannot start.")
+    if not SLACK_APP_TOKEN or not SLACK_BOT_TOKEN or SLACK_BOT_TOKEN == "xoxb-dummy":
+        print("Error: SLACK_APP_TOKEN or SLACK_BOT_TOKEN is not set. Slack server cannot start.")
         return
     
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
