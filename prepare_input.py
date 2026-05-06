@@ -50,7 +50,7 @@ def main():
             output = {
                 "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "source": "MoneyForward",
-                "transactions": data
+                "transactions": [t.model_dump(mode='json') for t in data]
             }
             output_file = "input_data.json"
             with open(output_file, "w", encoding="utf-8") as f:
