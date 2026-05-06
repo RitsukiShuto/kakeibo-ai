@@ -185,6 +185,68 @@ class Database:
             conn.close()
         return result
 
+    def get_monthly_actual_income(self, year: int, month: int) -> int:
+        """
+        指定した年月の合計収入（mode='income'）を取得
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        date_pattern = f"{year}-{month:02d}-%"
+        cursor.execute("""
+            SELECT SUM(amount) FROM transactions 
+            WHERE mode = 'income' AND transaction_date LIKE ?
+        """, (date_pattern,))
+        result = cursor.fetchone()[0] or 0
+        if self.db_path != ":memory:":
+            conn.close()
+        return result
+
+    def get_monthly_total_assets(self, year: int, month: int) -> int:
+        """
+        指定した年月の最終的な資産総額を取得（その月の最後の記録日を使用）
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        date_pattern = f"{year}-{month:02d}-%"
+        cursor.execute("""
+            SELECT SUM(amount) FROM assets 
+            WHERE acquired_date IN (
+                SELECT MAX(acquired_date) FROM assets 
+                WHERE acquired_date LIKE ?
+            )
+        """, (date_pattern,))
+        result = cursor.fetchone()[0] or 0
+        if self.db_path != ":memory:":
+            conn.close()
+        return result
+
+    def get_monthly_balance(self, year: int, month: int) -> dict:
+        """
+        指定した年月の収入・支出・収支をまとめて取得
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        date_pattern = f"{year}-{month:02d}-%"
+        cursor.execute("""
+            SELECT 
+                SUM(CASE WHEN mode = 'income' THEN amount ELSE 0 END) as income,
+                SUM(CASE WHEN mode = 'payment' THEN amount ELSE 0 END) as expense
+            FROM transactions 
+            WHERE transaction_date LIKE ?
+        """, (date_pattern,))
+        row = cursor.fetchone()
+        income = row["income"] or 0
+        expense = row["expense"] or 0
+        
+        if self.db_path != ":memory:":
+            conn.close()
+            
+        return {
+            "income": income,
+            "expense": expense,
+            "balance": income - expense
+        }
+
     def get_asset_category_summary(self) -> List[dict]:
         """
         最新日付の資産情報をカテゴリ別に集計して取得

@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from google import genai
 from google.genai import types
 from datetime import datetime
@@ -19,12 +20,11 @@ class GeminiAnalyzer:
         self.model_name = self._select_best_model()
 
     def _select_best_model(self):
-        # より高度で正確な推論・着地予測を行うため、最強クラスのProモデルを採用
         model = 'gemini-2.0-pro-exp'
         print(f"Selected model: {model}")
         return model
 
-    def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None) -> Optional[AIResponse]:
+    def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None) -> Optional[AIResponse]:
         persona_settings = self._load_prompt_file("prompts/persona_settings.md")
         system_prompt_template = self._load_prompt_file("prompts/system_prompt.md")
         timeframe_prompt = self._load_prompt_file(f"prompts/{timeframe}_prompt.md")
@@ -40,9 +40,8 @@ class GeminiAnalyzer:
             target_description=target.get('description', '目標なし')
         )
 
-        user_input = self._create_user_input_text(data, assets_summary, timeframe, budget, previous_summary)
+        user_input = self._create_user_input_text(data, assets_summary, timeframe, budget, previous_summary, actual_monthly_income, comparison_data)
 
-        # JSONスキーマの明示
         json_schema = {
             "slack_report": "Slack用の詳細レポート全文（Markdown/絵文字を駆使して過不足なく、ギャル風に）",
             "obsidian_report": "Obsidian用のMarkdown形式の詳細レポート全文（Callout等を使用）",
@@ -84,7 +83,6 @@ class GeminiAnalyzer:
             )
             raw_text = response.text.strip()
             
-            # JSONの抽出ロジックを強化
             start_idx = raw_text.find('{')
             end_idx = raw_text.rfind('}')
             if start_idx != -1 and end_idx != -1:
@@ -92,10 +90,7 @@ class GeminiAnalyzer:
             else:
                 json_candidate = raw_text
 
-            # 制御文字などの除去
             json_candidate = json_candidate.replace('\n', ' ').replace('\r', '')
-            # 連続するスペースを1つに（パースエラー軽減）
-            import re
             json_candidate = re.sub(r'\s+', ' ', json_candidate)
 
             result_json = json.loads(json_candidate)
@@ -105,7 +100,6 @@ class GeminiAnalyzer:
         except Exception as e:
             print(f"AI Analysis error: {e}")
             try:
-                # 文字化け対策としてエンコードを考慮して出力
                 print(f"Raw text (first 500 chars): {raw_text[:500].encode('utf-8', errors='replace').decode('utf-8')}")
             except:
                 print("Could not display raw text due to encoding issues.")
@@ -117,21 +111,27 @@ class GeminiAnalyzer:
                 return f.read()
         return ""
 
-    def _get_system_prompt(self, profile: dict) -> str:
-        # このメソッドは analyze_kakeibo 内に統合されたため不要になりましたが
-        # 互換性のために残すか削除します。今回はシンプルにするため削除扱いとします。
-        pass
-
-    def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None) -> str:
+    def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None) -> str:
         text = f"### 分析期間: {timeframe}\n\n"
         
         if previous_summary:
             text += f"#### 0. 前回の分析サマリー\n{previous_summary}\n\n"
 
         if budget:
-            text += "#### 1. 設定されている予算 (月次)\n"
+            text += "#### 1. 設定されている予算・収入状況 (月次)\n"
             monthly_budget = budget.get("monthly", {})
-            text += f"- 月間総収入目標: {monthly_budget.get('income', 0):,}円\n"
+            budget_income = monthly_budget.get('income', 0)
+            
+            has_salary_arrived = actual_monthly_income >= (budget_income * 0.8)
+            
+            text += f"- 月間総収入予算: {budget_income:,}円\n"
+            text += f"- 今月の現在までの実績収入: {actual_monthly_income:,}円\n"
+            
+            if has_salary_arrived:
+                text += "👉 **【判定】今月の給料は受取済みです。分析には実績の収入額をベースに使用してください。**\n"
+            else:
+                text += f"👉 **【判定】今月の給料はまだ入っていないか、全額ではありません。分析には予算額（{budget_income:,}円）を暫定的な収入として参照してください。**\n"
+
             text += f"- 貯蓄目標: {monthly_budget.get('savings_goal', 0):,}円\n"
             text += f"- 投資目標: {monthly_budget.get('investment_goal', 0):,}円\n"
             text += "  - カテゴリ別予算:\n"
@@ -139,13 +139,42 @@ class GeminiAnalyzer:
                 text += f"    - {cat}: {amt:,}円\n"
             text += "\n"
 
-        text += "#### 2. 今回追加された差分明細\n"
+        if comparison_data:
+            text += "#### 2. 前期間との定量比較データ\n"
+            # 純資産の前月比
+            if "prev_total_assets" in comparison_data:
+                curr = sum(a['amount'] for a in assets_summary)
+                prev = comparison_data["prev_total_assets"]
+                diff = curr - prev
+                ratio = (diff / prev * 100) if prev != 0 else 0
+                text += f"- 純資産の前月比: {diff:+,}円 ({ratio:+.1f}%)\n"
+            
+            # 収支の改善度合い
+            if "prev_balance" in comparison_data:
+                curr_income = actual_monthly_income
+                curr_expense = sum(t.amount for t in data if t.mode == 'payment')
+                curr_bal = curr_income - curr_expense
+                
+                prev_bal = comparison_data["prev_balance"]
+                bal_diff = curr_bal - prev_bal
+                
+                # 改善率の計算 (分母が0または負の場合の考慮が必要だが、簡易的に)
+                if prev_bal != 0:
+                    bal_ratio = (bal_diff / abs(prev_bal) * 100)
+                else:
+                    bal_ratio = 0
+                
+                text += f"- 収支の改善度 (前期間比): {bal_diff:+,}円 ({bal_ratio:+.1f}%)\n"
+            text += "\n"
+
+        text += "#### 3. 今回追加された差分明細\n"
         if not data:
             text += "なし\n"
         for t in data:
-            text += f"- {t.transaction_date}: {t.category}({t.genre}) {t.amount}円 {t.comment} [{t.source}]\n"
+            mode_ja = "支出" if t.mode == "payment" else "収入" if t.mode == "income" else "振替"
+            text += f"- {t.transaction_date}: [{mode_ja}] {t.category}({t.genre}) {t.amount}円 {t.comment} [{t.source}]\n"
             
-        text += "\n#### 3. 現在の資産状況（カテゴリ別集計済み）\n"
+        text += "\n#### 4. 現在の資産状況（カテゴリ別集計済み）\n"
         total_asset = 0
         for a in assets_summary:
             text += f"- {a['category']}: {a['amount']:,}円\n"
