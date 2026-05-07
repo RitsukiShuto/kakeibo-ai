@@ -86,6 +86,12 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
             assets = fetcher.fetch_assets(headless=headless)
             if assets:
                 db.save_assets(assets)
+            
+            # 立替金の自動マッチングを実行
+            print("Auto-matching reimbursements...")
+            matched = db.auto_match_reimbursements()
+            if matched:
+                print(f"Successfully auto-matched {matched} reimbursements!")
         
         if progress_callback: progress_callback(f"🧠 {timeframe}の家計簿をAIが分析中...💅✨")
         print(f"Starting AI Analysis ({timeframe})...")
