@@ -14,7 +14,7 @@ st.set_page_config(page_title="Kakeibo AI Dashboard", page_icon="💰", layout="
 load_dotenv("local/.env")
 
 # データベース接続
-DB_PATH = "local/kakeibo.db"
+DB_PATH = os.getenv("KAKEIBO_DB_PATH", "local/kakeibo.db")
 db = Database(db_path=DB_PATH)
 
 def load_budget():
@@ -212,7 +212,7 @@ def render_dashboard_content(timeframe):
         conn.close()
         
         if not df_tx.empty:
-            st.dataframe(df_tx, width='stretch', height=400)
+            st.dataframe(df_tx, use_container_width=True, height=400)
         else:
             st.caption("取引データがありません。")
 
