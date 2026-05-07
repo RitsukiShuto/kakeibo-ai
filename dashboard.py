@@ -40,7 +40,14 @@ def render_dashboard_content(timeframe):
             # 今月のデータを取得
             current_month = datetime.now().strftime("%Y-%m")
             conn = sqlite3.connect(DB_PATH)
-            query = f"SELECT category, SUM(amount) as actual FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment' GROUP BY category"
+            # 立替を考慮した実支出額を計算
+            query = f"""
+            SELECT category, 
+                   SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual 
+            FROM transactions 
+            WHERE transaction_date LIKE '{current_month}%' AND mode='payment' 
+            GROUP BY category
+            """
             df_actual = pd.read_sql_query(query, conn)
             conn.close()
             
@@ -139,13 +146,14 @@ def render_dashboard_content(timeframe):
         
         if not df_pending.empty:
             st.warning(f"精算待ち項目: {len(df_pending)} 件 (合計: {df_pending['pending_amount'].sum():,}円)")
-            st.dataframe(df_pending.drop(columns=['transaction_id']), use_container_width=True)
+            st.dataframe(df_pending.drop(columns=['transaction_id']), width='stretch')
             
             # 精算完了ボタン（簡易版）
             with st.expander("精算を完了する"):
                 target_tx = st.selectbox("精算完了にする明細を選択", df_pending['transaction_id'].tolist(), 
+                                         key=f"complete_{timeframe}",
                                          format_func=lambda x: f"{df_pending[df_pending['transaction_id']==x]['transaction_date'].iloc[0]} - {df_pending[df_pending['transaction_id']==x]['comment'].iloc[0]} ({df_pending[df_pending['transaction_id']==x]['pending_amount'].iloc[0]}円)")
-                if st.button("精算完了としてマーク"):
+                if st.button("精算完了としてマーク", key=f"btn_complete_{timeframe}"):
                     cursor = conn.cursor()
                     cursor.execute("UPDATE transactions SET reimbursement_status = 'completed' WHERE transaction_id = ?", (target_tx,))
                     conn.commit()
@@ -163,16 +171,19 @@ def render_dashboard_content(timeframe):
         
         if not df_recent.empty:
             selected_tx_id = st.selectbox("立替設定する明細を選択", df_recent['transaction_id'].tolist(),
+                                          key=f"split_select_{timeframe}",
                                           format_func=lambda x: f"{df_recent[df_recent['transaction_id']==x]['transaction_date'].iloc[0]} - {df_recent[df_recent['transaction_id']==x]['comment'].iloc[0]} ({df_recent[df_recent['transaction_id']==x]['amount'].iloc[0]}円)")
             
             target_row = df_recent[df_recent['transaction_id'] == selected_tx_id].iloc[0]
             
             col1, col2 = st.columns(2)
             with col1:
-                self_amt = st.number_input("自分の負担額 (円)", min_value=0, max_value=int(target_row['amount']), value=int(target_row['amount']//2))
+                self_amt = st.number_input("自分の負担額 (円)", min_value=0, max_value=int(target_row['amount']), 
+                                          value=int(target_row['amount']//2),
+                                          key=f"self_amt_{timeframe}")
             with col2:
                 st.write(f"立替額: {target_row['amount'] - self_amt:,} 円")
-                if st.button("立替として設定"):
+                if st.button("立替として設定", key=f"btn_split_{timeframe}"):
                     cursor = conn.cursor()
                     cursor.execute("""
                         UPDATE transactions 
@@ -201,7 +212,7 @@ def render_dashboard_content(timeframe):
         conn.close()
         
         if not df_tx.empty:
-            st.dataframe(df_tx, use_container_width=True, height=400)
+            st.dataframe(df_tx, width='stretch', height=400)
         else:
             st.caption("取引データがありません。")
 
