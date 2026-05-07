@@ -43,6 +43,9 @@ class Database:
                 comment TEXT,
                 source TEXT NOT NULL,
                 mode TEXT NOT NULL,
+                self_amount INTEGER,
+                is_reimbursement INTEGER DEFAULT 0,
+                reimbursement_status TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -86,15 +89,21 @@ class Database:
         cursor = conn.cursor()
         for t in transactions:
             cursor.execute("""
-                INSERT INTO transactions (transaction_id, transaction_date, category, genre, amount, comment, source, mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO transactions (
+                    transaction_id, transaction_date, category, genre, amount, 
+                    comment, source, mode, self_amount, is_reimbursement, reimbursement_status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(transaction_id) DO UPDATE SET
                     transaction_date=excluded.transaction_date,
                     category=excluded.category,
                     genre=excluded.genre,
                     amount=excluded.amount,
                     comment=excluded.comment,
-                    mode=excluded.mode
+                    mode=excluded.mode,
+                    self_amount=COALESCE(excluded.self_amount, transactions.self_amount),
+                    is_reimbursement=MAX(excluded.is_reimbursement, transactions.is_reimbursement),
+                    reimbursement_status=COALESCE(excluded.reimbursement_status, transactions.reimbursement_status)
             """, (
                 t.transaction_id or f"{t.source}_{t.transaction_date}_{t.amount}_{t.comment}",
                 t.transaction_date.isoformat(),
@@ -103,7 +112,10 @@ class Database:
                 t.amount,
                 t.comment,
                 t.source,
-                t.mode
+                t.mode,
+                t.self_amount,
+                t.is_reimbursement,
+                t.reimbursement_status
             ))
         conn.commit()
         if self.db_path != ":memory:":
@@ -178,7 +190,10 @@ class Database:
             amount=row["amount"],
             comment=row["comment"],
             source=row["source"],
-            mode=row["mode"]
+            mode=row["mode"],
+            self_amount=row["self_amount"],
+            is_reimbursement=row["is_reimbursement"],
+            reimbursement_status=row["reimbursement_status"]
         ) for row in rows]
         
         if self.db_path != ":memory:":
@@ -206,7 +221,10 @@ class Database:
             amount=row["amount"],
             comment=row["comment"],
             source=row["source"],
-            mode=row["mode"]
+            mode=row["mode"],
+            self_amount=row["self_amount"],
+            is_reimbursement=row["is_reimbursement"],
+            reimbursement_status=row["reimbursement_status"]
         ) for row in rows]
         
         if self.db_path != ":memory:":

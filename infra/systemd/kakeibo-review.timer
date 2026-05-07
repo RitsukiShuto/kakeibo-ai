@@ -1,0 +1,12 @@
+[Unit]
+Description=Timer for Kakeibo AI Scheduled Review Task
+
+[Timer]
+# 毎日 23:50 に実行するように設定
+OnCalendar=*-*-* 23:50:00
+# 起動後5分で一度実行（未実行のジョブがある場合や起動時テスト用）
+OnBootSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

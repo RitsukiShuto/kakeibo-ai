@@ -14,6 +14,9 @@ class Transaction(BaseModel):
     comment: str = Field("", description="備考・内容")
     source: str = Field(..., description="データ元")
     mode: str = Field(..., description="区分（payment, income, transfer）")
+    self_amount: Optional[int] = Field(None, description="自己負担額（立替時）")
+    is_reimbursement: int = Field(0, description="立替フラグ（0:通常, 1:立替）")
+    reimbursement_status: Optional[str] = Field(None, description="精算ステータス（pending, partial, completed）")
 
 class Asset(BaseModel):
     """
