@@ -178,8 +178,21 @@ def render_dashboard_content(timeframe):
             
             col1, col2 = st.columns(2)
             with col1:
+                # AI解析の追加
+                ai_input = st.text_input("AIで計算 (例: 4人で割り勘, 自分は5000円など)", key=f"ai_input_{timeframe}")
+                if ai_input:
+                    from src.analyzer.gemini_analyzer import GeminiAnalyzer
+                    analyzer = GeminiAnalyzer()
+                    with st.spinner("AIが計算中..."):
+                        ai_result = analyzer.parse_reimbursement_text(ai_input, target_row['amount'])
+                        if ai_result:
+                            st.info(f"AI提案: {ai_result['self_amount']:,}円 ({ai_result['reason']})")
+                            st.session_state[f"self_amt_val_{timeframe}"] = ai_result['self_amount']
+                
+                # 初期値の管理
+                default_val = st.session_state.get(f"self_amt_val_{timeframe}", int(target_row['amount']//2))
                 self_amt = st.number_input("自分の負担額 (円)", min_value=0, max_value=int(target_row['amount']), 
-                                          value=int(target_row['amount']//2),
+                                          value=default_val,
                                           key=f"self_amt_{timeframe}")
             with col2:
                 st.write(f"立替額: {target_row['amount'] - self_amt:,} 円")
@@ -191,6 +204,8 @@ def render_dashboard_content(timeframe):
                         WHERE transaction_id = ?
                     """, (self_amt, selected_tx_id))
                     conn.commit()
+                    if f"self_amt_val_{timeframe}" in st.session_state:
+                        del st.session_state[f"self_amt_val_{timeframe}"]
                     st.success("立替設定を保存しました！")
                     st.rerun()
         

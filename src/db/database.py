@@ -321,7 +321,65 @@ class Database:
         return result
 
     def get_current_asset_summary(self) -> List[Asset]:
-        # ... (既存のコード) ...
+        """
+        最新日付の全資産情報を取得
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(acquired_date) FROM assets")
+        latest_date = cursor.fetchone()[0]
+        
+        if not latest_date:
+            if self.db_path != ":memory:":
+                conn.close()
+            return []
+            
+        cursor.execute("""
+            SELECT * FROM assets 
+            WHERE acquired_date = ?
+        """, (latest_date,))
+        rows = cursor.fetchall()
+        result = [Asset(
+            acquired_date=date.fromisoformat(row["acquired_date"]),
+            asset_type=row["asset_type"],
+            amount=row["amount"],
+            source=row["source"],
+            institution=row["institution"]
+        ) for row in rows]
+        
+        if self.db_path != ":memory:":
+            conn.close()
+        return result
+
+    def get_pending_reimbursements(self) -> List[Transaction]:
+        """
+        未精算の立替明細を取得
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM transactions 
+            WHERE is_reimbursement = 1 AND reimbursement_status != 'completed'
+            ORDER BY transaction_date ASC
+        """)
+        rows = cursor.fetchall()
+        
+        result = [Transaction(
+            transaction_id=row["transaction_id"],
+            transaction_date=date.fromisoformat(row["transaction_date"]),
+            category=row["category"],
+            genre=row["genre"],
+            amount=row["amount"],
+            comment=row["comment"],
+            source=row["source"],
+            mode=row["mode"],
+            self_amount=row["self_amount"],
+            is_reimbursement=row["is_reimbursement"],
+            reimbursement_status=row["reimbursement_status"]
+        ) for row in rows]
+        
+        if self.db_path != ":memory:":
+            conn.close()
         return result
 
     def auto_match_reimbursements(self):

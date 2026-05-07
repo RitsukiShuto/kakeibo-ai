@@ -120,6 +120,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
         asset_summary = db.get_asset_category_summary()
         latest_analysis = db.get_latest_analysis(timeframe)
         previous_summary = latest_analysis["summary"] if latest_analysis else None
+        pending_reimbursements = db.get_pending_reimbursements()
         
         ai_response = analyzer.analyze_kakeibo(
             data=new_transactions, 
@@ -129,7 +130,8 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
             budget=budget,
             previous_summary=previous_summary,
             actual_monthly_income=actual_monthly_income,
-            comparison_data=comparison_data
+            comparison_data=comparison_data,
+            pending_reimbursements=pending_reimbursements
         )
 
         if not ai_response:
