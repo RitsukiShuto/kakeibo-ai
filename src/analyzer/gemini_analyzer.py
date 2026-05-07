@@ -152,7 +152,11 @@ class GeminiAnalyzer:
             # 収支の改善度合い
             if "prev_balance" in comparison_data:
                 curr_income = actual_monthly_income
-                curr_expense = sum(t.amount for t in data if t.mode == 'payment')
+                # 立替を考慮した支出計算
+                curr_expense = sum(
+                    (t.self_amount if t.is_reimbursement and t.self_amount is not None else t.amount)
+                    for t in data if t.mode == 'payment'
+                )
                 curr_bal = curr_income - curr_expense
                 
                 prev_bal = comparison_data["prev_balance"]
@@ -172,13 +176,17 @@ class GeminiAnalyzer:
             text += "なし\n"
         for t in data:
             mode_ja = "支出" if t.mode == "payment" else "収入" if t.mode == "income" else "振替"
-            text += f"- {t.transaction_date}: [{mode_ja}] {t.category}({t.genre}) {t.amount}円 {t.comment} [{t.source}]\n"
-            
+            amount_display = f"{t.amount}円"
+            if t.is_reimbursement and t.self_amount is not None:
+                amount_display = f"{t.amount}円 (自己負担: {t.self_amount}円, 立替中)"
+
+            text += f"- {t.transaction_date}: [{mode_ja}] {t.category}({t.genre}) {amount_display} {t.comment} [{t.source}]\n"
+
         text += "\n#### 4. 現在の資産状況（カテゴリ別集計済み）\n"
         total_asset = 0
         for a in assets_summary:
             text += f"- {a['category']}: {a['amount']:,}円\n"
             total_asset += a['amount']
         text += f"**資産総額: {total_asset:,}円**\n"
-        
+
         return text
