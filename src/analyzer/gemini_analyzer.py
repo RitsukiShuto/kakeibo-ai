@@ -43,8 +43,8 @@ class GeminiAnalyzer:
         user_input = self._create_user_input_text(data, assets_summary, timeframe, budget, previous_summary, actual_monthly_income, comparison_data)
 
         json_schema = {
-            "slack_report": "Slack用の詳細レポート全文（Markdown/絵文字を駆使して過不足なく、ギャル風に）",
-            "obsidian_report": "Obsidian用のMarkdown形式の詳細レポート全文（Callout等を使用）",
+            "slack_report": "Slack用の詳細レポート本文（Markdown/絵文字を駆使して、ギャル風に。※あとの'actions'セクションと重複するため、具体的なアクションリストはここには含めないでください）",
+            "obsidian_report": "Obsidian用のMarkdown形式の詳細レポート全文（Calloutやアクションリストも含めて、1つの完結した記事として作成してください）",
             "actions": [
                 {"command": "Now/Keep/Stopなどの短いコマンド", "description": "具体的なアクション内容"}
             ],

@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from typing import List
 from dotenv import load_dotenv
 from slack_sdk import WebClient
@@ -35,6 +36,24 @@ class SlackNotifier:
         except Exception:
             return "localhost"
 
+    def _format_mrkdwn(self, text: str) -> str:
+        """
+        標準的な Markdown を Slack の mrkdwn 形式に変換する
+        """
+        if not text:
+            return ""
+        
+        # 1. 見出し (### Header) を 太字 (*Header*) に変換
+        text = re.sub(r'^### (.*)$', r'*\1*', text, flags=re.MULTILINE)
+        text = re.sub(r'^## (.*)$', r'*\1*', text, flags=re.MULTILINE)
+        text = re.sub(r'^# (.*)$', r'*\1*', text, flags=re.MULTILINE)
+        
+        # 2. 太字 (**bold**) を Slackの太字 (*bold*) に変換
+        # ※ 既に *bold* の形式になっている場合に重複しないよう注意
+        text = text.replace("**", "*")
+        
+        return text
+
     def send_notification(self, title: str, text: str):
         """
         簡易的なテキスト通知
@@ -55,7 +74,7 @@ class SlackNotifier:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": text
+                    "text": self._format_mrkdwn(text)
                 }
             }
         ]
@@ -79,6 +98,8 @@ class SlackNotifier:
 
         # スコアに応じた絵文字
         score_emoji = "🔥" if score >= 80 else "✅" if score >= 50 else "⚠️"
+        
+        formatted_report = self._format_mrkdwn(report)
 
         blocks = [
             {
@@ -93,7 +114,7 @@ class SlackNotifier:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*ととのい指数: {score_emoji} {score}*\n\n{report}"
+                    "text": f"*ととのい指数: {score_emoji} {score}*\n\n{formatted_report}"
                 }
             },
             {
