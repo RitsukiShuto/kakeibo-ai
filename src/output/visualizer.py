@@ -10,13 +10,19 @@ class Visualizer:
     def __init__(self, output_dir: str = "reports/graphs"):
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        # 日本語フォント設定（環境によって異なるため注意）
-        # Raspberry PiやWindows環境で標準的な設定を試みる
-        plt.rcParams['font.family'] = 'sans-serif'
+        
+        # フォントに関する警告を抑制（OSにフォントがない場合でも動作を継続させる）
+        import warnings
+        warnings.filterwarnings("ignore", category=UserWarning, message=".*Glyph.*missing from font.*")
+
+        # 日本語フォント設定
         if os.name == 'nt': # Windows
-            plt.rcParams['font.sans-serif'] = ['MS Gothic', 'Yu Gothic', 'Meiryo']
+            plt.rcParams['font.family'] = 'MS Gothic'
         else: # Linux/Raspberry Pi
-            plt.rcParams['font.sans-serif'] = ['IPAexGothic', 'Noto Sans CJK JP']
+            # 一般的な日本語フォントを優先順位順に指定
+            jp_fonts = ['IPAexGothic', 'Noto Sans CJK JP', 'VL Gothic', 'DejaVu Sans']
+            plt.rcParams['font.family'] = 'sans-serif'
+            plt.rcParams['font.sans-serif'] = jp_fonts
 
     def generate_asset_trend_graph(self, db_path: str = "local/kakeibo.db") -> str:
         """
