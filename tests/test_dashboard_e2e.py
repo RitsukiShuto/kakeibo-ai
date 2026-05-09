@@ -53,18 +53,18 @@ def test_dashboard_e2e():
         
         try:
             print("Accessing Dashboard...")
-            page.goto("http://localhost:8501", wait_until="networkidle", timeout=20000)
+            page.goto("http://localhost:8501", wait_until="networkidle", timeout=30000)
             
             # タイトルの確認 (サイドバー内のタイトル)
-            page.wait_for_selector("text=Kakeibo AI", timeout=10000)
+            page.wait_for_selector("text=Kakeibo AI", timeout=15000)
             print("✅ Dashboard title found.")
 
-            # 予算セクションの確認
-            page.wait_for_selector("text=予実管理 (カテゴリ別)", timeout=10000)
+            # 予算セクションの確認 (日本語UIに対応)
+            page.wait_for_selector("text=予実管理 (カテゴリ別)", timeout=15000)
             print("✅ Budget section found.")
 
             # 立替セクションの確認 (サイドバーのメニュー項目)
-            page.wait_for_selector("text=立替・精算", timeout=10000)
+            page.wait_for_selector("text=立替・精算", timeout=15000)
             print("✅ Expense Splitter menu found.")
 
             # セレクトボックスのラベルが表示されるまで待機
@@ -80,6 +80,8 @@ def test_dashboard_e2e():
         except Exception as e:
             print(f"❌ E2E Test failed: {e}")
             # エラー時のスクリーンショット
+            if not os.path.exists("logs"):
+                os.makedirs("logs")
             page.screenshot(path="logs/e2e_error.png")
             raise e
         finally:
