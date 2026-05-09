@@ -368,6 +368,49 @@ def render_expense_splitter_page():
     # --- 既存の精算待ちリストと新規登録 ---
     render_dashboard_content("monthly") # 暫定的に既存のロジックの一部を再利用、あるいは個別に実装
 
+def render_settings_page():
+    st.subheader("⚙️ システム設定")
+    
+    # 予算設定
+    st.markdown("### ⚖️ 階層型予算設定")
+    budget_data = load_budget()
+    if budget_data:
+        # JSONを直接編集できるテキストエリア（簡易実装）
+        new_budget_json = st.text_area("budget.json (編集後、保存ボタンを押してください)", 
+                                       value=json.dumps(budget_data, indent=2, ensure_ascii=False),
+                                       height=400)
+        if st.button("予算設定を保存"):
+            try:
+                parsed_json = json.loads(new_budget_json)
+                with open("local/config/budget.json", "w", encoding="utf-8") as f:
+                    json.dump(parsed_json, f, indent=2, ensure_ascii=False)
+                st.success("予算設定を更新しました")
+                st.rerun()
+            except Exception as e:
+                st.error(f"JSONの形式が正しくありません: {e}")
+    
+    st.divider()
+    
+    # ペルソナ設定
+    st.markdown("### 🤖 AI ペルソナ設定")
+    profile_path = "local/config/profile.json"
+    if os.path.exists(profile_path):
+        with open(profile_path, "r", encoding="utf-8") as f:
+            profile_data = json.load(f)
+        
+        new_profile_json = st.text_area("profile.json", 
+                                        value=json.dumps(profile_data, indent=2, ensure_ascii=False),
+                                        height=300)
+        if st.button("プロフィール設定を保存"):
+            try:
+                parsed_json = json.loads(new_profile_json)
+                with open(profile_path, "w", encoding="utf-8") as f:
+                    json.dump(parsed_json, f, indent=2, ensure_ascii=False)
+                st.success("プロフィール設定を更新しました")
+                st.rerun()
+            except Exception as e:
+                st.error(f"JSONの形式が正しくありません: {e}")
+
 def render_dashboard_page():
     # トップタブによる集計期間の切り替え
     timeframe_list = ["weekly", "monthly", "quarterly", "yearly"]
@@ -391,5 +434,7 @@ elif page == "明細一覧":
     render_transactions_page()
 elif page == "立替・精算":
     render_expense_splitter_page()
+elif page == "設定":
+    render_settings_page()
 else:
     st.write(f"{page} ページは現在プロトタイプ開発中です。")
