@@ -11,4 +11,6 @@ seaborn
 pydantic
 pytest
 pytest-mock
+fastapi
+uvicorn
 streamlit

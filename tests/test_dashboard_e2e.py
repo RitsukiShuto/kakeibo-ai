@@ -1,20 +1,25 @@
 import os
 import sqlite3
 import time
+import pytest
 from playwright.sync_api import sync_playwright
 from datetime import date
 
 # テスト用DBの設定
-DB_PATH = "local/test_dashboard.db"
+DB_PATH = os.getenv("KAKEIBO_DB_PATH", "local/test_dashboard.db")
 
 def setup_test_db():
     if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
+        try:
+            os.remove(DB_PATH)
+        except:
+            pass
     
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # 必要なテーブルの作成
+    # 1. Transactions テーブル
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
             transaction_id TEXT PRIMARY KEY,
@@ -32,48 +37,90 @@ def setup_test_db():
         )
     """)
     
+    # 2. Assets テーブル
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            acquired_date TEXT NOT NULL,
+            asset_type TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            institution TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(acquired_date, institution, source)
+        )
+    """)
+    
+    # 3. Analysis History テーブル
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS analysis_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timeframe TEXT NOT NULL,
+            summary TEXT,
+            report_path TEXT,
+            score INTEGER,
+            raw_response TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
     # テストデータの挿入
     today = date.today().isoformat()
+    # 明細データ
     cursor.execute("""
         INSERT INTO transactions (transaction_id, transaction_date, category, amount, comment, source, mode)
         VALUES ('tx_1', ?, '食費', 20000, '飲み会立替用', 'mf', 'payment')
     """, (today,))
     
+    # 資産データ
+    cursor.execute("""
+        INSERT INTO assets (acquired_date, asset_type, amount, source, institution)
+        VALUES (?, '銀行', 1000000, 'mf', '三菱UFJ銀行')
+    """, (today,))
+    
+    # 分析履歴データ
+    cursor.execute("""
+        INSERT INTO analysis_history (timeframe, summary, score, created_at)
+        VALUES ('monthly', '今月の家計は良好です。', 85, ?)
+    """, (today,))
+    
     conn.commit()
     conn.close()
 
+@pytest.mark.e2e
 def test_dashboard_e2e():
     setup_test_db()
     
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # テスト用DBを反映させるため、ブラウザ側ではなくサーバー起動時に KAKEIBO_DB_PATH を設定する必要があります。
-        # ここでは既存のサーバーがテスト用DBを見ている前提、または表示の確認のみを行います。
         page = browser.new_page()
         
         try:
             print("Accessing Dashboard...")
-            page.goto("http://localhost:8501", wait_until="networkidle", timeout=30000)
+            # React Frontend (Vite)
+            page.goto("http://localhost:5173", wait_until="networkidle", timeout=30000)
             
-            # タイトルの確認 (サイドバー内のタイトル)
-            page.wait_for_selector("text=Kakeibo AI", timeout=15000)
-            print("✅ Dashboard title found.")
+            # サイドバーの確認
+            page.wait_for_selector("text=ダッシュボード", timeout=15000)
+            print("✅ Dashboard menu found.")
 
-            # 予算セクションの確認 (日本語UIに対応)
+            # 予算セクションの確認
             page.wait_for_selector("text=予実管理 (カテゴリ別)", timeout=15000)
             print("✅ Budget section found.")
 
-            # 立替セクションの確認 (サイドバーのメニュー項目)
+            # メニュー項目の確認
             page.wait_for_selector("text=立替・精算", timeout=15000)
             print("✅ Expense Splitter menu found.")
 
-            # セレクトボックスのラベルが表示されるまで待機
-            # テストDBにデータがあれば "立替設定する明細を選択" が表示されるはず
+            # 立替・精算ページへ遷移してフォームを確認
+            page.click("text=立替・精算")
+            page.wait_for_selector("text=精算待ちリスト", timeout=15000)
+            
             try:
-                page.wait_for_selector("text=立替設定する明細を選択", timeout=5000)
-                print("✅ Selectbox '立替設定する明細を選択' found.")
+                page.wait_for_selector("text=選択してください...", timeout=5000)
+                print("✅ Selectbox in Splitter found.")
             except:
-                print("⚠️ Selectbox not found. (Check if KAKEIBO_DB_PATH is set correctly on the Streamlit server)")
+                print("⚠️ Selectbox not found.")
 
             print("E2E Test completed.")
 
@@ -88,6 +135,4 @@ def test_dashboard_e2e():
             browser.close()
 
 if __name__ == "__main__":
-    # 注意: このテストを実行する前に `streamlit run dashboard.py` を起動しておく必要があります。
-    # また、DB_PATHをテスト用に切り替えて起動する必要があります。
     test_dashboard_e2e()
