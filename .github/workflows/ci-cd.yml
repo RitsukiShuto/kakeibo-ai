@@ -99,7 +99,9 @@ jobs:
       - name: Update code and restart containers
         run: |
           cd /home/r410/kakeibo-ai
-          git pull origin main
+          # Ensure local changes to tracked files are discarded to avoid pull conflicts
+          git fetch origin main
+          git reset --hard origin/main
           docker compose build
           docker compose up -d
           
