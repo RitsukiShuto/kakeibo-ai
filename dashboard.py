@@ -7,40 +7,76 @@ from datetime import datetime
 from src.db.database import Database
 from dotenv import load_dotenv
 
-# ページ設定 (サイドバーあり、ワイドモード)
+# ページ設定
 st.set_page_config(page_title="Kakeibo AI Dashboard", page_icon="💰", layout="wide", initial_sidebar_state="expanded")
 
-# --- カスタムCSS (プロトタイプのダークテーマを反映) ---
+# --- FontAwesome & Custom CSS Integration ---
 st.markdown("""
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-    /* 全体の背景と文字色 */
+    /* プロトタイプのスタイルをStreamlitに移植 */
+    :root {
+        --bg-color: #0f172a;
+        --sidebar-bg: #1e293b;
+        --card-bg: #1e293b;
+        --text-main: #f1f5f9;
+        --text-muted: #94a3b8;
+        --primary: #3b82f6;
+        --border: #334155;
+        --radius: 12px;
+    }
+
     .stApp {
-        background-color: #0f172a;
-        color: #f1f5f9;
+        background-color: var(--bg-color);
+        color: var(--text-main);
     }
-    /* サイドバー */
-    section[data-testid="stSidebar"] {
-        background-color: #1e293b !important;
-    }
-    /* カード風のコンテナ */
-    div.stMetric {
-        background-color: #1e293b;
-        border: 1px solid #334155;
-        padding: 15px;
-        border-radius: 12px;
+
+    /* カスタムカードスタイル */
+    .custom-card {
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        padding: 20px;
+        border: 1px solid var(--border);
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+        margin-bottom: 20px;
     }
-    /* サブヘッダーの装飾 */
-    .stMarkdown h2, .stMarkdown h3 {
-        color: #3b82f6;
-        border-bottom: 1px solid #334155;
-        padding-bottom: 8px;
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 10px;
     }
-    /* ボタンのスタイル */
-    .stButton>button {
-        border-radius: 8px;
-        background-color: #3b82f6;
-        color: white;
+    
+    .card-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--primary) !important;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .kpi-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .kpi-label {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+    }
+
+    /* Streamlit標準要素の微調整 */
+    div[data-testid="stSidebar"] {
+        background-color: var(--sidebar-bg) !important;
+    }
+    
+    .stProgress > div > div > div > div {
+        background-color: var(--primary);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -57,7 +93,6 @@ def load_budget():
     if os.path.exists(budget_path):
         with open(budget_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # 互換性維持: 旧形式（categoriesが直接フラット）の場合は新形式にラップする
             if "budget" not in data.get("monthly", {}):
                 old_categories = data.get("monthly", {}).get("categories", {})
                 data["monthly"]["budget"] = {"variable": {"その他": old_categories}}
@@ -65,13 +100,8 @@ def load_budget():
     return None
 
 def get_budget_category_totals(budget):
-    """
-    階層型予算から中項目ごとの合計金額を計算してフラットな辞書で返す
-    """
     totals = {}
-    if not budget:
-        return totals
-    
+    if not budget: return totals
     monthly_budget = budget.get("monthly", {}).get("budget", {})
     for section in ["fixed", "variable"]:
         section_data = monthly_budget.get(section, {})
@@ -86,47 +116,47 @@ def render_dashboard_content(timeframe):
     budget = load_budget()
     budget_categories = get_budget_category_totals(budget)
     
-    # --- 1. KPI カード (最上部) ---
+    # --- 1. KPI Cards (Top Row) ---
     current_month = datetime.now().strftime("%Y-%m")
     conn = sqlite3.connect(DB_PATH)
     query_total = f"SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment'"
     actual_total = pd.read_sql_query(query_total, conn)['total'].iloc[0] or 0
-    
     query_assets = "SELECT SUM(amount) as total FROM assets WHERE acquired_date = (SELECT MAX(acquired_date) FROM assets)"
     total_assets = pd.read_sql_query(query_assets, conn)['total'].iloc[0] or 0
     conn.close()
-
     total_budget_amt = sum(budget_categories.values()) if budget_categories else 0
-    
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("予算 (Budget)", f"{total_budget_amt:,}円")
-    kpi2.metric("実支出 (Actual)", f"{int(actual_total):,}円", delta=f"{total_budget_amt - actual_total:,}円", delta_color="inverse")
-    kpi3.metric("残額 (Remaining)", f"{max(0, total_budget_amt - int(actual_total)):,}円")
-    kpi4.metric("総資産 (Total Assets)", f"{int(total_assets):,}円")
 
-    st.divider()
+    cols = st.columns(4)
+    with cols[0]:
+        st.markdown(f'<div class="custom-card"><div class="kpi-label">予算 (Budget)</div><div class="kpi-value">{total_budget_amt:,}円</div></div>', unsafe_allow_html=True)
+    with cols[1]:
+        st.markdown(f'<div class="custom-card"><div class="kpi-label">実支出 (Actual)</div><div class="kpi-value">{int(actual_total):,}円</div></div>', unsafe_allow_html=True)
+    with cols[2]:
+        st.markdown(f'<div class="custom-card"><div class="kpi-label">残額 (Remaining)</div><div class="kpi-value">{max(0, total_budget_amt - int(actual_total)):,}円</div></div>', unsafe_allow_html=True)
+    with cols[3]:
+        st.markdown(f'<div class="custom-card"><div class="kpi-label">総資産 (Total Assets)</div><div class="kpi-value">{int(total_assets):,}円</div></div>', unsafe_allow_html=True)
 
-    col_left, col_right = st.columns(2)
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_left, col_right = st.columns([1, 1])
 
-    # --- 左側カラム (予実 & 資産) ---
     with col_left:
-        st.subheader("⚖️ 予実管理 (カテゴリ別)")
+        # Budget vs Actual Card
+        st.markdown('<div class="custom-card"><div class="card-header"><h3><i class="fa-solid fa-scale-balanced"></i> 予実管理 (カテゴリ別)</h3></div>', unsafe_allow_html=True)
         if budget_categories:
             conn = sqlite3.connect(DB_PATH)
             query = f"SELECT category, SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment' GROUP BY category"
             df_actual = pd.read_sql_query(query, conn)
             conn.close()
-
             for cat, b_amt in budget_categories.items():
                 actual_row = df_actual[df_actual['category'] == cat]
                 a_amt = int(actual_row['actual'].iloc[0]) if not actual_row.empty else 0
                 progress = min(a_amt / b_amt, 1.0) if b_amt > 0 else 0
                 st.write(f"**{cat}**: {a_amt:,} / {b_amt:,}")
                 st.progress(progress)
-        else:
-            st.info("予算が設定されていません。")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.subheader("📈 資産推移")
+        # Asset Chart Card
+        st.markdown('<div class="custom-card"><div class="card-header"><h3><i class="fa-solid fa-chart-area"></i> 資産推移</h3></div>', unsafe_allow_html=True)
         conn = sqlite3.connect(DB_PATH)
         df_assets = pd.read_sql_query("SELECT acquired_date, asset_type, SUM(amount) as total_amount FROM assets GROUP BY acquired_date, asset_type ORDER BY acquired_date ASC", conn)
         conn.close()
@@ -134,27 +164,30 @@ def render_dashboard_content(timeframe):
             df_assets['acquired_date'] = pd.to_datetime(df_assets['acquired_date'])
             pivot_df = df_assets.pivot(index='acquired_date', columns='asset_type', values='total_amount').fillna(0)
             st.area_chart(pivot_df, height=300)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- 右側カラム (AIレビュー & 最近の明細) ---
     with col_right:
-        st.subheader("🤖 AI 分析レポート")
+        # AI Review Card
+        st.markdown('<div class="custom-card"><div class="card-header"><h3><i class="fa-solid fa-robot"></i> AI 分析レポート</h3></div>', unsafe_allow_html=True)
         conn = sqlite3.connect(DB_PATH)
         df_hist = pd.read_sql_query(f"SELECT created_at, score, summary, report_path FROM analysis_history WHERE timeframe = '{timeframe}' ORDER BY created_at DESC", conn)
         conn.close()
         if not df_hist.empty:
             latest = df_hist.iloc[0]
-            st.success(f"### Score: {latest['score']} ({latest['created_at']})")
-            st.info(latest['summary'])
-            with st.expander("レポート詳細を表示"):
+            st.info(f"**Score: {latest['score']}** ({latest['created_at']})\n\n{latest['summary']}")
+            with st.expander("レポート全文を表示"):
                 if latest['report_path'] and os.path.exists(latest['report_path']):
                     with open(latest['report_path'], "r", encoding="utf-8") as f:
                         st.markdown(f.read())
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        st.subheader("📝 最近の明細")
+        # Recent Transactions Card
+        st.markdown('<div class="custom-card"><div class="card-header"><h3><i class="fa-solid fa-list-ul"></i> 最近の明細</h3></div>', unsafe_allow_html=True)
         conn = sqlite3.connect(DB_PATH)
         df_tx = pd.read_sql_query("SELECT transaction_date as '日付', category as 'カテゴリ', amount as '金額', comment as '内容' FROM transactions ORDER BY transaction_date DESC LIMIT 10", conn)
         conn.close()
-        st.table(df_tx)
+        st.dataframe(df_tx, use_container_width=True, hide_index=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # 4. 立替・精算管理 (AI Expense Splitter)
         st.subheader("🤝 AI Expense Splitter")
