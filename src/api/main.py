@@ -56,9 +56,32 @@ def get_budget_category_totals(budget):
                 totals[category] = subcategories
     return totals
 
-@app.get("/")
-async def root():
-    return {"message": "Kakeibo AI API is running"}
+@app.get("/api/status")
+async def get_status():
+    try:
+        db_path = get_db_path()
+        db_instance = Database(db_path=db_path)
+        
+        slack_heartbeat = db_instance.get_service_status("slack")
+        slack_online = False
+        
+        if slack_heartbeat:
+            last_time = datetime.strptime(slack_heartbeat, "%Y-%m-%d %H:%M:%S")
+            # 3分以内の更新があればオンラインとみなす
+            if (datetime.now() - last_time).total_seconds() < 180:
+                slack_online = True
+        
+        return {
+            "services": {
+                "api": {"status": "online", "last_heartbeat": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+                "slack": {
+                    "status": "online" if slack_online else "offline",
+                    "last_heartbeat": slack_heartbeat
+                }
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/kpi")
 async def get_kpi():
