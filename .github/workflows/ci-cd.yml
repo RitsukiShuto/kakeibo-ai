@@ -36,12 +36,21 @@ jobs:
         npm install
         npx playwright install chromium
 
+    - name: Prepare configuration files
+      run: |
+        mkdir -p local/config
+        cp local/config/budget.json.example local/config/budget.json
+        cp local/config/profile.json.example local/config/profile.json
+        cp local/config/schedule.json.example local/config/schedule.json
+
     - name: Run Unit Tests (Backend)
       env:
         SLACK_BOT_TOKEN: xoxb-dummy
         SLACK_APP_TOKEN: xapp-dummy
         GEMINI_API_KEY: dummy-key
       run: |
+        # Initialize test database
+        KAKEIBO_DB_PATH=local/test_dashboard.db PYTHONPATH=. python -c "from tests.test_dashboard_e2e import setup_test_db; setup_test_db()"
         # Start FastAPI server
         KAKEIBO_DB_PATH=local/test_dashboard.db PYTHONPATH=. python src/api/main.py &
         # Start Vite dev server for E2E tests (which use localhost:5173)
