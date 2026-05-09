@@ -59,28 +59,24 @@ const AIReview: React.FC = () => {
             <h3><Calendar size={20} /> 分析履歴</h3>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
-            {loading ? (
-              <div className="p-4 text-center">読み込み中...</div>
-            ) : (
-              <ul className="history-list">
-                {history.map((h) => (
-                  <li 
-                    key={h.id} 
-                    className={selectedId === h.id ? 'active' : ''} 
-                    onClick={() => setSelectedId(h.id)}
-                    style={selectedId === h.id ? { backgroundColor: 'var(--bg-color)', borderLeft: '4px solid var(--primary)' } : {}}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-bold">{h.created_at.split(' ')[0]}</div>
-                        <div className="text-muted text-sm">{h.timeframe}</div>
-                      </div>
-                      <div className="badge score-good">Score: {h.score}</div>
+            <ul className="history-list">
+              {history.map((h) => (
+                <li 
+                  key={h.id} 
+                  className={selectedId === h.id ? 'active' : ''} 
+                  onClick={() => setSelectedId(h.id)}
+                  style={selectedId === h.id ? { backgroundColor: 'var(--bg-color)', borderLeft: '4px solid var(--primary)' } : {}}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-bold">{h.created_at.split(' ')[0]}</div>
+                      <div className="text-muted text-sm">{h.timeframe}</div>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                    <div className="badge score-good">Score: {h.score}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
