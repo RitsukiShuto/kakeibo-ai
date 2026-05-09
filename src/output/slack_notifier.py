@@ -18,7 +18,7 @@ class SlackNotifier:
         
         self.dashboard_url = os.getenv("DASHBOARD_URL")
         if not self.dashboard_url:
-            self.dashboard_url = f"http://{self._get_local_ip()}:8501"
+            self.dashboard_url = f"http://{self._get_local_ip()}:5173"
 
         if not self.bot_token:
             print("Warning: SLACK_BOT_TOKEN is not set.")

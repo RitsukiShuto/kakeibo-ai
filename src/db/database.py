@@ -76,6 +76,14 @@ class Database:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # 4. System Status テーブル (サービス稼働確認用)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS system_status (
+                service_name TEXT PRIMARY KEY,
+                last_heartbeat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         
         conn.commit()
         if self.db_path != ":memory:":
@@ -433,3 +441,31 @@ class Database:
         if self.db_path != ":memory:":
             conn.close()
         return matched_count
+
+    def update_heartbeat(self, service_name: str):
+        """
+        サービスの生存確認用タイムスタンプを更新
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute("""
+            INSERT INTO system_status (service_name, last_heartbeat)
+            VALUES (?, ?)
+            ON CONFLICT(service_name) DO UPDATE SET last_heartbeat = excluded.last_heartbeat
+        """, (service_name, now))
+        conn.commit()
+        if self.db_path != ":memory:":
+            conn.close()
+
+    def get_service_status(self, service_name: str) -> Optional[str]:
+        """
+        サービスの最終生存確認時刻を取得
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT last_heartbeat FROM system_status WHERE service_name = ?", (service_name,))
+        row = cursor.fetchone()
+        if self.db_path != ":memory:":
+            conn.close()
+        return row[0] if row else None
