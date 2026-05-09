@@ -20,7 +20,18 @@ class GeminiAnalyzer:
         self.model_name = self._select_best_model()
 
     def _select_best_model(self):
-        model = 'gemini-3.1-pro-preview'
+        # 設定ファイルからモデルを取得
+        settings_path = "local/config/settings.json"
+        model = 'gemini-2.0-flash' # デフォルト
+        
+        if os.path.exists(settings_path):
+            try:
+                with open(settings_path, "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+                    model = settings.get("ai", {}).get("active_model", model)
+            except Exception as e:
+                print(f"Warning: Failed to load settings.json, using default model: {e}")
+                
         print(f"Selected model: {model}")
         return model
 

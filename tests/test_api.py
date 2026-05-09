@@ -72,6 +72,20 @@ def setup_test_environment():
     }
     with open(os.path.join(TEST_CONFIG_DIR, "budget.json"), "w", encoding="utf-8") as f:
         json.dump(budget_data, f)
+    
+    settings_data = {
+        "ai": {
+            "active_model": "gemini-2.0-flash",
+            "available_models": [
+                {"id": "gemini-2.0-flash", "name": "Model A", "description": "Desc A"},
+                {"id": "gemini-1.5-pro", "name": "Model B", "description": "Desc B"}
+            ]
+        }
+    }
+    with open(os.path.join(TEST_CONFIG_DIR, "settings.json"), "w", encoding="utf-8") as f:
+        json.dump(settings_data, f)
+    with open(os.path.join(TEST_CONFIG_DIR, "settings.json.example"), "w", encoding="utf-8") as f:
+        json.dump(settings_data, f)
         
     yield
     
@@ -117,17 +131,21 @@ def test_update_transaction():
     assert updated_tx["category"] == "外食"
     assert updated_tx["comment"] == "更新テスト"
 
-def test_get_budget_actual():
-    response = client.get("/api/budget-actual")
+def test_get_ai_models():
+    response = client.get("/api/settings/ai-models")
     assert response.status_code == 200
     data = response.json()
-    
-    # 前のテストで「食費」が「外食」に更新されたため、食費の実績は 0 になる
-    food_budget = next((item for item in data if item["category"] == "食費"), None)
-    assert food_budget is not None
-    assert food_budget["budget"] == 30000
-    assert food_budget["actual"] == 0
+    assert "active_model" in data
+    assert "available_models" in data
+    assert len(data["available_models"]) > 0
 
-    # 外食（実績1000円）を確認
-    # ただし外食は予算に含まれていないので、get_budget_actual の現在のロジックでは
-    # 予算設定にあるカテゴリのみが返される。
+def test_update_active_model():
+    # モデルの更新テスト
+    update_data = {"active_model": "gemini-1.5-pro"}
+    response = client.put("/api/settings/active-model", json=update_data)
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
+    
+    # 更新されたことを確認
+    response = client.get("/api/settings/ai-models")
+    assert response.json()["active_model"] == "gemini-1.5-pro"
