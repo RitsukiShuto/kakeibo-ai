@@ -252,16 +252,73 @@ def render_dashboard_content(timeframe):
         else:
             st.caption("取引データがありません。")
 
-st.title("📊 Kakeibo AI Integrated Dashboard")
+def render_transactions_page():
+    st.subheader("📝 明細一覧・編集")
+    
+    # フィルタと検索
+    col_search, col_filter = st.columns([3, 1])
+    with col_search:
+        search_query = st.text_input("明細を検索", placeholder="摘要やカテゴリで検索...")
+    
+    conn = sqlite3.connect(DB_PATH)
+    query = "SELECT * FROM transactions ORDER BY transaction_date DESC"
+    df_tx = pd.read_sql_query(query, conn)
+    conn.close()
 
-# トップタブによる集計期間の切り替え
-timeframe_list = ["weekly", "monthly", "quarterly", "yearly"]
-tabs = st.tabs([tf.capitalize() for tf in timeframe_list])
+    if search_query:
+        df_tx = df_tx[df_tx['comment'].str.contains(search_query, na=False) | df_tx['category'].str.contains(search_query, na=False)]
 
-for i, tab in enumerate(tabs):
-    with tab:
-        render_dashboard_content(timeframe_list[i])
+    if not df_tx.empty:
+        # 編集可能なデータフレームを表示（簡易的な実装として、選択した行を編集するUIにする）
+        st.write(f"表示件数: {len(df_tx)} 件")
+        
+        # 簡易的なテーブル表示と個別編集フォーム
+        for index, row in df_tx.head(20).iterrows():
+            with st.expander(f"{row['transaction_date']} | {row['category']} | {row['amount']:,}円 | {row['comment'] or ''}"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    new_cat = st.text_input("カテゴリ", value=row['category'], key=f"cat_{row['transaction_id']}")
+                    new_comment = st.text_input("摘要", value=row['comment'] or "", key=f"comm_{row['transaction_id']}")
+                with col2:
+                    is_reimb = st.checkbox("立替設定", value=bool(row['is_reimbursement']), key=f"reimb_{row['transaction_id']}")
+                    if is_reimb:
+                        self_amt = st.number_input("自己負担額", value=row['self_amount'] or row['amount']//2, key=f"self_{row['transaction_id']}")
+                
+                if st.button("更新を保存", key=f"save_{row['transaction_id']}"):
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        UPDATE transactions 
+                        SET category = ?, comment = ?, is_reimbursement = ?, self_amount = ?
+                        WHERE transaction_id = ?
+                    """, (new_cat, new_comment, 1 if is_reimb else 0, self_amt if is_reimb else None, row['transaction_id']))
+                    conn.commit()
+                    conn.close()
+                    st.success("保存しました")
+                    st.rerun()
+    else:
+        st.info("明細が見つかりません。")
 
-# 下部にリフレッシュボタン
-if st.button("🔄 Refresh Data"):
-    st.rerun()
+def render_dashboard_page():
+    # トップタブによる集計期間の切り替え
+    timeframe_list = ["weekly", "monthly", "quarterly", "yearly"]
+    tabs = st.tabs([tf.capitalize() for tf in timeframe_list])
+
+    for i, tab in enumerate(tabs):
+        with tab:
+            render_dashboard_content(timeframe_list[i])
+
+# --- サイドバーナビゲーション ---
+with st.sidebar:
+    st.title("💰 Kakeibo AI")
+    page = st.radio("メニュー", ["ダッシュボード", "明細一覧", "AIレビュー", "立替・精算", "設定"])
+    st.divider()
+    if st.button("🔄 データを更新"):
+        st.rerun()
+
+if page == "ダッシュボード":
+    render_dashboard_page()
+elif page == "明細一覧":
+    render_transactions_page()
+else:
+    st.write(f"{page} ページは現在プロトタイプ開発中です。")
