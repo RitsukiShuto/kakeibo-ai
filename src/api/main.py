@@ -33,6 +33,8 @@ def get_db_path():
         path = os.path.join(ROOT_DIR, path)
     return path
 
+print(f"📡 API starting using database: {get_db_path()}")
+
 def get_config_dir():
     path = os.getenv("KAKEIBO_CONFIG_DIR", "local/config")
     if not os.path.isabs(path):
@@ -75,14 +77,15 @@ async def get_status():
         slack_online = False
         
         if slack_heartbeat:
+            # ハートビートは UTC で記録されている前提
             last_time = datetime.strptime(slack_heartbeat, "%Y-%m-%d %H:%M:%S")
             # 3分以内の更新があればオンラインとみなす
-            if (datetime.now() - last_time).total_seconds() < 180:
+            if (datetime.utcnow() - last_time).total_seconds() < 180:
                 slack_online = True
         
         return {
             "services": {
-                "api": {"status": "online", "last_heartbeat": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+                "api": {"status": "online", "last_heartbeat": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")},
                 "slack": {
                     "status": "online" if slack_online else "offline",
                     "last_heartbeat": slack_heartbeat
@@ -90,7 +93,13 @@ async def get_status():
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error in get_status: {e}")
+        return {
+            "services": {
+                "api": {"status": "error", "detail": str(e)},
+                "slack": {"status": "unknown"}
+            }
+        }
 
 @app.get("/")
 async def root():

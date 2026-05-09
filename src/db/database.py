@@ -444,28 +444,36 @@ class Database:
 
     def update_heartbeat(self, service_name: str):
         """
-        サービスの生存確認用タイムスタンプを更新
+        サービスの生存確認用タイムスタンプを更新 (UTC)
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cursor.execute("""
-            INSERT INTO system_status (service_name, last_heartbeat)
-            VALUES (?, ?)
-            ON CONFLICT(service_name) DO UPDATE SET last_heartbeat = excluded.last_heartbeat
-        """, (service_name, now))
-        conn.commit()
-        if self.db_path != ":memory:":
-            conn.close()
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            # タイムゾーンの影響を避けるため UTC を使用
+            now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute("""
+                INSERT INTO system_status (service_name, last_heartbeat)
+                VALUES (?, ?)
+                ON CONFLICT(service_name) DO UPDATE SET last_heartbeat = excluded.last_heartbeat
+            """, (service_name, now))
+            conn.commit()
+            if self.db_path != ":memory:":
+                conn.close()
+        except Exception as e:
+            print(f"Failed to update heartbeat for {service_name}: {e}")
 
     def get_service_status(self, service_name: str) -> Optional[str]:
         """
-        サービスの最終生存確認時刻を取得
+        サービスの最終生存確認時刻を取得 (UTC)
         """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT last_heartbeat FROM system_status WHERE service_name = ?", (service_name,))
-        row = cursor.fetchone()
-        if self.db_path != ":memory:":
-            conn.close()
-        return row[0] if row else None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT last_heartbeat FROM system_status WHERE service_name = ?", (service_name,))
+            row = cursor.fetchone()
+            if self.db_path != ":memory:":
+                conn.close()
+            return row[0] if row else None
+        except Exception as e:
+            print(f"Failed to get service status for {service_name}: {e}")
+            return None
