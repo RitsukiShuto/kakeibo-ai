@@ -19,23 +19,41 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: Install dependencies
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies (Backend)
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         playwright install chromium
         
-    - name: Run Tests
+    - name: Install dependencies (Frontend)
+      run: |
+        cd frontend
+        npm install
+        npx playwright install chromium
+
+    - name: Run Unit Tests (Backend)
       env:
         SLACK_BOT_TOKEN: xoxb-dummy
         SLACK_APP_TOKEN: xapp-dummy
         GEMINI_API_KEY: dummy-key
       run: |
-        # Start Streamlit server for E2E tests
-        KAKEIBO_DB_PATH=local/test_dashboard.db streamlit run dashboard.py --server.headless true &
+        # Start FastAPI server for E2E tests
+        KAKEIBO_DB_PATH=local/test_dashboard.db PYTHONPATH=. python src/api/main.py &
         sleep 5
-        # プロジェクトルートをPythonパスとして認識させてテストを実行
         PYTHONPATH=. python -m pytest tests/
+
+    - name: Run E2E Tests (Frontend)
+      run: |
+        cd frontend
+        # Start Vite dev server in background
+        npm run dev -- --port 5173 &
+        sleep 10
+        npx playwright test
 
   deploy:
     name: Deploy to Raspberry Pi
