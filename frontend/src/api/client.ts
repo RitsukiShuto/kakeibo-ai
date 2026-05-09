@@ -61,3 +61,8 @@ export interface AISettings {
   active_model: string;
   available_models: AIModel[];
 }
+
+export interface ReimbursementSuggestion {
+  transaction_id: string;
+  reason: string;
+}
