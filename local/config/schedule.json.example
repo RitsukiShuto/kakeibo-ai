@@ -1,5 +1,9 @@
 {
     "reports": {
+        "daily": {
+            "enabled": true,
+            "description": "日次の収支確認と即時フィードバック"
+        },
         "weekly": {
             "enabled": true,
             "target_day": "Monday",

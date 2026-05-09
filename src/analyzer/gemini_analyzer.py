@@ -24,7 +24,7 @@ class GeminiAnalyzer:
         print(f"Selected model: {model}")
         return model
 
-    def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None) -> Optional[AIResponse]:
+    def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None) -> Optional[AIResponse]:
         persona_settings = self._load_prompt_file("prompts/persona_settings.md")
         system_prompt_template = self._load_prompt_file("prompts/system_prompt.md")
         timeframe_prompt = self._load_prompt_file(f"prompts/{timeframe}_prompt.md")
@@ -40,7 +40,7 @@ class GeminiAnalyzer:
             target_description=target.get('description', '目標なし')
         )
 
-        user_input = self._create_user_input_text(data, assets_summary, timeframe, budget, previous_summary, actual_monthly_income, comparison_data)
+        user_input = self._create_user_input_text(data, assets_summary, timeframe, budget, previous_summary, actual_monthly_income, comparison_data, pending_reimbursements)
 
         json_schema = {
             "slack_report": "Slack用の詳細レポート本文（Markdown/絵文字を駆使して、ギャル風に。※あとの'actions'セクションと重複するため、具体的なアクションリストはここには含めないでください）",
@@ -105,13 +105,42 @@ class GeminiAnalyzer:
                 print("Could not display raw text due to encoding issues.")
             return None
 
+    def parse_reimbursement_text(self, text: str, total_amount: int) -> Optional[dict]:
+        """
+        立替に関する自然言語入力を解析し、自己負担額を算出する
+        """
+        system_prompt = (
+            "あなたは優秀な家計簿アシスタントです。ユーザーが入力した立替や割り勘に関する説明を解析し、"
+            "「ユーザー自身の自己負担額」を算出してください。\n"
+            "入力には、総額、人数、あるいは特定の金額が含まれる場合があります。\n"
+            "返却は以下のJSON形式のみで行ってください。\n"
+            "{\"self_amount\": 整数, \"reason\": \"算出した理由の短い説明\"}"
+        )
+
+        user_input = f"総額: {total_amount}円\n説明: {text}"
+
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=f"{system_prompt}\n\n{user_input}",
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.1
+                )
+            )
+            result = json.loads(response.text.strip())
+            return result
+        except Exception as e:
+            print(f"Error parsing reimbursement text: {e}")
+            return None
+
     def _load_prompt_file(self, file_path: str) -> str:
         if os.path.exists(file_path):
             with open(file_path, "r", encoding="utf-8") as f:
                 return f.read()
         return ""
 
-    def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None) -> str:
+    def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None) -> str:
         text = f"### 分析期間: {timeframe}\n\n"
         
         if previous_summary:
@@ -182,7 +211,13 @@ class GeminiAnalyzer:
 
             text += f"- {t.transaction_date}: [{mode_ja}] {t.category}({t.genre}) {amount_display} {t.comment} [{t.source}]\n"
 
-        text += "\n#### 4. 現在の資産状況（カテゴリ別集計済み）\n"
+        if pending_reimbursements:
+            text += "\n#### 4. 未精算の立替金リスト (リマインド対象)\n"
+            for t in pending_reimbursements:
+                reimb_amt = t.amount - (t.self_amount or 0)
+                text += f"- {t.transaction_date}: {t.category} {reimb_amt:,}円 (元金額: {t.amount:,}円) {t.comment}\n"
+
+        text += "\n#### 5. 現在の資産状況（カテゴリ別集計済み）\n"
         total_asset = 0
         for a in assets_summary:
             text += f"- {a['category']}: {a['amount']:,}円\n"

@@ -322,7 +322,7 @@ class Database:
 
     def get_current_asset_summary(self) -> List[Asset]:
         """
-        最新日付の資産情報を取得
+        最新日付の全資産情報を取得
         """
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -334,7 +334,10 @@ class Database:
                 conn.close()
             return []
             
-        cursor.execute("SELECT * FROM assets WHERE acquired_date = ?", (latest_date,))
+        cursor.execute("""
+            SELECT * FROM assets 
+            WHERE acquired_date = ?
+        """, (latest_date,))
         rows = cursor.fetchall()
         result = [Asset(
             acquired_date=date.fromisoformat(row["acquired_date"]),
@@ -347,3 +350,86 @@ class Database:
         if self.db_path != ":memory:":
             conn.close()
         return result
+
+    def get_pending_reimbursements(self) -> List[Transaction]:
+        """
+        未精算の立替明細を取得
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM transactions 
+            WHERE is_reimbursement = 1 AND reimbursement_status != 'completed'
+            ORDER BY transaction_date ASC
+        """)
+        rows = cursor.fetchall()
+        
+        result = [Transaction(
+            transaction_id=row["transaction_id"],
+            transaction_date=date.fromisoformat(row["transaction_date"]),
+            category=row["category"],
+            genre=row["genre"],
+            amount=row["amount"],
+            comment=row["comment"],
+            source=row["source"],
+            mode=row["mode"],
+            self_amount=row["self_amount"],
+            is_reimbursement=row["is_reimbursement"],
+            reimbursement_status=row["reimbursement_status"]
+        ) for row in rows]
+        
+        if self.db_path != ":memory:":
+            conn.close()
+        return result
+
+    def auto_match_reimbursements(self):
+        """
+        未精算の立替明細と、新しい入金明細を照合し、自動的に精算完了にする。
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # 1. 未精算（pending/partial）の立替明細を取得
+        cursor.execute("""
+            SELECT transaction_id, transaction_date, amount, self_amount, category
+            FROM transactions
+            WHERE is_reimbursement = 1 AND reimbursement_status != 'completed' AND mode = 'payment'
+        """)
+        pending_txs = cursor.fetchall()
+        
+        if not pending_txs:
+            if self.db_path != ":memory:":
+                conn.close()
+            return []
+
+        matched_count = 0
+        for p in pending_txs:
+            # 回収すべき金額
+            reimbursement_amount = p["amount"] - (p["self_amount"] or 0)
+            p_date = p["transaction_date"]
+            
+            # 2. その立替日以降に、同額の入金（income）があるか探す
+            # 多少の日付のズレ（立替から回収までの期間）を考慮し、特に期限は設けない（立替日以降であればOK）
+            cursor.execute("""
+                SELECT transaction_id, transaction_date, comment
+                FROM transactions
+                WHERE mode = 'income' AND amount = ? AND transaction_date >= ?
+                ORDER BY transaction_date ASC
+                LIMIT 1
+            """, (reimbursement_amount, p_date))
+            
+            income_match = cursor.fetchone()
+            if income_match:
+                # 一致するものが見つかった場合、立替明細を 'completed' に更新
+                cursor.execute("""
+                    UPDATE transactions 
+                    SET reimbursement_status = 'completed' 
+                    WHERE transaction_id = ?
+                """, (p["transaction_id"],))
+                matched_count += 1
+                print(f"Auto-matched reimbursement: {p['category']} ({reimbursement_amount}円) matched with income on {income_match['transaction_date']}")
+
+        conn.commit()
+        if self.db_path != ":memory:":
+            conn.close()
+        return matched_count

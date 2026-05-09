@@ -55,6 +55,9 @@ def get_scheduled_timeframe(schedule):
     if reports.get("weekly", {}).get("enabled") and weekday == reports["weekly"].get("target_day", "Monday"):
         return "weekly"
     
+    if reports.get("daily", {}).get("enabled"):
+        return "daily"
+    
     return None
 
 def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
@@ -86,6 +89,12 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
             assets = fetcher.fetch_assets(headless=headless)
             if assets:
                 db.save_assets(assets)
+            
+            # 立替金の自動マッチングを実行
+            print("Auto-matching reimbursements...")
+            matched = db.auto_match_reimbursements()
+            if matched:
+                print(f"Successfully auto-matched {matched} reimbursements!")
         
         if progress_callback: progress_callback(f"🧠 {timeframe}の家計簿をAIが分析中...💅✨")
         print(f"Starting AI Analysis ({timeframe})...")
@@ -114,6 +123,7 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
         asset_summary = db.get_asset_category_summary()
         latest_analysis = db.get_latest_analysis(timeframe)
         previous_summary = latest_analysis["summary"] if latest_analysis else None
+        pending_reimbursements = db.get_pending_reimbursements()
         
         ai_response = analyzer.analyze_kakeibo(
             data=new_transactions, 
@@ -123,7 +133,8 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
             budget=budget,
             previous_summary=previous_summary,
             actual_monthly_income=actual_monthly_income,
-            comparison_data=comparison_data
+            comparison_data=comparison_data,
+            pending_reimbursements=pending_reimbursements
         )
 
         if not ai_response:

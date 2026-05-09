@@ -14,7 +14,7 @@ st.set_page_config(page_title="Kakeibo AI Dashboard", page_icon="💰", layout="
 load_dotenv("local/.env")
 
 # データベース接続
-DB_PATH = "local/kakeibo.db"
+DB_PATH = os.getenv("KAKEIBO_DB_PATH", "local/kakeibo.db")
 db = Database(db_path=DB_PATH)
 
 def load_budget():
@@ -40,7 +40,14 @@ def render_dashboard_content(timeframe):
             # 今月のデータを取得
             current_month = datetime.now().strftime("%Y-%m")
             conn = sqlite3.connect(DB_PATH)
-            query = f"SELECT category, SUM(amount) as actual FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment' GROUP BY category"
+            # 立替を考慮した実支出額を計算
+            query = f"""
+            SELECT category, 
+                   SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual 
+            FROM transactions 
+            WHERE transaction_date LIKE '{current_month}%' AND mode='payment' 
+            GROUP BY category
+            """
             df_actual = pd.read_sql_query(query, conn)
             conn.close()
             
@@ -124,10 +131,98 @@ def render_dashboard_content(timeframe):
 
         st.divider()
 
-        # 4. 最近の明細 (Bottom-Right)
+        # 4. 立替・精算管理 (AI Expense Splitter)
+        st.subheader("🤝 AI Expense Splitter")
+        
+        # 4a. 未精算リスト
+        conn = sqlite3.connect(DB_PATH)
+        query_pending = """
+        SELECT transaction_date, category, amount, self_amount, (amount - IFNULL(self_amount, 0)) as pending_amount, comment, transaction_id
+        FROM transactions 
+        WHERE is_reimbursement = 1 AND reimbursement_status != 'completed'
+        ORDER BY transaction_date DESC
+        """
+        df_pending = pd.read_sql_query(query_pending, conn)
+        
+        if not df_pending.empty:
+            st.warning(f"精算待ち項目: {len(df_pending)} 件 (合計: {df_pending['pending_amount'].sum():,}円)")
+            st.dataframe(df_pending.drop(columns=['transaction_id']), width='stretch')
+            
+            # 精算完了ボタン（簡易版）
+            with st.expander("精算を完了する"):
+                target_tx = st.selectbox("精算完了にする明細を選択", df_pending['transaction_id'].tolist(), 
+                                         key=f"complete_{timeframe}",
+                                         format_func=lambda x: f"{df_pending[df_pending['transaction_id']==x]['transaction_date'].iloc[0]} - {df_pending[df_pending['transaction_id']==x]['comment'].iloc[0]} ({df_pending[df_pending['transaction_id']==x]['pending_amount'].iloc[0]}円)")
+                if st.button("精算完了としてマーク", key=f"btn_complete_{timeframe}"):
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE transactions SET reimbursement_status = 'completed' WHERE transaction_id = ?", (target_tx,))
+                    conn.commit()
+                    st.success("精算を完了しました！")
+                    st.rerun()
+        else:
+            st.success("未精算の項目はありません。ととのってる〜！💅")
+        
+        st.write("---")
+        
+        # 4b. 新しく立替を設定
+        st.write("**Recent Transactions to Split**")
+        query_recent = "SELECT transaction_id, transaction_date, category, amount, comment FROM transactions WHERE mode='payment' AND is_reimbursement=0 ORDER BY transaction_date DESC LIMIT 10"
+        df_recent = pd.read_sql_query(query_recent, conn)
+        
+        if not df_recent.empty:
+            selected_tx_id = st.selectbox("立替設定する明細を選択", df_recent['transaction_id'].tolist(),
+                                          key=f"split_select_{timeframe}",
+                                          format_func=lambda x: f"{df_recent[df_recent['transaction_id']==x]['transaction_date'].iloc[0]} - {df_recent[df_recent['transaction_id']==x]['comment'].iloc[0]} ({df_recent[df_recent['transaction_id']==x]['amount'].iloc[0]}円)")
+            
+            target_row = df_recent[df_recent['transaction_id'] == selected_tx_id].iloc[0]
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                # AI解析の追加
+                ai_input = st.text_input("AIで計算 (例: 4人で割り勘, 自分は5000円など)", key=f"ai_input_{timeframe}")
+                if ai_input:
+                    from src.analyzer.gemini_analyzer import GeminiAnalyzer
+                    analyzer = GeminiAnalyzer()
+                    with st.spinner("AIが計算中..."):
+                        ai_result = analyzer.parse_reimbursement_text(ai_input, target_row['amount'])
+                        if ai_result:
+                            st.info(f"AI提案: {ai_result['self_amount']:,}円 ({ai_result['reason']})")
+                            st.session_state[f"self_amt_val_{timeframe}"] = ai_result['self_amount']
+                
+                # 初期値の管理
+                default_val = st.session_state.get(f"self_amt_val_{timeframe}", int(target_row['amount']//2))
+                self_amt = st.number_input("自分の負担額 (円)", min_value=0, max_value=int(target_row['amount']), 
+                                          value=default_val,
+                                          key=f"self_amt_{timeframe}")
+            with col2:
+                st.write(f"立替額: {target_row['amount'] - self_amt:,} 円")
+                if st.button("立替として設定", key=f"btn_split_{timeframe}"):
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        UPDATE transactions 
+                        SET is_reimbursement = 1, self_amount = ?, reimbursement_status = 'pending' 
+                        WHERE transaction_id = ?
+                    """, (self_amt, selected_tx_id))
+                    conn.commit()
+                    if f"self_amt_val_{timeframe}" in st.session_state:
+                        del st.session_state[f"self_amt_val_{timeframe}"]
+                    st.success("立替設定を保存しました！")
+                    st.rerun()
+        
+        conn.close()
+
+        st.divider()
+
+        # 5. 最近の明細 (Bottom-Right)
         st.subheader("📝 Recent Transactions")
         conn = sqlite3.connect(DB_PATH)
-        query = "SELECT transaction_date, category, amount, comment FROM transactions ORDER BY transaction_date DESC LIMIT 50"
+        query = """
+        SELECT transaction_date, category, amount, 
+               CASE WHEN is_reimbursement=1 THEN self_amount ELSE amount END as 'Net Amount',
+               comment, is_reimbursement as 'Split?'
+        FROM transactions 
+        ORDER BY transaction_date DESC LIMIT 50
+        """
         df_tx = pd.read_sql_query(query, conn)
         conn.close()
         

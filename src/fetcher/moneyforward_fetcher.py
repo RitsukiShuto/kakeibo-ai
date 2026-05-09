@@ -300,14 +300,30 @@ class MoneyForwardFetcher(BaseFetcher):
             amount_val = str(row[col_amount]).replace(",", "")
             amount = int(float(amount_val))
             
+            # 立替・経費の自動判定ロジック
+            is_reimbursement = 0
+            self_amount = None
+            reimbursement_status = None
+            comment_text = str(row[col_content]) if col_content else ""
+            
+            # キーワード判定
+            reimbursement_keywords = ["立替", "精算", "経費"]
+            if any(kw in comment_text for kw in reimbursement_keywords):
+                is_reimbursement = 1
+                self_amount = 0 # デフォルトで全額立替（経費精算待ち）として扱う
+                reimbursement_status = "pending"
+
             transactions.append(Transaction(
                 transaction_id=str(row[col_id]) if col_id else None,
                 transaction_date=datetime.strptime(str(row[col_date]), "%Y/%m/%d").date(),
                 category=str(row[col_major]) if col_major else "未分類",
                 genre=str(row[col_minor]) if col_minor else "",
                 amount=abs(amount),
-                comment=str(row[col_content]) if col_content else "",
+                comment=comment_text,
                 source="MoneyForward",
-                mode="payment" if amount < 0 else "income"
+                mode="payment" if amount < 0 else "income",
+                self_amount=self_amount,
+                is_reimbursement=is_reimbursement,
+                reimbursement_status=reimbursement_status
             ))
         return transactions
