@@ -299,6 +299,75 @@ def render_transactions_page():
     else:
         st.info("明細が見つかりません。")
 
+def render_expense_splitter_page():
+    st.subheader("🤝 AI 立替・精算管理")
+
+    # --- これ立替？ (AI Detection) ---
+    st.markdown("### 💡 これ立替？")
+    if st.button("AIに立替の可能性を判定させる"):
+        with st.spinner("AIが最近の明細を解析中..."):
+            conn = sqlite3.connect(DB_PATH)
+            # 直近の通常支出（立替設定されていないもの）を取得
+            query = "SELECT * FROM transactions WHERE mode='payment' AND is_reimbursement=0 ORDER BY transaction_date DESC LIMIT 20"
+            df_recent = pd.read_sql_query(query, conn)
+            conn.close()
+            
+            if not df_recent.empty:
+                from src.analyzer.gemini_analyzer import GeminiAnalyzer
+                analyzer = GeminiAnalyzer()
+                # Transactionオブジェクトのリストに変換
+                from src.models import Transaction
+                from datetime import date
+                transactions = [Transaction(
+                    transaction_id=row['transaction_id'],
+                    transaction_date=date.fromisoformat(row['transaction_date']),
+                    category=row['category'],
+                    amount=row['amount'],
+                    comment=row['comment'],
+                    source=row['source'],
+                    mode=row['mode']
+                ) for _, row in df_recent.iterrows()]
+                
+                suggestions = analyzer.detect_potential_reimbursements(transactions)
+                st.session_state["reimb_suggestions"] = suggestions
+            else:
+                st.info("解析対象の明細がありません。")
+
+    if "reimb_suggestions" in st.session_state and st.session_state["reimb_suggestions"]:
+        suggestions = st.session_state["reimb_suggestions"]
+        for sug in suggestions:
+            # 該当する明細の詳細を取得
+            conn = sqlite3.connect(DB_PATH)
+            query = "SELECT * FROM transactions WHERE transaction_id = ?"
+            tx_row = pd.read_sql_query(query, conn, params=(sug['transaction_id'],))
+            conn.close()
+            
+            if not tx_row.empty:
+                row = tx_row.iloc[0]
+                with st.container():
+                    st.warning(f"**{row['transaction_date']} | {row['comment']} | {row['amount']:,}円**")
+                    st.write(f"🤖 **理由:** {sug['reason']}")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("立替にする", key=f"sug_yes_{row['transaction_id']}"):
+                            # 簡易的に50%で設定
+                            conn = sqlite3.connect(DB_PATH)
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE transactions SET is_reimbursement=1, self_amount=?, reimbursement_status='pending' WHERE transaction_id=?", (row['amount']//2, row['transaction_id']))
+                            conn.commit()
+                            conn.close()
+                            st.success("立替として登録しました")
+                            st.rerun()
+                    with col2:
+                        if st.button("無視する", key=f"sug_no_{row['transaction_id']}"):
+                            # 実際には「判定済み」フラグなどを立てるのが理想だが、ここではセッションから消すだけ
+                            st.session_state["reimb_suggestions"] = [s for s in st.session_state["reimb_suggestions"] if s['transaction_id'] != row['transaction_id']]
+                            st.rerun()
+        st.divider()
+
+    # --- 既存の精算待ちリストと新規登録 ---
+    render_dashboard_content("monthly") # 暫定的に既存のロジックの一部を再利用、あるいは個別に実装
+
 def render_dashboard_page():
     # トップタブによる集計期間の切り替え
     timeframe_list = ["weekly", "monthly", "quarterly", "yearly"]
@@ -320,5 +389,7 @@ if page == "ダッシュボード":
     render_dashboard_page()
 elif page == "明細一覧":
     render_transactions_page()
+elif page == "立替・精算":
+    render_expense_splitter_page()
 else:
     st.write(f"{page} ページは現在プロトタイプ開発中です。")
