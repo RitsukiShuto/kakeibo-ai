@@ -13,28 +13,12 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
 from main import run_review
-from src.db.database import Database
-import time
 
 load_dotenv(os.path.join(ROOT_DIR, "local/.env"))
 
 # App Token (xapp-...) と Bot Token (xoxb-...) が必要です
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN")
-DB_PATH = os.getenv("KAKEIBO_DB_PATH", os.path.join(ROOT_DIR, "local/kakeibo.db"))
-
-def start_heartbeat():
-    """
-    生存確認用スレッド
-    """
-    db = Database(db_path=DB_PATH)
-    print("💓 Heartbeat thread started.")
-    while True:
-        try:
-            db.update_heartbeat("slack")
-        except Exception as e:
-            print(f"Error in heartbeat: {e}")
-        time.sleep(60)
 
 # テスト実行時やインポート時のエラーを防ぐため、未設定時はダミーを入れる
 # token_verification_enabled=False を指定して、初期化時の Slack API 通信（auth.test）を無効化する
@@ -98,10 +82,6 @@ def start_slack_server():
     if not SLACK_APP_TOKEN or not SLACK_BOT_TOKEN or SLACK_BOT_TOKEN == "xoxb-dummy":
         print("Error: SLACK_APP_TOKEN or SLACK_BOT_TOKEN is not set. Slack server cannot start.")
         return
-    
-    # 生存確認スレッドの開始
-    heartbeat_thread = threading.Thread(target=start_heartbeat, daemon=True)
-    heartbeat_thread.start()
     
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
     print("⚡️ Slack Socket Mode Server is running...")
