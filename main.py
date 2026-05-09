@@ -55,6 +55,9 @@ def get_scheduled_timeframe(schedule):
     if reports.get("weekly", {}).get("enabled") and weekday == reports["weekly"].get("target_day", "Monday"):
         return "weekly"
     
+    if reports.get("daily", {}).get("enabled"):
+        return "daily"
+    
     return None
 
 def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
