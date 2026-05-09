@@ -7,8 +7,43 @@ from datetime import datetime
 from src.db.database import Database
 from dotenv import load_dotenv
 
-# ページ設定 (サイドバーなし、ワイドモード)
-st.set_page_config(page_title="Kakeibo AI Dashboard", page_icon="💰", layout="wide", initial_sidebar_state="collapsed")
+# ページ設定 (サイドバーあり、ワイドモード)
+st.set_page_config(page_title="Kakeibo AI Dashboard", page_icon="💰", layout="wide", initial_sidebar_state="expanded")
+
+# --- カスタムCSS (プロトタイプのダークテーマを反映) ---
+st.markdown("""
+<style>
+    /* 全体の背景と文字色 */
+    .stApp {
+        background-color: #0f172a;
+        color: #f1f5f9;
+    }
+    /* サイドバー */
+    section[data-testid="stSidebar"] {
+        background-color: #1e293b !important;
+    }
+    /* カード風のコンテナ */
+    div.stMetric {
+        background-color: #1e293b;
+        border: 1px solid #334155;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+    }
+    /* サブヘッダーの装飾 */
+    .stMarkdown h2, .stMarkdown h3 {
+        color: #3b82f6;
+        border-bottom: 1px solid #334155;
+        padding-bottom: 8px;
+    }
+    /* ボタンのスタイル */
+    .stButton>button {
+        border-radius: 8px;
+        background-color: #3b82f6;
+        color: white;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # 環境変数の読み込み
 load_dotenv("local/.env")
@@ -48,109 +83,78 @@ def get_budget_category_totals(budget):
     return totals
 
 def render_dashboard_content(timeframe):
+    budget = load_budget()
+    budget_categories = get_budget_category_totals(budget)
+    
+    # --- 1. KPI カード (最上部) ---
+    current_month = datetime.now().strftime("%Y-%m")
+    conn = sqlite3.connect(DB_PATH)
+    query_total = f"SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment'"
+    actual_total = pd.read_sql_query(query_total, conn)['total'].iloc[0] or 0
+    
+    query_assets = "SELECT SUM(amount) as total FROM assets WHERE acquired_date = (SELECT MAX(acquired_date) FROM assets)"
+    total_assets = pd.read_sql_query(query_assets, conn)['total'].iloc[0] or 0
+    conn.close()
+
+    total_budget_amt = sum(budget_categories.values()) if budget_categories else 0
+    
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    kpi1.metric("予算 (Budget)", f"{total_budget_amt:,}円")
+    kpi2.metric("実支出 (Actual)", f"{int(actual_total):,}円", delta=f"{total_budget_amt - actual_total:,}円", delta_color="inverse")
+    kpi3.metric("残額 (Remaining)", f"{max(0, total_budget_amt - int(actual_total)):,}円")
+    kpi4.metric("総資産 (Total Assets)", f"{int(total_assets):,}円")
+
+    st.divider()
+
     col_left, col_right = st.columns(2)
 
-    # --- 左側カラム (TL: 予実, BL: 資産) ---
+    # --- 左側カラム (予実 & 資産) ---
     with col_left:
-        # 1. 予実管理 (Top-Left)
-        st.subheader("⚖️ Budget vs Actual")
-        budget = load_budget()
-        budget_categories = get_budget_category_totals(budget)
-        
+        st.subheader("⚖️ 予実管理 (カテゴリ別)")
         if budget_categories:
-            # 今月のデータを取得
-            current_month = datetime.now().strftime("%Y-%m")
             conn = sqlite3.connect(DB_PATH)
-            # 立替を考慮した実支出額を計算
-            query = f"""
-            SELECT category, 
-                   SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual 
-            FROM transactions 
-            WHERE transaction_date LIKE '{current_month}%' AND mode='payment' 
-            GROUP BY category
-            """
+            query = f"SELECT category, SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment' GROUP BY category"
             df_actual = pd.read_sql_query(query, conn)
             conn.close()
-            
-            # メトリクス表示
-            total_budget = sum(budget_categories.values())
-            total_actual = df_actual['actual'].sum()
-            
-            m1, m2, m3 = st.columns(3)
-            m1.metric("Budget", f"{total_budget:,}円")
-            m2.metric("Actual", f"{total_actual:,}円", delta=f"{total_budget-total_actual:,}円", delta_color="inverse")
-            m3.metric("Remaining", f"{max(0, total_budget-total_actual):,}円")
 
-            # カテゴリ別進捗
-            st.write("**Category Progress**")
-            cols = st.columns(2)
-            for i, (cat, b_amt) in enumerate(budget_categories.items()):
+            for cat, b_amt in budget_categories.items():
                 actual_row = df_actual[df_actual['category'] == cat]
                 a_amt = int(actual_row['actual'].iloc[0]) if not actual_row.empty else 0
                 progress = min(a_amt / b_amt, 1.0) if b_amt > 0 else 0
-                
-                with cols[i % 2]:
-                    st.write(f"{cat}: {a_amt:,} / {b_amt:,}")
-                    st.progress(progress)
+                st.write(f"**{cat}**: {a_amt:,} / {b_amt:,}")
+                st.progress(progress)
         else:
-            st.info("`local/config/budget.json` が設定されていません。")
+            st.info("予算が設定されていません。")
 
-        st.divider()
-
-        # 2. 資産推移 (Bottom-Left)
-        st.subheader("📈 Asset Trend Analysis")
+        st.subheader("📈 資産推移")
         conn = sqlite3.connect(DB_PATH)
-        query = """
-        SELECT acquired_date, asset_type, SUM(amount) as total_amount
-        FROM assets
-        GROUP BY acquired_date, asset_type
-        ORDER BY acquired_date ASC
-        """
-        df_assets = pd.read_sql_query(query, conn)
+        df_assets = pd.read_sql_query("SELECT acquired_date, asset_type, SUM(amount) as total_amount FROM assets GROUP BY acquired_date, asset_type ORDER BY acquired_date ASC", conn)
         conn.close()
-
         if not df_assets.empty:
             df_assets['acquired_date'] = pd.to_datetime(df_assets['acquired_date'])
             pivot_df = df_assets.pivot(index='acquired_date', columns='asset_type', values='total_amount').fillna(0)
-            st.area_chart(pivot_df, height=350)
-            
-            # 合計推移（ミニチャート）
-            total_growth = pivot_df.sum(axis=1)
-            st.caption("Total Asset Growth")
-            st.line_chart(total_growth, height=150)
-        else:
-            st.warning("資産データが見つかりません。")
+            st.area_chart(pivot_df, height=300)
 
-    # --- 右側カラム (TR: レビュー, BR: 明細) ---
+    # --- 右側カラム (AIレビュー & 最近の明細) ---
     with col_right:
-        # 3. AIレビュー (Top-Right)
-        st.subheader("🤖 AI Analysis Report")
+        st.subheader("🤖 AI 分析レポート")
         conn = sqlite3.connect(DB_PATH)
-        query = f"SELECT created_at, timeframe, score, summary, report_path FROM analysis_history WHERE timeframe = '{timeframe}' ORDER BY created_at DESC"
-        df_hist = pd.read_sql_query(query, conn)
+        df_hist = pd.read_sql_query(f"SELECT created_at, score, summary, report_path FROM analysis_history WHERE timeframe = '{timeframe}' ORDER BY created_at DESC", conn)
         conn.close()
-        
         if not df_hist.empty:
             latest = df_hist.iloc[0]
-            # 最新のレビューを全文表示（省略なし）
             st.success(f"### Score: {latest['score']} ({latest['created_at']})")
-            st.info(f"**Summary**\n\n{latest['summary']}")
-            
-            if latest['report_path'] and os.path.exists(latest['report_path']):
-                with open(latest['report_path'], "r", encoding="utf-8") as f:
-                    st.markdown("---")
-                    st.markdown(f.read())
-            
-            # 過去の履歴はアコーディオンに収納
-            if len(df_hist) > 1:
-                st.write("**Previous Reviews History**")
-                for index, row in df_hist.iloc[1:5].iterrows():
-                    with st.expander(f"{row['created_at']} (Score: {row['score']})"):
-                        st.write(row['summary'])
-        else:
-            st.info(f"{timeframe} の分析履歴がありません。")
-
-        st.divider()
+            st.info(latest['summary'])
+            with st.expander("レポート詳細を表示"):
+                if latest['report_path'] and os.path.exists(latest['report_path']):
+                    with open(latest['report_path'], "r", encoding="utf-8") as f:
+                        st.markdown(f.read())
+        
+        st.subheader("📝 最近の明細")
+        conn = sqlite3.connect(DB_PATH)
+        df_tx = pd.read_sql_query("SELECT transaction_date as '日付', category as 'カテゴリ', amount as '金額', comment as '内容' FROM transactions ORDER BY transaction_date DESC LIMIT 10", conn)
+        conn.close()
+        st.table(df_tx)
 
         # 4. 立替・精算管理 (AI Expense Splitter)
         st.subheader("🤝 AI Expense Splitter")
