@@ -57,11 +57,13 @@ python src/output/slack_server.py
 ```
 > Slack側で `/review` または `/review monthly` と送信してください。
 
-### パターンC: Webダッシュボードの起動
-ブラウザで資産推移グラフや最新のレポートを確認できます。
+### パターンD: Docker Compose による一括起動 (推奨)
+Raspberry Pi やサーバーで、Slackサーバー、ダッシュボード、定期実行をまとめて起動します。
 ```bash
-streamlit run dashboard.py
+docker compose build
+docker compose up -d
 ```
+> ※ `local/.env` 等の準備が完了している必要があります。
 
 ---
 

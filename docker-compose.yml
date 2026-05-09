@@ -1,0 +1,41 @@
+services:
+  slack:
+    build: .
+    container_name: kakeibo-slack
+    restart: unless-stopped
+    env_file:
+      - local/.env
+    volumes:
+      - ./local:/app/local
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./reports:/app/reports
+    command: python src/output/slack_server.py
+
+  dashboard:
+    build: .
+    container_name: kakeibo-dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    env_file:
+      - local/.env
+    volumes:
+      - ./local:/app/local
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./reports:/app/reports
+    command: streamlit run dashboard.py --server.address 0.0.0.0
+
+  cron:
+    build: .
+    container_name: kakeibo-cron
+    restart: unless-stopped
+    env_file:
+      - local/.env
+    volumes:
+      - ./local:/app/local
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./reports:/app/reports
+    entrypoint: /bin/bash /app/infra/docker/entrypoint-cron.sh

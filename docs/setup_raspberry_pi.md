@@ -56,18 +56,29 @@ bash tools/sync_to_pi.sh
 scp -r local/ [ユーザー名]@[IPアドレス]:~/kakeibo-ai/
 ```
 
-> **Note:** Raspberry Pi (SSH) 環境ではブラウザでの初回ログイン（2段階認証）が困難なため、PC側で一度ログインを済ませた `local/mf_session` を転送するのが最も簡単です。
+---
 
-## 5. 動作確認
-まずはデバッグモード（Slack連携のみ、データ保存なし等）で、コンソールにレポートが表示されるか確認します。
+## 5. Docker による実行 (推奨)
+現在、最も簡単で確実なセットアップ方法は **Docker Compose** を使用することです。これにより、OS へのライブラリ手動インストールや仮想環境の構築をスキップできます。
 
 ```bash
-conda activate kakeibo-ai
-python main.py --source mf --timeframe weekly --no-obsidian
+# Docker / Docker Compose のインストール（未導入の場合）
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+# 再ログイン後に実行
+docker compose build
+docker compose up -d
 ```
+これにより、以下の3つのサービスが自動起動します：
+- **Slack Bot**: `/review` コマンドを受け付けます。
+- **Dashboard**: `http://[PiのIP]:8501` で閲覧可能です。
+- **Cron**: 毎日 23:50 に自動レビューを実行します。
 
-## 6. Slack 連携・ダッシュボードサーバーの常駐化
-Slackから `/review` コマンドでいつでも分析を実行できるようにし、かつ Web ダッシュボードを常時閲覧可能にするため、Systemd でサービスを起動させます。
+---
+
+## 6. 手動セットアップ (非Docker環境の場合)
+Docker を使用しない場合は、以下の手順に従ってください。
 
 ```bash
 # サービスファイルのコピー
