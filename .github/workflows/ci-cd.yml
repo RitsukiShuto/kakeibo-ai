@@ -7,55 +7,36 @@ on:
     branches: [ main ]
 
 jobs:
-  # 1. PR・マージ後の共通バリデーション（単体テスト & ビルドチェック）
+  # 1. PR・マージ後の高速バリデーション（ビルドチェックのみ）
+  # ユニットテストはローカルでの実行を前提とし、CIではビルドの成功のみを担保する
   validate:
-    name: Unit Tests & Build Check
+    name: Build Check (Fast Feedback)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        cache: 'pip' # キャッシュ有効化
-        
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
-
-    - name: Install dependencies (Backend)
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
         
     - name: Install dependencies (Frontend)
       run: |
         cd frontend
         npm install
 
-    - name: Run Unit Tests (Backend)
-      env:
-        SLACK_BOT_TOKEN: xoxb-dummy
-        SLACK_APP_TOKEN: xapp-dummy
-        GEMINI_API_KEY: dummy-key
-      run: |
-        # E2E以外のテストを実行
-        PYTHONPATH=. python -m pytest -m "not e2e" tests/
-
-    - name: Build Frontend
+    - name: Build Frontend (Type Check & Vite Build)
       run: |
         cd frontend
         npm run build
 
-  # 2. Regression & E2E (mainブランチのみ、または手動実行)
+  # 2. Regression & E2E (mainブランチのみ)
+  # マージ後にすべてのテスト（UT + E2E）を回し、リグレッションがないか最終確認する
   regression:
-    name: Regression & E2E Tests
+    name: Full Regression Tests
     needs: validate
-    # mainブランチへのプッシュ（マージ）時のみ実行
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -83,7 +64,7 @@ jobs:
         npm install
         npx playwright install chromium
 
-    - name: Run E2E Tests
+    - name: Run All Tests (Unit + E2E)
       env:
         SLACK_BOT_TOKEN: xoxb-dummy
         SLACK_APP_TOKEN: xapp-dummy
@@ -103,8 +84,9 @@ jobs:
         (cd frontend && npm run dev -- --port 5173) &
         sleep 15
         
-        # Run All Tests (Regression)
+        # Run Unit Tests
         PYTHONPATH=. python -m pytest tests/
+        # Run Playwright E2E
         cd frontend && npx playwright test
 
   # 3. Deployment (Regression合格後)
@@ -132,4 +114,4 @@ jobs:
         if: failure()
         run: |
           cd /home/r410/kakeibo-ai
-          docker compose run --rm slack python -c "from src.output.slack_notifier import SlackNotifier; SlackNotifier().send_notification('❌ デプロイ失敗 (Docker)', 'Docker 環境へのアップデート中にエラーが発生しました。エラーログを確認してください。')"
+          docker compose run --rm slack python -c "import os; from src.output.slack_notifier import SlackNotifier; SlackNotifier().send_notification('❌ デプロイ失敗 (Docker)', 'Docker 環境へのアップデート中にエラーが発生しました。エラーログを確認してください。')"
