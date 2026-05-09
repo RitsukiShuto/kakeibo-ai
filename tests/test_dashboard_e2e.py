@@ -60,12 +60,12 @@ def test_dashboard_e2e():
             print("✅ Dashboard title found.")
 
             # 予算セクションの確認
-            page.wait_for_selector("text=Budget vs Actual", timeout=10000)
-            print("✅ Budget vs Actual section found.")
+            page.wait_for_selector("text=予実管理 (カテゴリ別)", timeout=10000)
+            print("✅ Budget section found.")
 
-            # 立替セクションの確認
-            page.wait_for_selector("text=AI Expense Splitter", timeout=10000)
-            print("✅ AI Expense Splitter section found.")
+            # 立替セクションの確認 (サイドバーのメニュー項目)
+            page.wait_for_selector("text=立替・精算", timeout=10000)
+            print("✅ Expense Splitter menu found.")
 
             # セレクトボックスのラベルが表示されるまで待機
             # テストDBにデータがあれば "立替設定する明細を選択" が表示されるはず
