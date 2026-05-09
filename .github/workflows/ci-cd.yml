@@ -45,8 +45,7 @@ jobs:
         # Start FastAPI server
         KAKEIBO_DB_PATH=local/test_dashboard.db PYTHONPATH=. python src/api/main.py &
         # Start Vite dev server for E2E tests (which use localhost:5173)
-        cd frontend && npm run dev -- --port 5173 &
-        cd ..
+        (cd frontend && npm run dev -- --port 5173) &
         sleep 15
         PYTHONPATH=. python -m pytest tests/
 
