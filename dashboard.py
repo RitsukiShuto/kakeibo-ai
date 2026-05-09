@@ -21,8 +21,31 @@ def load_budget():
     budget_path = "local/config/budget.json"
     if os.path.exists(budget_path):
         with open(budget_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            # 互換性維持: 旧形式（categoriesが直接フラット）の場合は新形式にラップする
+            if "budget" not in data.get("monthly", {}):
+                old_categories = data.get("monthly", {}).get("categories", {})
+                data["monthly"]["budget"] = {"variable": {"その他": old_categories}}
+            return data
     return None
+
+def get_budget_category_totals(budget):
+    """
+    階層型予算から中項目ごとの合計金額を計算してフラットな辞書で返す
+    """
+    totals = {}
+    if not budget:
+        return totals
+    
+    monthly_budget = budget.get("monthly", {}).get("budget", {})
+    for section in ["fixed", "variable"]:
+        section_data = monthly_budget.get(section, {})
+        for category, subcategories in section_data.items():
+            if isinstance(subcategories, dict):
+                totals[category] = sum(subcategories.values())
+            else:
+                totals[category] = subcategories
+    return totals
 
 def render_dashboard_content(timeframe):
     col_left, col_right = st.columns(2)
@@ -32,11 +55,9 @@ def render_dashboard_content(timeframe):
         # 1. 予実管理 (Top-Left)
         st.subheader("⚖️ Budget vs Actual")
         budget = load_budget()
+        budget_categories = get_budget_category_totals(budget)
         
-        if budget:
-            monthly_budget = budget.get("monthly", {})
-            budget_categories = monthly_budget.get("categories", {})
-            
+        if budget_categories:
             # 今月のデータを取得
             current_month = datetime.now().strftime("%Y-%m")
             conn = sqlite3.connect(DB_PATH)
@@ -231,16 +252,189 @@ def render_dashboard_content(timeframe):
         else:
             st.caption("取引データがありません。")
 
-st.title("📊 Kakeibo AI Integrated Dashboard")
+def render_transactions_page():
+    st.subheader("📝 明細一覧・編集")
+    
+    # フィルタと検索
+    col_search, col_filter = st.columns([3, 1])
+    with col_search:
+        search_query = st.text_input("明細を検索", placeholder="摘要やカテゴリで検索...")
+    
+    conn = sqlite3.connect(DB_PATH)
+    query = "SELECT * FROM transactions ORDER BY transaction_date DESC"
+    df_tx = pd.read_sql_query(query, conn)
+    conn.close()
 
-# トップタブによる集計期間の切り替え
-timeframe_list = ["weekly", "monthly", "quarterly", "yearly"]
-tabs = st.tabs([tf.capitalize() for tf in timeframe_list])
+    if search_query:
+        df_tx = df_tx[df_tx['comment'].str.contains(search_query, na=False) | df_tx['category'].str.contains(search_query, na=False)]
 
-for i, tab in enumerate(tabs):
-    with tab:
-        render_dashboard_content(timeframe_list[i])
+    if not df_tx.empty:
+        # 編集可能なデータフレームを表示（簡易的な実装として、選択した行を編集するUIにする）
+        st.write(f"表示件数: {len(df_tx)} 件")
+        
+        # 簡易的なテーブル表示と個別編集フォーム
+        for index, row in df_tx.head(20).iterrows():
+            with st.expander(f"{row['transaction_date']} | {row['category']} | {row['amount']:,}円 | {row['comment'] or ''}"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    new_cat = st.text_input("カテゴリ", value=row['category'], key=f"cat_{row['transaction_id']}")
+                    new_comment = st.text_input("摘要", value=row['comment'] or "", key=f"comm_{row['transaction_id']}")
+                with col2:
+                    is_reimb = st.checkbox("立替設定", value=bool(row['is_reimbursement']), key=f"reimb_{row['transaction_id']}")
+                    if is_reimb:
+                        self_amt = st.number_input("自己負担額", value=row['self_amount'] or row['amount']//2, key=f"self_{row['transaction_id']}")
+                
+                if st.button("更新を保存", key=f"save_{row['transaction_id']}"):
+                    conn = sqlite3.connect(DB_PATH)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        UPDATE transactions 
+                        SET category = ?, comment = ?, is_reimbursement = ?, self_amount = ?
+                        WHERE transaction_id = ?
+                    """, (new_cat, new_comment, 1 if is_reimb else 0, self_amt if is_reimb else None, row['transaction_id']))
+                    conn.commit()
+                    conn.close()
+                    st.success("保存しました")
+                    st.rerun()
+    else:
+        st.info("明細が見つかりません。")
 
-# 下部にリフレッシュボタン
-if st.button("🔄 Refresh Data"):
-    st.rerun()
+def render_expense_splitter_page():
+    st.subheader("🤝 AI 立替・精算管理")
+
+    # --- これ立替？ (AI Detection) ---
+    st.markdown("### 💡 これ立替？")
+    if st.button("AIに立替の可能性を判定させる"):
+        with st.spinner("AIが最近の明細を解析中..."):
+            conn = sqlite3.connect(DB_PATH)
+            # 直近の通常支出（立替設定されていないもの）を取得
+            query = "SELECT * FROM transactions WHERE mode='payment' AND is_reimbursement=0 ORDER BY transaction_date DESC LIMIT 20"
+            df_recent = pd.read_sql_query(query, conn)
+            conn.close()
+            
+            if not df_recent.empty:
+                from src.analyzer.gemini_analyzer import GeminiAnalyzer
+                analyzer = GeminiAnalyzer()
+                # Transactionオブジェクトのリストに変換
+                from src.models import Transaction
+                from datetime import date
+                transactions = [Transaction(
+                    transaction_id=row['transaction_id'],
+                    transaction_date=date.fromisoformat(row['transaction_date']),
+                    category=row['category'],
+                    amount=row['amount'],
+                    comment=row['comment'],
+                    source=row['source'],
+                    mode=row['mode']
+                ) for _, row in df_recent.iterrows()]
+                
+                suggestions = analyzer.detect_potential_reimbursements(transactions)
+                st.session_state["reimb_suggestions"] = suggestions
+            else:
+                st.info("解析対象の明細がありません。")
+
+    if "reimb_suggestions" in st.session_state and st.session_state["reimb_suggestions"]:
+        suggestions = st.session_state["reimb_suggestions"]
+        for sug in suggestions:
+            # 該当する明細の詳細を取得
+            conn = sqlite3.connect(DB_PATH)
+            query = "SELECT * FROM transactions WHERE transaction_id = ?"
+            tx_row = pd.read_sql_query(query, conn, params=(sug['transaction_id'],))
+            conn.close()
+            
+            if not tx_row.empty:
+                row = tx_row.iloc[0]
+                with st.container():
+                    st.warning(f"**{row['transaction_date']} | {row['comment']} | {row['amount']:,}円**")
+                    st.write(f"🤖 **理由:** {sug['reason']}")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("立替にする", key=f"sug_yes_{row['transaction_id']}"):
+                            # 簡易的に50%で設定
+                            conn = sqlite3.connect(DB_PATH)
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE transactions SET is_reimbursement=1, self_amount=?, reimbursement_status='pending' WHERE transaction_id=?", (row['amount']//2, row['transaction_id']))
+                            conn.commit()
+                            conn.close()
+                            st.success("立替として登録しました")
+                            st.rerun()
+                    with col2:
+                        if st.button("無視する", key=f"sug_no_{row['transaction_id']}"):
+                            # 実際には「判定済み」フラグなどを立てるのが理想だが、ここではセッションから消すだけ
+                            st.session_state["reimb_suggestions"] = [s for s in st.session_state["reimb_suggestions"] if s['transaction_id'] != row['transaction_id']]
+                            st.rerun()
+        st.divider()
+
+    # --- 既存の精算待ちリストと新規登録 ---
+    render_dashboard_content("monthly") # 暫定的に既存のロジックの一部を再利用、あるいは個別に実装
+
+def render_settings_page():
+    st.subheader("⚙️ システム設定")
+    
+    # 予算設定
+    st.markdown("### ⚖️ 階層型予算設定")
+    budget_data = load_budget()
+    if budget_data:
+        # JSONを直接編集できるテキストエリア（簡易実装）
+        new_budget_json = st.text_area("budget.json (編集後、保存ボタンを押してください)", 
+                                       value=json.dumps(budget_data, indent=2, ensure_ascii=False),
+                                       height=400)
+        if st.button("予算設定を保存"):
+            try:
+                parsed_json = json.loads(new_budget_json)
+                with open("local/config/budget.json", "w", encoding="utf-8") as f:
+                    json.dump(parsed_json, f, indent=2, ensure_ascii=False)
+                st.success("予算設定を更新しました")
+                st.rerun()
+            except Exception as e:
+                st.error(f"JSONの形式が正しくありません: {e}")
+    
+    st.divider()
+    
+    # ペルソナ設定
+    st.markdown("### 🤖 AI ペルソナ設定")
+    profile_path = "local/config/profile.json"
+    if os.path.exists(profile_path):
+        with open(profile_path, "r", encoding="utf-8") as f:
+            profile_data = json.load(f)
+        
+        new_profile_json = st.text_area("profile.json", 
+                                        value=json.dumps(profile_data, indent=2, ensure_ascii=False),
+                                        height=300)
+        if st.button("プロフィール設定を保存"):
+            try:
+                parsed_json = json.loads(new_profile_json)
+                with open(profile_path, "w", encoding="utf-8") as f:
+                    json.dump(parsed_json, f, indent=2, ensure_ascii=False)
+                st.success("プロフィール設定を更新しました")
+                st.rerun()
+            except Exception as e:
+                st.error(f"JSONの形式が正しくありません: {e}")
+
+def render_dashboard_page():
+    # トップタブによる集計期間の切り替え
+    timeframe_list = ["weekly", "monthly", "quarterly", "yearly"]
+    tabs = st.tabs([tf.capitalize() for tf in timeframe_list])
+
+    for i, tab in enumerate(tabs):
+        with tab:
+            render_dashboard_content(timeframe_list[i])
+
+# --- サイドバーナビゲーション ---
+with st.sidebar:
+    st.title("💰 Kakeibo AI")
+    page = st.radio("メニュー", ["ダッシュボード", "明細一覧", "AIレビュー", "立替・精算", "設定"])
+    st.divider()
+    if st.button("🔄 データを更新"):
+        st.rerun()
+
+if page == "ダッシュボード":
+    render_dashboard_page()
+elif page == "明細一覧":
+    render_transactions_page()
+elif page == "立替・精算":
+    render_expense_splitter_page()
+elif page == "設定":
+    render_settings_page()
+else:
+    st.write(f"{page} ページは現在プロトタイプ開発中です。")

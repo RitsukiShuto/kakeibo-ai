@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>立替・精算 - Kakeibo AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-wallet"></i> Kakeibo AI</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html"><i class="fa-solid fa-chart-line"></i> ダッシュボード</a></li>
+                <li><a href="transactions.html"><i class="fa-solid fa-list-ul"></i> 明細一覧</a></li>
+                <li><a href="ai_review.html"><i class="fa-solid fa-robot"></i> AIレビュー</a></li>
+                <li class="active"><a href="expense_splitter.html"><i class="fa-solid fa-handshake-angle"></i> 立替・精算</a></li>
+                <li><a href="settings.html"><i class="fa-solid fa-gear"></i> 設定</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="page-title">AI 立替・精算管理</div>
+            </header>
+
+            <div class="page-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                
+                <!-- AI Detection -->
+                <div class="card" style="grid-column: span 2; border-left: 4px solid var(--primary);">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-lightbulb"></i> これ立替？</h3>
+                        <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">2件の提案</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="color: var(--text-muted); margin-bottom: 12px; font-size: 0.9rem;">最近の明細から、立替の可能性がある項目をAIが自動検知しました。立替として登録しますか？</p>
+                        <table class="transaction-table">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>摘要</th>
+                                    <th>金額</th>
+                                    <th>AIの推測理由</th>
+                                    <th>アクション</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>05/08</td>
+                                    <td>〇〇居酒屋</td>
+                                    <td style="font-weight: bold;">18,000円</td>
+                                    <td style="color: var(--text-muted); font-size: 0.85rem;">普段の夕食より高額で、金曜夜の居酒屋であるため。</td>
+                                    <td>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button class="btn-small btn-primary">立替にする</button>
+                                            <button class="btn-small btn-outline">自分の支出</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>05/06</td>
+                                    <td>Amazon.co.jp</td>
+                                    <td style="font-weight: bold;">12,500円</td>
+                                    <td style="color: var(--text-muted); font-size: 0.85rem;">過去に「プレゼント」として複数人で分割した履歴と類似。</td>
+                                    <td>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button class="btn-small btn-primary">立替にする</button>
+                                            <button class="btn-small btn-outline">自分の支出</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pending List -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-list-check"></i> 精算待ちリスト</h3>
+                    </div>
+                    <div class="card-body">
+                        <table class="transaction-table">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>摘要</th>
+                                    <th>未精算額</th>
+                                    <th>アクション</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>05/01</td>
+                                    <td>ボブとの夕食</td>
+                                    <td style="color: var(--warning); font-weight: bold;">4,000円</td>
+                                    <td><button class="btn-small btn-success">完了</button></td>
+                                </tr>
+                                <tr>
+                                    <td>05/04</td>
+                                    <td>タクシー相乗り</td>
+                                    <td style="color: var(--warning); font-weight: bold;">1,500円</td>
+                                    <td><button class="btn-small btn-success">完了</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- New Split Form -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-plus"></i> 新しい立替を設定</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>対象の明細を選択 (直近の支出)</label>
+                            <select class="form-control">
+                                <option>05/08 - スーパーマーケット (12,000円)</option>
+                                <option>05/07 - Amazon (5,400円)</option>
+                                <option>05/05 - 居酒屋 (15,000円)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>AI で自動計算 (プロンプト入力)</label>
+                            <div class="ai-input-group">
+                                <input type="text" class="form-control" placeholder="例: 3人で割り勘。自分は少なめで3000円">
+                                <button class="btn-primary"><i class="fa-solid fa-wand-magic-sparkles"></i> 計算</button>
+                            </div>
+                        </div>
+
+                        <div class="card" style="background: var(--bg-color); margin-top: 20px;">
+                            <div class="card-body" style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 0.9rem; color: var(--text-muted);">あなたの負担額 (手入力も可)</div>
+                                    <input type="number" class="form-control" value="4000" style="width: 150px; margin-top: 8px;">
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.9rem; color: var(--text-muted);">立替額 (回収予定)</div>
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary);">8,000円</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn-primary w-100 mt-4">立替として設定・保存</button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>

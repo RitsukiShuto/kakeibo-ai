@@ -55,9 +55,13 @@ def test_dashboard_e2e():
             print("Accessing Dashboard...")
             page.goto("http://localhost:8501", wait_until="networkidle", timeout=20000)
             
-            # タイトルの確認
-            page.wait_for_selector("text=Kakeibo AI Integrated Dashboard", timeout=10000)
+            # タイトルの確認 (サイドバー内のタイトル)
+            page.wait_for_selector("text=Kakeibo AI", timeout=10000)
             print("✅ Dashboard title found.")
+
+            # 予算セクションの確認
+            page.wait_for_selector("text=Budget vs Actual", timeout=10000)
+            print("✅ Budget vs Actual section found.")
 
             # 立替セクションの確認
             page.wait_for_selector("text=AI Expense Splitter", timeout=10000)
