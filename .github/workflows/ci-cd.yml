@@ -42,17 +42,17 @@ jobs:
         SLACK_APP_TOKEN: xapp-dummy
         GEMINI_API_KEY: dummy-key
       run: |
-        # Start FastAPI server for E2E tests
+        # Start FastAPI server
         KAKEIBO_DB_PATH=local/test_dashboard.db PYTHONPATH=. python src/api/main.py &
-        sleep 5
+        # Start Vite dev server for E2E tests (which use localhost:5173)
+        cd frontend && npm run dev -- --port 5173 &
+        cd ..
+        sleep 15
         PYTHONPATH=. python -m pytest tests/
 
     - name: Run E2E Tests (Frontend)
       run: |
         cd frontend
-        # Start Vite dev server in background
-        npm run dev -- --port 5173 &
-        sleep 10
         npx playwright test
 
   deploy:

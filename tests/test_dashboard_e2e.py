@@ -53,27 +53,30 @@ def test_dashboard_e2e():
         
         try:
             print("Accessing Dashboard...")
-            page.goto("http://localhost:8501", wait_until="networkidle", timeout=30000)
+            # React Frontend (Vite)
+            page.goto("http://localhost:5173", wait_until="networkidle", timeout=30000)
             
-            # タイトルの確認 (サイドバー内のタイトル)
-            page.wait_for_selector("text=Kakeibo AI", timeout=15000)
-            print("✅ Dashboard title found.")
+            # サイドバーの確認
+            page.wait_for_selector("text=ダッシュボード", timeout=15000)
+            print("✅ Dashboard menu found.")
 
-            # 予算セクションの確認 (日本語UIに対応)
+            # 予算セクションの確認
             page.wait_for_selector("text=予実管理 (カテゴリ別)", timeout=15000)
             print("✅ Budget section found.")
 
-            # 立替セクションの確認 (サイドバーのメニュー項目)
+            # メニュー項目の確認
             page.wait_for_selector("text=立替・精算", timeout=15000)
             print("✅ Expense Splitter menu found.")
 
-            # セレクトボックスのラベルが表示されるまで待機
-            # テストDBにデータがあれば "立替設定する明細を選択" が表示されるはず
+            # 立替・精算ページへ遷移してフォームを確認
+            page.click("text=立替・精算")
+            page.wait_for_selector("text=精算待ちリスト", timeout=15000)
+            
             try:
-                page.wait_for_selector("text=立替設定する明細を選択", timeout=5000)
-                print("✅ Selectbox '立替設定する明細を選択' found.")
+                page.wait_for_selector("text=選択してください...", timeout=5000)
+                print("✅ Selectbox in Splitter found.")
             except:
-                print("⚠️ Selectbox not found. (Check if KAKEIBO_DB_PATH is set correctly on the Streamlit server)")
+                print("⚠️ Selectbox not found.")
 
             print("E2E Test completed.")
 
