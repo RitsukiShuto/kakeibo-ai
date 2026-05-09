@@ -1,3 +1,11 @@
 {
-    "is_setup_completed": false
+    "is_setup_completed": false,
+    "ai": {
+        "active_model": "gemini-2.0-flash",
+        "available_models": [
+            {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (高速・安価)", "description": "レスポンスが速く、日常的な分析に適しています。"},
+            {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro (高性能)", "description": "より深い洞察と複雑な推論が可能です。"},
+            {"id": "gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro Preview (最新)", "description": "最新の実験的なモデルです。"}
+        ]
+    }
 }

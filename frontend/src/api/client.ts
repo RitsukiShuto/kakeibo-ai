@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.DEV 
   ? 'http://localhost:8000' 
-  : '/api';
+  : ''; // 本番環境ではルート相対パスを使用（Nginxが/apiをハンドルするため）
 
 const client = axios.create({
   baseURL: API_BASE_URL,
@@ -49,6 +49,17 @@ export interface AnalysisHistory {
   score: number;
   summary: string;
   report_path: string;
+}
+
+export interface AIModel {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface AISettings {
+  active_model: string;
+  available_models: AIModel[];
 }
 
 export interface ReimbursementSuggestion {

@@ -101,6 +101,47 @@ async def get_status():
             }
         }
 
+@app.get("/api/settings/ai-models")
+async def get_ai_models():
+    config_dir = get_config_dir()
+    settings_path = os.path.join(config_dir, "settings.json")
+    example_path = os.path.join(config_dir, "settings.json.example")
+    
+    if not os.path.exists(settings_path) and os.path.exists(example_path):
+        import shutil
+        shutil.copy(example_path, settings_path)
+        
+    if os.path.exists(settings_path):
+        with open(settings_path, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+            return settings.get("ai", {})
+    return {"error": "Settings file not found"}
+
+@app.put("/api/settings/active-model")
+async def update_active_model(data: dict = Body(...)):
+    config_dir = get_config_dir()
+    settings_path = os.path.join(config_dir, "settings.json")
+    new_model = data.get("active_model")
+    
+    if not new_model:
+        raise HTTPException(status_code=400, detail="active_model is required")
+        
+    try:
+        settings = {}
+        if os.path.exists(settings_path):
+            with open(settings_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+        
+        if "ai" not in settings:
+            settings["ai"] = {}
+        settings["ai"]["active_model"] = new_model
+        
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2, ensure_ascii=False)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/")
 async def root():
     return {"message": "Kakeibo AI API is running"}
