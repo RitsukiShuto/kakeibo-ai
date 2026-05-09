@@ -32,9 +32,9 @@ def load_config(file_path):
             return json.load(f)
     return {}
 
-def get_scheduled_timeframe(schedule):
+def get_scheduled_timeframes(schedule):
     """
-    スケジュール設定に基づき、今日実行すべきタイムフレームを返す
+    スケジュール設定に基づき、今日実行すべきタイムフレームのリストを返す
     """
     today = datetime.now()
     weekday = today.strftime("%A") # Monday, Tuesday, ...
@@ -42,23 +42,24 @@ def get_scheduled_timeframe(schedule):
     month = today.month
 
     reports = schedule.get("reports", {})
+    matched_timeframes = []
     
     if reports.get("yearly", {}).get("enabled") and month == reports["yearly"].get("month") and day == 1:
-        return "yearly"
+        matched_timeframes.append("yearly")
     
     if reports.get("quarterly", {}).get("enabled") and month in reports["quarterly"].get("months", []) and day == 1:
-        return "quarterly"
+        matched_timeframes.append("quarterly")
     
     if reports.get("monthly", {}).get("enabled") and day == reports["monthly"].get("target_day", 1):
-        return "monthly"
+        matched_timeframes.append("monthly")
     
     if reports.get("weekly", {}).get("enabled") and weekday == reports["weekly"].get("target_day", "Monday"):
-        return "weekly"
+        matched_timeframes.append("weekly")
     
     if reports.get("daily", {}).get("enabled"):
-        return "daily"
+        matched_timeframes.append("daily")
     
-    return None
+    return matched_timeframes
 
 def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
     """
@@ -69,10 +70,12 @@ def run_review(timeframe: str = None, source: str = "mf", headless: bool = True,
     budget = load_config("local/config/budget.json")
 
     if not timeframe:
-        timeframe = get_scheduled_timeframe(schedule)
-        if not timeframe:
+        timeframes = get_scheduled_timeframes(schedule)
+        if not timeframes:
             print("No task scheduled. Defaulting to weekly for manual run.")
             timeframe = "weekly"
+        else:
+            timeframe = timeframes[0]
 
     db = Database(db_path=db_path)
     fetcher = MoneyForwardFetcher() if source == "mf" else ZaimFetcher()
@@ -210,16 +213,48 @@ def main():
     
     args = parser.parse_args()
 
-    run_review(
-        timeframe=args.timeframe,
-        source=args.source,
-        headless=args.headless,
-        skip_fetch=args.skip_fetch,
-        db_path=args.db_path,
-        output_slack=args.slack,
-        output_obsidian=args.obsidian,
-        output_console=args.console
-    )
+    # 実行対象のタイムフレームを決定
+    target_timeframes = []
+    if args.timeframe:
+        target_timeframes = [args.timeframe]
+    else:
+        schedule = load_config("local/config/schedule.json")
+        target_timeframes = get_scheduled_timeframes(schedule)
+        if not target_timeframes:
+            print("No task scheduled. Defaulting to weekly for manual run.")
+            target_timeframes = ["weekly"]
+
+    # fetch-onlyの場合はデータ取得のみ
+    if args.fetch_only:
+        run_review(
+            timeframe=target_timeframes[0],
+            source=args.source,
+            headless=args.headless,
+            skip_fetch=False,
+            db_path=args.db_path,
+            output_slack=False,
+            output_obsidian=False,
+            output_console=False
+        )
+        return
+
+    # 各タイムフレームを実行
+    current_skip_fetch = args.skip_fetch
+    for i, tf in enumerate(target_timeframes):
+        print(f"\n🚀 Starting Review for timeframe: {tf}")
+        run_review(
+            timeframe=tf,
+            source=args.source,
+            headless=args.headless,
+            skip_fetch=current_skip_fetch,
+            db_path=args.db_path,
+            output_slack=args.slack,
+            output_obsidian=args.obsidian,
+            output_console=args.console
+        )
+        # 2回目以降は、fetchをスキップするように設定（初回で取得済みの前提）
+        if not args.skip_fetch:
+            current_skip_fetch = True
 
 if __name__ == "__main__":
     main()
