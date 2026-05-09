@@ -1,11 +1,12 @@
 import os
 import sqlite3
 import time
+import pytest
 from playwright.sync_api import sync_playwright
 from datetime import date
 
 # テスト用DBの設定
-DB_PATH = "local/test_dashboard.db"
+DB_PATH = os.getenv("KAKEIBO_DB_PATH", "local/test_dashboard.db")
 
 def setup_test_db():
     if os.path.exists(DB_PATH):
@@ -14,6 +15,7 @@ def setup_test_db():
         except:
             pass
     
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -85,6 +87,7 @@ def setup_test_db():
     conn.commit()
     conn.close()
 
+@pytest.mark.e2e
 def test_dashboard_e2e():
     setup_test_db()
     

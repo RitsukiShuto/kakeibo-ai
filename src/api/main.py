@@ -26,8 +26,10 @@ app.add_middleware(
 DB_PATH = os.getenv("KAKEIBO_DB_PATH", "local/kakeibo.db")
 db = Database(db_path=DB_PATH)
 
+CONFIG_DIR = os.getenv("KAKEIBO_CONFIG_DIR", "local/config")
+
 def load_budget():
-    budget_path = "local/config/budget.json"
+    budget_path = os.path.join(CONFIG_DIR, "budget.json")
     if os.path.exists(budget_path):
         with open(budget_path, "r", encoding="utf-8") as f:
             data = json.load(f)

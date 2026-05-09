@@ -27,6 +27,11 @@ from dotenv import load_dotenv
 load_dotenv("local/.env")
 
 def load_config(file_path):
+    config_dir = os.getenv("KAKEIBO_CONFIG_DIR", "local/config")
+    # もし引数が local/config を含むパスなら、config_dir で置換
+    if file_path.startswith("local/config/"):
+        file_path = os.path.join(config_dir, os.path.basename(file_path))
+        
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)

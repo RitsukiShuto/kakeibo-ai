@@ -49,19 +49,36 @@ jobs:
         SLACK_APP_TOKEN: xapp-dummy
         GEMINI_API_KEY: dummy-key
       run: |
+        # E2E以外のテストを実行
+        PYTHONPATH=. python -m pytest -m "not e2e" tests/
+
+    - name: Run E2E Tests
+      env:
+        SLACK_BOT_TOKEN: xoxb-dummy
+        SLACK_APP_TOKEN: xapp-dummy
+        GEMINI_API_KEY: dummy-key
+        KAKEIBO_CONFIG_DIR: tests/config
+        KAKEIBO_DB_PATH: local/test_dashboard.db
+      run: |
+        # テスト用設定ディレクトリの準備
+        mkdir -p tests/config
+        cp local/config/*.json.example tests/config/
+        for f in tests/config/*.json.example; do mv "$f" "${f%.example}"; done
+        
         # Initialize test database
-        KAKEIBO_DB_PATH=local/test_dashboard.db PYTHONPATH=. python -c "from tests.test_dashboard_e2e import setup_test_db; setup_test_db()"
+        PYTHONPATH=. python -c "from tests.test_dashboard_e2e import setup_test_db; setup_test_db()"
+        
         # Start FastAPI server
-        KAKEIBO_DB_PATH=local/test_dashboard.db PYTHONPATH=. python src/api/main.py &
-        # Start Vite dev server for E2E tests (which use localhost:5173)
+        PYTHONPATH=. python src/api/main.py &
+        # Start Vite dev server
         (cd frontend && npm run dev -- --port 5173) &
         sleep 15
-        PYTHONPATH=. python -m pytest tests/
-
-    - name: Run E2E Tests (Frontend)
-      run: |
-        cd frontend
-        npx playwright test
+        
+        # Run Backend E2E
+        PYTHONPATH=. python -m pytest -m "e2e" tests/
+        
+        # Run Frontend E2E
+        cd frontend && npx playwright test
 
   deploy:
     name: Deploy to Raspberry Pi
