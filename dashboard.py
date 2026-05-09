@@ -21,8 +21,31 @@ def load_budget():
     budget_path = "local/config/budget.json"
     if os.path.exists(budget_path):
         with open(budget_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            # 互換性維持: 旧形式（categoriesが直接フラット）の場合は新形式にラップする
+            if "budget" not in data.get("monthly", {}):
+                old_categories = data.get("monthly", {}).get("categories", {})
+                data["monthly"]["budget"] = {"variable": {"その他": old_categories}}
+            return data
     return None
+
+def get_budget_category_totals(budget):
+    """
+    階層型予算から中項目ごとの合計金額を計算してフラットな辞書で返す
+    """
+    totals = {}
+    if not budget:
+        return totals
+    
+    monthly_budget = budget.get("monthly", {}).get("budget", {})
+    for section in ["fixed", "variable"]:
+        section_data = monthly_budget.get(section, {})
+        for category, subcategories in section_data.items():
+            if isinstance(subcategories, dict):
+                totals[category] = sum(subcategories.values())
+            else:
+                totals[category] = subcategories
+    return totals
 
 def render_dashboard_content(timeframe):
     col_left, col_right = st.columns(2)
@@ -32,11 +55,9 @@ def render_dashboard_content(timeframe):
         # 1. 予実管理 (Top-Left)
         st.subheader("⚖️ Budget vs Actual")
         budget = load_budget()
+        budget_categories = get_budget_category_totals(budget)
         
-        if budget:
-            monthly_budget = budget.get("monthly", {})
-            budget_categories = monthly_budget.get("categories", {})
-            
+        if budget_categories:
             # 今月のデータを取得
             current_month = datetime.now().strftime("%Y-%m")
             conn = sqlite3.connect(DB_PATH)

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kakeibo AI Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-wallet"></i> Kakeibo AI</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html"><i class="fa-solid fa-chart-line"></i> ダッシュボード</a></li>
+                                <li><a href="transactions.html"><i class="fa-solid fa-list-ul"></i> 明細一覧</a></li>
+                                <li><a href="ai_review.html"><i class="fa-solid fa-robot"></i> AIレビュー</a></li>
+                <li><a href="expense_splitter.html"><i class="fa-solid fa-handshake-angle"></i> 立替・精算</a></li>
+                <li><a href="settings.html"><i class="fa-solid fa-gear"></i> 設定</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <div class="timeframe-tabs">
+                    <button class="tab-btn">週次</button>
+                    <button class="tab-btn active">月次</button>
+                    <button class="tab-btn">四半期</button>
+                    <button class="tab-btn">年次</button>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-refresh"><i class="fa-solid fa-rotate-right"></i> 更新</button>
+                    <div class="user-profile">
+                        <i class="fa-solid fa-circle-user"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="dashboard-grid">
+                <!-- KPI Cards -->
+                <div class="kpi-cards">
+                    <div class="card kpi-card">
+                        <div class="kpi-title">予算</div>
+                        <div class="kpi-value">300,000<span>円</span></div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-title">実支出（立替控除後）</div>
+                        <div class="kpi-value">185,400<span>円</span></div>
+                        <div class="kpi-trend positive">-114,600円</div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-title">予算残額</div>
+                        <div class="kpi-value">114,600<span>円</span></div>
+                    </div>
+                    <div class="card kpi-card">
+                        <div class="kpi-title">総資産</div>
+                        <div class="kpi-value">4,500,200<span>円</span></div>
+                        <div class="kpi-trend positive"><i class="fa-solid fa-arrow-trend-up"></i> +2.4% (前月比)</div>
+                    </div>
+                </div>
+
+                <!-- Budget vs Actual -->
+                <div class="card section-budget">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-scale-balanced"></i> 予実管理 (カテゴリ別)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress-item">
+                            <div class="progress-info">
+                                <span>食費</span>
+                                <span>45,000 / 60,000</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 75%;"></div>
+                            </div>
+                        </div>
+                        <div class="progress-item">
+                            <div class="progress-info">
+                                <span>住宅</span>
+                                <span>80,000 / 80,000</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar warning" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                        <div class="progress-item">
+                            <div class="progress-info">
+                                <span>交際費</span>
+                                <span>32,000 / 20,000</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar danger" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                        <div class="progress-item">
+                            <div class="progress-info">
+                                <span>光熱費</span>
+                                <span>15,000 / 25,000</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: 60%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Analysis Report -->
+                <div class="card section-ai-review">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-robot"></i> AI 分析レポート</h3>
+                        <span class="badge score-good">スコア: 85/100</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="review-date">2026-05-09</p>
+                        <div class="review-summary">
+                            <p><strong>サマリー:</strong> 今月は食費が予算内に収まっていますが、交際費が予算をオーバーしています。来週の飲み会を控えることで全体予算内に着地できる見込みです。</p>
+                        </div>
+                        <div class="review-actions">
+                            <a href="ai_review.html" class="btn-outline" style="text-decoration:none;">詳細レポートを読む</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Asset Trend -->
+                <div class="card section-assets">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-chart-area"></i> 資産推移</h3>
+                    </div>
+                    <div class="card-body chart-placeholder">
+                        <div class="mock-chart">
+                            <div class="chart-area-mock"></div>
+                            <p>ここに Streamlit の st.area_chart または st.line_chart が表示されます</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Expense Splitter -->
+                <div class="card section-splitter">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-handshake-angle"></i> AI 立替・精算</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>精算待ち</h4>
+                        <ul class="pending-list">
+                            <li>
+                                <div class="pending-info">
+                                    <span class="date">05/01</span>
+                                    <span class="desc">ボブとの夕食代</span>
+                                </div>
+                                <div class="pending-amount">4,000円</div>
+                                <button class="btn-small btn-success">精算完了</button>
+                            </li>
+                            <li>
+                                <div class="pending-info">
+                                    <span class="date">05/04</span>
+                                    <span class="desc">タクシー相乗り</span>
+                                </div>
+                                <div class="pending-amount">1,500円</div>
+                                <button class="btn-small btn-success">精算完了</button>
+                            </li>
+                        </ul>
+                        
+                        <div class="mt-4" style="text-align: center;">
+                            <a href="expense_splitter.html" class="btn-primary w-100" style="display:inline-block; text-decoration:none;">新しい立替を登録・管理する</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Transactions -->
+                <div class="card section-transactions">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-list-ul"></i> 最近の明細</h3>
+                    </div>
+                    <div class="card-body">
+                        <table class="transaction-table">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>カテゴリ</th>
+                                    <th>摘要</th>
+                                    <th>金額</th>
+                                    <th>実負担額</th>
+                                    <th>ステータス</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2026-05-08</td>
+                                    <td>食費</td>
+                                    <td>スーパーマーケット</td>
+                                    <td>12,000円</td>
+                                    <td>12,000円</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td>2026-05-04</td>
+                                    <td>交通費</td>
+                                    <td>タクシー相乗り</td>
+                                    <td>3,000円</td>
+                                    <td>1,500円</td>
+                                    <td><span class="badge badge-split">立替</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2026-05-01</td>
+                                    <td>食費</td>
+                                    <td>ボブとの夕食</td>
+                                    <td>8,000円</td>
+                                    <td>4,000円</td>
+                                    <td><span class="badge badge-split">立替</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2026-04-29</td>
+                                    <td>光熱費</td>
+                                    <td>電気代</td>
+                                    <td>10,500円</td>
+                                    <td>10,500円</td>
+                                    <td>-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

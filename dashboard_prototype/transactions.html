@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>明細一覧 - Kakeibo AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-wallet"></i> Kakeibo AI</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html"><i class="fa-solid fa-chart-line"></i> ダッシュボード</a></li>
+                <li class="active"><a href="transactions.html"><i class="fa-solid fa-list-ul"></i> 明細一覧</a></li>
+                <li><a href="ai_review.html"><i class="fa-solid fa-robot"></i> AIレビュー</a></li>
+                <li><a href="expense_splitter.html"><i class="fa-solid fa-handshake-angle"></i> 立替・精算</a></li>
+                <li><a href="settings.html"><i class="fa-solid fa-gear"></i> 設定</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <div class="page-title">明細一覧・編集</div>
+                <div class="header-actions">
+                    <div class="ai-input-group">
+                        <input type="text" class="form-control" placeholder="明細を検索...">
+                        <button class="btn-refresh"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-table-list"></i> 取引明細</h3>
+                        <div class="header-actions">
+                            <button class="btn-outline btn-small"><i class="fa-solid fa-filter"></i> フィルタ</button>
+                            <button class="btn-primary btn-small"><i class="fa-solid fa-download"></i> CSV出力</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table class="transaction-table">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>カテゴリ</th>
+                                    <th>摘要</th>
+                                    <th>金額</th>
+                                    <th>実負担額</th>
+                                    <th>立替設定</th>
+                                    <th>アクション</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2026-05-08</td>
+                                    <td>
+                                        <select class="form-control" style="padding: 4px; font-size: 0.85rem;">
+                                            <option selected>食費</option>
+                                            <option>日用品</option>
+                                            <option>交際費</option>
+                                        </select>
+                                    </td>
+                                    <td>スーパーマーケット</td>
+                                    <td>12,000円</td>
+                                    <td>12,000円</td>
+                                    <td>
+                                        <button class="btn-small btn-outline"><i class="fa-solid fa-handshake-angle"></i> 立替にする</button>
+                                    </td>
+                                    <td><button class="btn-text"><i class="fa-solid fa-floppy-disk"></i> 保存</button></td>
+                                </tr>
+                                <tr style="background: rgba(59, 130, 246, 0.05);">
+                                    <td>2026-05-04</td>
+                                    <td>
+                                        <select class="form-control" style="padding: 4px; font-size: 0.85rem;">
+                                            <option>食費</option>
+                                            <option selected>交通費</option>
+                                            <option>交際費</option>
+                                        </select>
+                                    </td>
+                                    <td>タクシー相乗り</td>
+                                    <td>3,000円</td>
+                                    <td style="color: var(--warning);">1,500円</td>
+                                    <td>
+                                        <span class="badge badge-split">立替設定済</span>
+                                    </td>
+                                    <td><button class="btn-text"><i class="fa-solid fa-pen-to-square"></i> 編集</button></td>
+                                </tr>
+                                <tr>
+                                    <td>2026-05-01</td>
+                                    <td>
+                                        <select class="form-control" style="padding: 4px; font-size: 0.85rem;">
+                                            <option selected>食費</option>
+                                            <option>交際費</option>
+                                        </select>
+                                    </td>
+                                    <td>ボブとの夕食</td>
+                                    <td>8,000円</td>
+                                    <td style="color: var(--warning);">4,000円</td>
+                                    <td>
+                                        <span class="badge badge-split">立替設定済</span>
+                                    </td>
+                                    <td><button class="btn-text"><i class="fa-solid fa-pen-to-square"></i> 編集</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="mt-4" style="text-align: center;">
+                            <button class="btn-text">もっと読み込む <i class="fa-solid fa-chevron-down"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>設定 - Kakeibo AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-wallet"></i> Kakeibo AI</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html"><i class="fa-solid fa-chart-line"></i> ダッシュボード</a></li>
+                <li><a href="transactions.html"><i class="fa-solid fa-list-ul"></i> 明細一覧</a></li>
+                <li><a href="ai_review.html"><i class="fa-solid fa-robot"></i> AIレビュー</a></li>
+                <li><a href="expense_splitter.html"><i class="fa-solid fa-handshake-angle"></i> 立替・精算</a></li>
+                <li class="active"><a href="settings.html"><i class="fa-solid fa-gear"></i> 設定</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="page-title">システム設定</div>
+            </header>
+
+            <div class="page-content" style="max-width: 800px; margin: 0 auto; width: 100%;">
+                
+                <div class="card mb-4">
+                    <div class="card-header" style="display: flex; justify-content: space-between;">
+                        <h3><i class="fa-solid fa-money-bill-wave"></i> 階層型予算設定</h3>
+                        <div style="font-size: 1.1rem; font-weight: bold; color: var(--primary);">総予算: 300,000円</div>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- 固定費セクション -->
+                        <div class="budget-group mb-4" style="background: rgba(255,255,255,0.02); padding: 16px; border-radius: 8px; border-left: 4px solid var(--warning);">
+                            <h4 style="margin-bottom: 12px; color: var(--warning); display: flex; justify-content: space-between;">
+                                <span><i class="fa-solid fa-lock"></i> 固定費 (Fixed)</span>
+                                <span>小計: 105,000円</span>
+                            </h4>
+                            
+                            <!-- 中項目: 住宅 -->
+                            <div class="category-block" style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <div style="font-weight: 500;"><i class="fa-solid fa-house"></i> 住宅</div>
+                                    <input type="number" class="form-control" value="80000" style="width: 120px; padding: 4px 8px;">
+                                </div>
+                                <div class="sub-categories" style="padding-left: 24px; border-left: 1px dashed var(--border); margin-left: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- 家賃/ローン</div>
+                                        <input type="number" class="form-control" value="75000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- 管理費/共益費</div>
+                                        <input type="number" class="form-control" value="5000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <button class="btn-text btn-small mt-2"><i class="fa-solid fa-plus"></i> 小項目を追加</button>
+                                </div>
+                            </div>
+
+                            <!-- 中項目: 光熱費 -->
+                            <div class="category-block" style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <div style="font-weight: 500;"><i class="fa-solid fa-bolt"></i> 光熱費・通信費</div>
+                                    <input type="number" class="form-control" value="25000" style="width: 120px; padding: 4px 8px;">
+                                </div>
+                                <div class="sub-categories" style="padding-left: 24px; border-left: 1px dashed var(--border); margin-left: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- 電気代</div>
+                                        <input type="number" class="form-control" value="10000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- ガス代</div>
+                                        <input type="number" class="form-control" value="5000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- インターネット</div>
+                                        <input type="number" class="form-control" value="10000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <button class="btn-text btn-small mt-2"><i class="fa-solid fa-plus"></i> 小項目を追加</button>
+                                </div>
+                            </div>
+                            <button class="btn-outline btn-small mt-2 w-100"><i class="fa-solid fa-plus"></i> 新しい固定費の中項目を追加</button>
+                        </div>
+
+                        <!-- 変動費セクション -->
+                        <div class="budget-group mb-4" style="background: rgba(255,255,255,0.02); padding: 16px; border-radius: 8px; border-left: 4px solid var(--success);">
+                            <h4 style="margin-bottom: 12px; color: var(--success); display: flex; justify-content: space-between;">
+                                <span><i class="fa-solid fa-chart-pie"></i> 変動費 (Variable)</span>
+                                <span>小計: 110,000円</span>
+                            </h4>
+                            
+                            <!-- 中項目: 食費 -->
+                            <div class="category-block" style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <div style="font-weight: 500;"><i class="fa-solid fa-utensils"></i> 食費</div>
+                                    <input type="number" class="form-control" value="60000" style="width: 120px; padding: 4px 8px;">
+                                </div>
+                                <div class="sub-categories" style="padding-left: 24px; border-left: 1px dashed var(--border); margin-left: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- 食料品（自炊）</div>
+                                        <input type="number" class="form-control" value="40000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- コンビニ・カフェ</div>
+                                        <input type="number" class="form-control" value="20000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <button class="btn-text btn-small mt-2"><i class="fa-solid fa-plus"></i> 小項目を追加</button>
+                                </div>
+                            </div>
+
+                            <!-- 中項目: 交際費 -->
+                            <div class="category-block" style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <div style="font-weight: 500;"><i class="fa-solid fa-glass-cheers"></i> 交際・レジャー費</div>
+                                    <input type="number" class="form-control" value="50000" style="width: 120px; padding: 4px 8px;">
+                                </div>
+                                <div class="sub-categories" style="padding-left: 24px; border-left: 1px dashed var(--border); margin-left: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- 飲み会・外食</div>
+                                        <input type="number" class="form-control" value="30000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <div style="font-size: 0.9rem; color: var(--text-muted);">- 趣味・娯楽</div>
+                                        <input type="number" class="form-control" value="20000" style="width: 100px; padding: 2px 8px; font-size: 0.85rem; background: transparent;">
+                                    </div>
+                                    <button class="btn-text btn-small mt-2"><i class="fa-solid fa-plus"></i> 小項目を追加</button>
+                                </div>
+                            </div>
+                            <button class="btn-outline btn-small mt-2 w-100"><i class="fa-solid fa-plus"></i> 新しい変動費の中項目を追加</button>
+                        </div>
+
+                        <!-- 未割り当て -->
+                        <div style="display: flex; justify-content: space-between; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; color: var(--primary); font-weight: bold;">
+                            <span>未割り当て予算 (バッファ)</span>
+                            <span>85,000円</span>
+                        </div>
+
+                        <div class="mt-4" style="text-align: right;">
+                            <button class="btn-primary" style="padding: 10px 24px; font-size: 1rem;"><i class="fa-solid fa-floppy-disk"></i> 予算構造を保存</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-user-gear"></i> AI ペルソナ設定 (profile.json)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>現在のペルソナ</label>
+                            <select class="form-control">
+                                <option>標準アシスタント</option>
+                                <option selected>厳しめ執事</option>
+                                <option>優しいお母さん</option>
+                                <option>データアナリスト</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>フォーカスエリア</label>
+                            <select class="form-control">
+                                <option>無駄遣いの削減</option>
+                                <option selected>投資への資金捻出</option>
+                                <option>固定費の最適化</option>
+                            </select>
+                        </div>
+                        <button class="btn-primary mt-2">ペルソナを更新</button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>

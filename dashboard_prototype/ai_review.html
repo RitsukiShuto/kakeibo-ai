@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI レビュー - Kakeibo AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-wallet"></i> Kakeibo AI</h2>
+            </div>
+            <ul class="sidebar-nav">
+                <li><a href="index.html"><i class="fa-solid fa-chart-line"></i> ダッシュボード</a></li>
+                <li><a href="transactions.html"><i class="fa-solid fa-list-ul"></i> 明細一覧</a></li>
+                <li><a href="ai_review.html"><i class="fa-solid fa-robot"></i> AIレビュー</a></li>
+                <li><a href="expense_splitter.html"><i class="fa-solid fa-handshake-angle"></i> 立替・精算</a></li>
+                <li><a href="settings.html"><i class="fa-solid fa-gear"></i> 設定</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="page-title">AI 分析レビュー</div>
+                <div class="header-actions">
+                    <button class="btn-primary"><i class="fa-solid fa-bolt"></i> レビューを手動実行</button>
+                </div>
+            </header>
+
+            <div class="page-content" style="display: grid; grid-template-columns: 1fr 300px; gap: 24px;">
+                
+                <!-- Main Report Area -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-file-lines"></i> 最新レポート (2026年5月度)</h3>
+                        <span class="badge score-good">スコア: 85/100</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="review-full-text">
+                            <h4>🎯 総合評価</h4>
+                            <p>先月に比べて無駄遣いが減っており、非常に良いペースです。特に食費のコントロールが改善されています。</p>
+                            <br>
+                            <h4>💡 改善ポイント (交際費)</h4>
+                            <p>交際費が予算20,000円に対して既に32,000円に達しています。GWのイベントが影響していると考えられますが、来週末は自宅での食事に切り替えるなどして調整をお勧めします。</p>
+                            <br>
+                            <h4>📈 資産運用アドバイス</h4>
+                            <p>現在の余剰資金が少し増えてきています。インデックス投資の積立額を来月から少し（5,000円程度）増額することを検討してみてはいかがでしょうか。</p>
+                            <br>
+                            <h4>🗣️ AIペルソナ（厳しめ執事）からのコメント</h4>
+                            <p>「お坊ちゃま、タクシーの利用が少し多いようです。少し歩くことも健康への第一歩でございますよ。」</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Sidebar -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-clock-rotate-left"></i> 過去のレビュー</h3>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <ul class="history-list">
+                            <li>
+                                <div style="font-weight: bold; margin-bottom: 4px;">2026年4月度</div>
+                                <span class="badge score-warn">スコア: 65/100</span>
+                                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">外食費が超過。予算見直しの提案。</p>
+                            </li>
+                            <li>
+                                <div style="font-weight: bold; margin-bottom: 4px;">2026年3月度</div>
+                                <span class="badge score-good">スコア: 90/100</span>
+                                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">完璧な予算管理。目標貯金額達成。</p>
+                            </li>
+                            <li>
+                                <div style="font-weight: bold; margin-bottom: 4px;">2026年2月度</div>
+                                <span class="badge score-good">スコア: 80/100</span>
+                                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">光熱費の増加トレンドを警告。</p>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>

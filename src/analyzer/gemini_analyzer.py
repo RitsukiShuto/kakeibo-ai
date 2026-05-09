@@ -134,6 +134,41 @@ class GeminiAnalyzer:
             print(f"Error parsing reimbursement text: {e}")
             return None
 
+    def detect_potential_reimbursements(self, transactions: List[Transaction]) -> List[dict]:
+        """
+        最近の明細から立替の可能性がある項目をAIで推測する
+        """
+        if not transactions:
+            return []
+
+        system_prompt = (
+            "あなたは優秀な家計簿アシスタントです。支払い明細のリストを見て、"
+            "「これは実は立替や割り勘なのではないか？」と思われる項目をピックアップしてください。\n"
+            "高額な外食、複数人での利用が推測される場所、普段の支出パターンと異なるものなどが候補になります。\n"
+            "返却は以下のJSON形式のみで行ってください。\n"
+            "{\"suggestions\": [{\"transaction_id\": \"ID\", \"reason\": \"推測理由\", \"confidence\": 0.0-1.0}]}"
+        )
+
+        tx_list_text = "\n".join([
+            f"- ID: {t.transaction_id}, 日付: {t.transaction_date}, カテゴリ: {t.category}, 金額: {t.amount}円, 内容: {t.comment}"
+            for t in transactions
+        ])
+
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=f"{system_prompt}\n\n対象明細:\n{tx_list_text}",
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.1
+                )
+            )
+            result = json.loads(response.text.strip())
+            return result.get("suggestions", [])
+        except Exception as e:
+            print(f"Error detecting reimbursements: {e}")
+            return []
+
     def _load_prompt_file(self, file_path: str) -> str:
         if os.path.exists(file_path):
             with open(file_path, "r", encoding="utf-8") as f:
