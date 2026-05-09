@@ -7,10 +7,10 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    name: Run Unit Tests
+  # 1. PR・マージ後の共通バリデーション（単体テスト & ビルドチェック）
+  validate:
+    name: Unit Tests & Build Check
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v4
     
@@ -18,30 +18,24 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
+        cache: 'pip' # キャッシュ有効化
         
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
 
     - name: Install dependencies (Backend)
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        playwright install chromium
         
     - name: Install dependencies (Frontend)
       run: |
         cd frontend
         npm install
-        npx playwright install chromium
-
-    - name: Prepare configuration files
-      run: |
-        mkdir -p local/config
-        cp local/config/budget.json.example local/config/budget.json
-        cp local/config/profile.json.example local/config/profile.json
-        cp local/config/schedule.json.example local/config/schedule.json
 
     - name: Run Unit Tests (Backend)
       env:
@@ -52,6 +46,43 @@ jobs:
         # E2E以外のテストを実行
         PYTHONPATH=. python -m pytest -m "not e2e" tests/
 
+    - name: Build Frontend
+      run: |
+        cd frontend
+        npm run build
+
+  # 2. Regression & E2E (mainブランチのみ、または手動実行)
+  regression:
+    name: Regression & E2E Tests
+    needs: validate
+    # mainブランチへのプッシュ（マージ）時のみ実行
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        playwright install chromium
+        cd frontend
+        npm install
+        npx playwright install chromium
+
     - name: Run E2E Tests
       env:
         SLACK_BOT_TOKEN: xoxb-dummy
@@ -60,7 +91,6 @@ jobs:
         KAKEIBO_CONFIG_DIR: tests/config
         KAKEIBO_DB_PATH: local/test_dashboard.db
       run: |
-        # テスト用設定ディレクトリの準備
         mkdir -p tests/config
         cp local/config/*.json.example tests/config/
         for f in tests/config/*.json.example; do mv "$f" "${f%.example}"; done
@@ -68,31 +98,26 @@ jobs:
         # Initialize test database
         PYTHONPATH=. python -c "from tests.test_dashboard_e2e import setup_test_db; setup_test_db()"
         
-        # Start FastAPI server
+        # Start Backend & Frontend
         PYTHONPATH=. python src/api/main.py &
-        # Start Vite dev server
         (cd frontend && npm run dev -- --port 5173) &
         sleep 15
         
-        # Run Backend E2E
-        PYTHONPATH=. python -m pytest -m "e2e" tests/
-        
-        # Run Frontend E2E
+        # Run All Tests (Regression)
+        PYTHONPATH=. python -m pytest tests/
         cd frontend && npx playwright test
 
+  # 3. Deployment (Regression合格後)
   deploy:
     name: Deploy to Raspberry Pi
-    needs: test
+    needs: regression
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    # ラズパイ上の Runner で実行
     runs-on: self-hosted
-    
     steps:
       - name: Update code and restart containers
         run: |
           cd /home/r410/kakeibo-ai
           git pull origin main
-          # Docker イメージのビルドとコンテナの再起動
           docker compose build
           docker compose up -d
           
@@ -101,7 +126,6 @@ jobs:
         run: |
           cd /home/r410/kakeibo-ai
           export COMMIT_MSG="$(git log -1 --pretty=format:'%s')"
-          # slack コンテナを使用して通知を送信
           docker compose run --rm slack python -c "import os; from src.output.slack_notifier import SlackNotifier; from src import __version__; msg = os.environ.get('COMMIT_MSG', '取得できませんでした'); SlackNotifier().send_notification('🚀 アップデート完了 (Docker)', f'Kakeibo AI (v{__version__}) が Docker 環境に正常にデプロイされました！\n\n*更新内容:*\n> {msg}')"
 
       - name: Slack Notification (Failure)
