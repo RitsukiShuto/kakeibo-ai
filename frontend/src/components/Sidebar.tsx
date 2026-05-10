@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ListTodo, Bot, Handshake, Settings, Circle } from 'lucide-react';
+import { LayoutDashboard, ListTodo, Bot, Handshake, Settings, Circle, MessageSquare } from 'lucide-react';
 import client from '../api/client';
 
 interface SystemStatus {
@@ -55,6 +55,12 @@ const Sidebar: React.FC = () => {
             <NavLink to="/ai-review" className={({ isActive }) => (isActive ? 'active' : '')}>
               <Bot size={20} />
               <span>AIレビュー</span>
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/ai-chat" className={({ isActive }) => (isActive ? 'active' : '')}>
+              <MessageSquare size={20} />
+              <span>AIチャット</span>
             </NavLink>
           </li>
           <li>

@@ -380,6 +380,63 @@ class TransactionUpdate(BaseModel):
     self_amount: Optional[int] = None
     reimbursement_status: Optional[str] = None
 
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[dict]] = None
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    conn = None
+    try:
+        db_path = get_db_path()
+        config_dir = get_config_dir()
+        
+        # 1. コンテキスト情報の取得
+        conn = sqlite3.connect(db_path)
+        # 最近の取引10件
+        query_tx = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT 10"
+        df_tx = pd.read_sql_query(query_tx, conn)
+        from src.models import Transaction
+        from datetime import date
+        recent_transactions = [Transaction(
+            transaction_id=row['transaction_id'],
+            transaction_date=date.fromisoformat(row['transaction_date']),
+            category=row['category'],
+            genre=row['genre'],
+            amount=row['amount'],
+            comment=row['comment'],
+            source=row['source'],
+            mode=row['mode']
+        ) for _, row in df_tx.iterrows()]
+        
+        # 資産状況
+        db_instance = Database(db_path=db_path)
+        asset_summary = db_instance.get_asset_category_summary()
+        
+        # プロファイルと予算
+        profile = load_config(os.path.join(config_dir, "profile.json"))
+        budget = load_config(os.path.join(config_dir, "budget.json"))
+        
+        # 2. AIによる回答生成
+        from src.analyzer.gemini_analyzer import GeminiAnalyzer
+        analyzer = GeminiAnalyzer()
+        response = analyzer.chat(
+            message=request.message,
+            history=request.history,
+            profile=profile,
+            budget=budget,
+            assets_summary=asset_summary,
+            recent_transactions=recent_transactions
+        )
+        
+        return {"response": response}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
 @app.put("/api/transactions/{transaction_id}")
 async def update_transaction(transaction_id: str, update: TransactionUpdate):
     conn = None
