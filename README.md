@@ -50,12 +50,14 @@ python main.py --source mf --timeframe weekly
 python main.py --source mf --timeframe monthly --skip-fetch
 ```
 
-### パターンB: Slack連携サーバーの起動
+### パターンB: Slack連携サーバーの起動 (推奨)
 裏側でサーバーを立ち上げておくことで、スマホのSlackアプリからいつでも操作できるようになります。
 ```bash
 python src/output/slack_server.py
 ```
-> Slack側で `/review` または `/review monthly` と送信してください。
+> **💡 利用可能なコマンド:**
+> `/kakeibo check` (予算確認), `/kakeibo character` (キャラ変更), `/kakeibo review` (分析実行) など。
+> 詳細は [Slack スラッシュコマンド一覧](docs/SLACK_COMMANDS.md) を参照してください。
 
 ### パターンD: Docker Compose による一括起動 (推奨)
 Raspberry Pi やサーバーで、Slackサーバー、ダッシュボード、定期実行をまとめて起動します。
