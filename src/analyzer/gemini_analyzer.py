@@ -276,13 +276,21 @@ class GeminiAnalyzer:
         }
 
         print(f"DEBUG: Calling Gemini API with model: {self.model_name}")
+        import time
+        start_time = time.time()
         try:
-            # モデル名が古いエイリアスの場合は最新のものにマッピング（SDK互換性のため）
+            # モデル名の正規化（models/ プレフィックスの付与）
             model_to_use = self.model_name
-            if model_to_use == "gemini-pro-latest":
-                model_to_use = "gemini-1.5-pro"
-            elif model_to_use == "gemini-flash-latest":
-                model_to_use = "gemini-1.5-flash"
+            if not model_to_use.startswith("models/"):
+                model_to_use = f"models/{model_to_use}"
+
+            # レガシーな名前を高速な1.5/2.0系にマッピング
+            if "pro-latest" in model_to_use:
+                model_to_use = "models/gemini-1.5-pro"
+            elif "flash-latest" in model_to_use:
+                model_to_use = "models/gemini-1.5-flash"
+            
+            print(f"DEBUG: Actual model being used: {model_to_use}")
 
             response = self.client.models.generate_content(
                 model=model_to_use,
@@ -291,10 +299,12 @@ class GeminiAnalyzer:
                     temperature=0.7
                 )
             )
-            print("DEBUG: Gemini API call successful")
+            elapsed = time.time() - start_time
+            print(f"DEBUG: Gemini API call successful (took {elapsed:.2f}s)")
             return response.text.strip()
         except Exception as e:
-            print(f"DEBUG: Life plan analysis error: {e}")
+            elapsed = time.time() - start_time
+            print(f"DEBUG: Life plan analysis error after {elapsed:.2f}s: {e}")
             import traceback
             traceback.print_exc()
             return "シミュレーション結果の分析中にエラーが発生したよ。データを見直してみてね！"
