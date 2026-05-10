@@ -160,11 +160,52 @@ def handle_stats(respond, args):
         respond("💡 `stats ai` と打つと、AIのトークン使用量が見れるよ！")
 
 def handle_character(respond, args):
-    """キャラクター切り替え（モック）"""
+    """キャラクター切り替え"""
+    config_dir = os.path.join(ROOT_DIR, "local/config")
+    settings_path = os.path.join(config_dir, "settings.json")
+    
+    available_personas = {
+        "gal": "ギャル (デフォルト)",
+        "butler": "執事 (丁寧・上品)",
+        "zen": "禅師 (厳格・古風)"
+    }
+
     if not args:
-        respond("👗 *現在のキャラ設定*: ギャル (デフォルト)\n切り替えたい時は `character cool` や `character gentle` って打ってね！（※開発中だよ！）")
+        # 現在のキャラを確認
+        current = "gal"
+        if os.path.exists(settings_path):
+            try:
+                with open(settings_path, "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+                    current = settings.get("ai", {}).get("active_persona", "gal")
+            except: pass
+        
+        persona_list = "\n".join([f"• `{k}`: {v}" for k, v in available_personas.items()])
+        respond(
+            f"👗 *現在のキャラ設定*: {available_personas.get(current, current)}\n\n"
+            f"切り替えたい時は以下のように打ってね！\n{persona_list}\n"
+            f"例: `/kakeibo character butler`"
+        )
     else:
-        respond(f"✨ キャラクターを `{args[0]}` に設定したよ！(※現在は表示上の変更のみです。次回の分析から反映されるように頑張るね！)")
+        new_persona = args[0].lower()
+        if new_persona in available_personas:
+            try:
+                settings = {}
+                if os.path.exists(settings_path):
+                    with open(settings_path, "r", encoding="utf-8") as f:
+                        settings = json.load(f)
+                
+                if "ai" not in settings: settings["ai"] = {}
+                settings["ai"]["active_persona"] = new_persona
+                
+                with open(settings_path, "w", encoding="utf-8") as f:
+                    json.dump(settings, f, indent=2, ensure_ascii=False)
+                
+                respond(f"✨ キャラクターを `{available_personas[new_persona]}` に変更したよ！次回の分析から反映されるから楽しみにしててね！💖")
+            except Exception as e:
+                respond(f"❌ 設定の保存に失敗しました: {e}")
+        else:
+            respond(f"❌ `{new_persona}` というキャラクターはいないみたい...。`gal`, `butler`, `zen` から選んでね！")
 
 def handle_last(respond):
     """最新レポート表示"""
