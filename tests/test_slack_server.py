@@ -8,7 +8,8 @@ def test_handle_review_command():
     command = {"user_id": "U123", "text": "monthly skip"}
     
     with patch('src.output.slack_server.threading.Thread') as mock_thread:
-        handle_review_command(mock_ack, command, mock_respond, None)
+        # 新しい引数(3つ)に合わせて呼び出し
+        handle_review_command(mock_ack, command, mock_respond)
         
         mock_ack.assert_called_once()
         mock_respond.assert_called_once()
@@ -22,15 +23,15 @@ def test_handle_review_command_others():
     mock_respond = MagicMock()
     
     with patch('src.output.slack_server.threading.Thread'):
-        handle_review_command(mock_ack, {"user_id": "U", "text": "y"}, mock_respond, None)
+        handle_review_command(mock_ack, {"user_id": "U", "text": "y"}, mock_respond)
         assert "yearly" in mock_respond.call_args[0][0]
         
         mock_respond.reset_mock()
-        handle_review_command(mock_ack, {"user_id": "U", "text": "q"}, mock_respond, None)
+        handle_review_command(mock_ack, {"user_id": "U", "text": "q"}, mock_respond)
         assert "quarterly" in mock_respond.call_args[0][0]
         
         mock_respond.reset_mock()
-        handle_review_command(mock_ack, {"user_id": "U", "text": ""}, mock_respond, None)
+        handle_review_command(mock_ack, {"user_id": "U", "text": ""}, mock_respond)
         assert "weekly" in mock_respond.call_args[0][0]
 
 @patch('src.output.slack_server.app')
