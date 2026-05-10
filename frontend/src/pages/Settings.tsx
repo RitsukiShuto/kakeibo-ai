@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Target, Wallet, Code, CheckCircle2 } from 'lucide-react';
 import client from '../api/client';
-import type { AISettings, AIModel } from '../api/client';
+import type { AISettings } from '../api/client';
 import TopHeader from '../components/TopHeader';
 
 const Settings: React.FC = () => {
@@ -79,6 +79,19 @@ const Settings: React.FC = () => {
       setMessage({ text: 'AIモデルを変更しました', type: 'success' });
     } catch (error) {
       setMessage({ text: 'モデルの変更に失敗しました', type: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePersonaChange = async (personaId: string) => {
+    setSaving(true);
+    try {
+      await client.put('/api/settings/active-persona', { active_persona: personaId });
+      setAiSettings(prev => prev ? { ...prev, active_persona: personaId } : null);
+      setMessage({ text: 'AIキャラクターを変更しました', type: 'success' });
+    } catch (error) {
+      setMessage({ text: 'キャラクターの変更に失敗しました', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -164,26 +177,54 @@ const Settings: React.FC = () => {
         {activeMode === 'ui' ? (
           <div className="settings-content">
             {activeTab === 'ai' && (
-              <div className="card">
-                <div className="card-header">
-                  <h3><Bot size={20} /> AI モデルの選択</h3>
-                </div>
-                <div className="card-body">
-                  <div className="model-grid">
-                    {aiSettings?.available_models.map((model: AIModel) => (
-                      <div 
-                        key={model.id} 
-                        className={`model-card ${aiSettings.active_model === model.id ? 'active' : ''}`}
-                        onClick={() => handleModelChange(model.id)}
-                      >
-                        <div className="model-header">
-                          <div className="model-name">{model.name}</div>
-                          {aiSettings.active_model === model.id && <CheckCircle2 size={18} className="text-primary" />}
+              <div className="flex flex-col gap-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div className="card">
+                  <div className="card-header">
+                    <h3><Bot size={20} /> AI モデルの選択</h3>
+                  </div>
+                  <div className="card-body">
+                    <div className="model-grid">
+                      {aiSettings?.available_models.map((model) => (
+                        <div 
+                          key={model.id} 
+                          className={`model-card ${aiSettings.active_model === model.id ? 'active' : ''}`}
+                          onClick={() => handleModelChange(model.id)}
+                        >
+                          <div className="model-header">
+                            <div className="model-name">{model.name}</div>
+                            {aiSettings.active_model === model.id && <CheckCircle2 size={18} className="text-primary" />}
+                          </div>
+                          <div className="model-desc">{model.description}</div>
+                          <div className="model-id">{model.id}</div>
                         </div>
-                        <div className="model-desc">{model.description}</div>
-                        <div className="model-id">{model.id}</div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="card-header">
+                    <h3><User size={20} /> AI キャラクター（人格）の選択</h3>
+                  </div>
+                  <div className="card-body">
+                    <div className="model-grid">
+                      {aiSettings?.available_personas?.map((persona) => (
+                        <div 
+                          key={persona.id} 
+                          className={`model-card ${aiSettings.active_persona === persona.id ? 'active' : ''}`}
+                          onClick={() => handlePersonaChange(persona.id)}
+                          style={{ borderColor: aiSettings.active_persona === persona.id ? 'var(--success)' : '' }}
+                        >
+                          <div className="model-header">
+                            <div className="model-name" style={{ color: aiSettings.active_persona === persona.id ? 'var(--success)' : '' }}>
+                              {persona.name}
+                            </div>
+                            {aiSettings.active_persona === persona.id && <CheckCircle2 size={18} className="text-success" />}
+                          </div>
+                          <div className="model-desc">{persona.description}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
