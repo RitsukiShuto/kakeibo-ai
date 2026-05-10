@@ -208,6 +208,41 @@ class GeminiAnalyzer:
             print(f"Error detecting reimbursements: {e}")
             return []
 
+    def suggest_category_mappings(self, unmapped_items: List[dict], target_categories: List[str]) -> List[dict]:
+        """
+        未マッピングの項目に対して、予算カテゴリへのマッピングを提案する
+        """
+        if not unmapped_items or not target_categories:
+            return []
+
+        system_prompt = (
+            "あなたは優秀な家計簿アシスタントです。金融サービスから取得した「元のカテゴリ・中項目」を、"
+            "ユーザーが設定した「予算カテゴリ」のどれに分類すべきか提案してください。\n"
+            "可能な限り正確に分類し、判断がつかない場合は最も近いものを選んでください。\n"
+            "返却は以下のJSON形式のみで行ってください。コードブロックは含めないでください。\n"
+            "{\"suggestions\": [{\"raw_category\": \"元の大項目\", \"raw_genre\": \"元の中項目\", \"suggested_category\": \"予算カテゴリ名\", \"suggested_genre\": \"提案する中項目名\", \"reason\": \"理由\"}]}"
+        )
+
+        user_input = {
+            "unmapped_items": unmapped_items,
+            "target_categories": target_categories
+        }
+
+        try:
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=f"{system_prompt}\n\n対象データ:\n{json.dumps(user_input, ensure_ascii=False)}",
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.1
+                )
+            )
+            result = json.loads(response.text.strip())
+            return result.get("suggestions", [])
+        except Exception as e:
+            print(f"Error suggesting category mappings: {e}")
+            return []
+
     def _load_prompt_file(self, file_path: str) -> str:
         if os.path.exists(file_path):
             with open(file_path, "r", encoding="utf-8") as f:
