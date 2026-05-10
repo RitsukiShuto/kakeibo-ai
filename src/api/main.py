@@ -402,18 +402,31 @@ async def chat(request: ChatRequest):
         # 最近の取引10件
         query_tx = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT 10"
         df_tx = pd.read_sql_query(query_tx, conn)
-        from src.models import Transaction
+        
         from datetime import date
-        recent_transactions = [Transaction(
-            transaction_id=row['transaction_id'],
-            transaction_date=date.fromisoformat(row['transaction_date']),
-            category=row['category'],
-            genre=row['genre'],
-            amount=row['amount'],
-            comment=row['comment'],
-            source=row['source'],
-            mode=row['mode']
-        ) for _, row in df_tx.iterrows()]
+        recent_transactions = []
+        for _, row in df_tx.iterrows():
+            try:
+                # 日付のパース（ISO形式またはスラッシュ区切りに対応）
+                d_str = str(row['transaction_date'])
+                if '/' in d_str:
+                    from datetime import datetime
+                    d = datetime.strptime(d_str, "%Y/%m/%d").date()
+                else:
+                    d = date.fromisoformat(d_str)
+                    
+                recent_transactions.append(TransactionModel(
+                    transaction_id=row['transaction_id'],
+                    transaction_date=d,
+                    category=row['category'],
+                    genre=row['genre'] if 'genre' in row and pd.notnull(row['genre']) else "",
+                    amount=row['amount'],
+                    comment=row['comment'] if pd.notnull(row['comment']) else "",
+                    source=row['source'],
+                    mode=row['mode']
+                ))
+            except Exception as e:
+                print(f"Skipping transaction in context due to parse error: {e}")
         
         # 資産状況
         db_instance = Database(db_path=db_path)
@@ -439,7 +452,9 @@ async def chat(request: ChatRequest):
         return {"response": response}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
     finally:
         if conn:
             conn.close()
