@@ -40,6 +40,8 @@ def load_config(file_path):
 def get_scheduled_timeframes(schedule):
     """
     スケジュール設定に基づき、今日実行すべきタイムフレームのリストを返す
+    優先度順に並べる（dailyを最初にするか最後にするかは検討の余地があるが、
+    まずは全て実行されることを保証する）
     """
     today = datetime.now()
     weekday = today.strftime("%A") # Monday, Tuesday, ...
@@ -49,38 +51,34 @@ def get_scheduled_timeframes(schedule):
     reports = schedule.get("reports", {})
     matched_timeframes = []
     
+    # daily を最初に追加（毎日実行されるべきもの）
+    if reports.get("daily", {}).get("enabled"):
+        matched_timeframes.append("daily")
+
+    if reports.get("weekly", {}).get("enabled") and weekday == reports["weekly"].get("target_day", "Monday"):
+        matched_timeframes.append("weekly")
+
+    if reports.get("monthly", {}).get("enabled") and day == reports["monthly"].get("target_day", 1):
+        matched_timeframes.append("monthly")
+
+    if reports.get("quarterly", {}).get("enabled") and month in reports["quarterly"].get("months", []) and day == 1:
+        matched_timeframes.append("quarterly")
+
     if reports.get("yearly", {}).get("enabled") and month == reports["yearly"].get("month") and day == 1:
         matched_timeframes.append("yearly")
     
-    if reports.get("quarterly", {}).get("enabled") and month in reports["quarterly"].get("months", []) and day == 1:
-        matched_timeframes.append("quarterly")
-    
-    if reports.get("monthly", {}).get("enabled") and day == reports["monthly"].get("target_day", 1):
-        matched_timeframes.append("monthly")
-    
-    if reports.get("weekly", {}).get("enabled") and weekday == reports["weekly"].get("target_day", "Monday"):
-        matched_timeframes.append("weekly")
-    
-    if reports.get("daily", {}).get("enabled"):
-        matched_timeframes.append("daily")
-    
     return matched_timeframes
 
-def run_review(timeframe: str = None, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
+def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
     """
-    家計簿レビューのメイン工程を実行する (CLIとSlackサーバーの両方から呼び出し可能)
+    家計簿レビューのメイン工程を実行する
     """
+    if not timeframe:
+        raise ValueError("timeframe must be specified.")
+
     schedule = load_config("local/config/schedule.json")
     profile = load_config("local/config/profile.json")
     budget = load_config("local/config/budget.json")
-
-    if not timeframe:
-        timeframes = get_scheduled_timeframes(schedule)
-        if not timeframes:
-            print("No task scheduled. Defaulting to weekly for manual run.")
-            timeframe = "weekly"
-        else:
-            timeframe = timeframes[0]
 
     db = Database(db_path=db_path)
     fetcher = MoneyForwardFetcher() if source == "mf" else ZaimFetcher()
