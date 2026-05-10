@@ -243,6 +243,7 @@ class GeminiAnalyzer:
         """
         ライフプランシミュレーションの結果を元にAIアドバイスを生成する
         """
+        print("DEBUG: analyze_life_plan started")
         active_persona = self._get_active_persona()
         persona_path = f"prompts/personas/{active_persona}.md"
         if not os.path.exists(persona_path):
@@ -264,6 +265,7 @@ class GeminiAnalyzer:
         )
         
         # 重要な年齢のデータを抽出
+        print("DEBUG: Extracting key ages")
         key_ages = [life_plan.get("retirement_age"), 80, 100]
         summary_trajectory = [t for t in trajectory if t["age"] in key_ages or t["age"] == trajectory[0]["age"]]
         
@@ -273,17 +275,28 @@ class GeminiAnalyzer:
             "simulation_summary": summary_trajectory
         }
 
+        print(f"DEBUG: Calling Gemini API with model: {self.model_name}")
         try:
+            # モデル名が古いエイリアスの場合は最新のものにマッピング（SDK互換性のため）
+            model_to_use = self.model_name
+            if model_to_use == "gemini-pro-latest":
+                model_to_use = "gemini-1.5-pro"
+            elif model_to_use == "gemini-flash-latest":
+                model_to_use = "gemini-1.5-flash"
+
             response = self.client.models.generate_content(
-                model=self.model_name,
+                model=model_to_use,
                 contents=f"{system_prompt}\n\nシミュレーションデータ:\n{json.dumps(user_input, ensure_ascii=False)}",
                 config=types.GenerateContentConfig(
                     temperature=0.7
                 )
             )
+            print("DEBUG: Gemini API call successful")
             return response.text.strip()
         except Exception as e:
-            print(f"Life plan analysis error: {e}")
+            print(f"DEBUG: Life plan analysis error: {e}")
+            import traceback
+            traceback.print_exc()
             return "シミュレーション結果の分析中にエラーが発生したよ。データを見直してみてね！"
 
     def chat(self, message: str, history: List[dict] = None, profile: dict = None, budget: dict = None, assets_summary: List[dict] = None, recent_transactions: List[Transaction] = None, model_override: str = None) -> str:
