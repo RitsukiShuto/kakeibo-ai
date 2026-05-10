@@ -561,15 +561,18 @@ async def get_pending_reimbursements():
 
 @app.get("/api/life-plan/simulation")
 def get_life_plan_simulation():
+    print("DEBUG: Entering get_life_plan_simulation")
     try:
         db_path = get_db_path()
         config_dir = get_config_dir()
         
         # 1. データの取得
+        print("DEBUG: Fetching assets summary...")
         db_instance = Database(db_path=db_path)
         assets_summary = db_instance.get_asset_category_summary()
         total_assets = sum(a['amount'] for a in assets_summary)
         
+        print("DEBUG: Loading configs...")
         profile = load_config(os.path.join(config_dir, "profile.json"))
         budget = load_config(os.path.join(config_dir, "budget.json"))
         
@@ -577,9 +580,11 @@ def get_life_plan_simulation():
         life_plan = user_info.get("life_plan", {})
         
         if not life_plan:
+            print("DEBUG: Life plan settings missing")
             raise HTTPException(status_code=400, detail="Life plan settings not found in profile.json")
             
         # 2. シミュレーション実行
+        print("DEBUG: Running simulation...")
         from src.utils.life_plan_calculator import LifePlanCalculator
         
         monthly_savings = budget.get("monthly", {}).get("savings_goal", 0) + budget.get("monthly", {}).get("investment_goal", 0)
@@ -598,10 +603,12 @@ def get_life_plan_simulation():
         trajectory = calculator.simulate(end_age=100)
         
         # 3. AIアドバイスの生成
+        print("DEBUG: Generating AI advice...")
         from src.analyzer.gemini_analyzer import GeminiAnalyzer
         analyzer = GeminiAnalyzer()
         advice = analyzer.analyze_life_plan(trajectory, profile, budget)
         
+        print("DEBUG: Successfully generated simulation and advice")
         return {
             "trajectory": trajectory,
             "advice": advice,
@@ -609,6 +616,8 @@ def get_life_plan_simulation():
         }
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/assets")
