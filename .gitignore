@@ -57,3 +57,5 @@ infra/systemd/
 .DS_Store
 Thumbs.db
 tools/list_issues.py
+logs/e2e_error.png
+logs/e2e_error.png
