@@ -212,12 +212,15 @@ async def get_transactions(limit: int = 50, search: Optional[str] = None):
             df = pd.read_sql_query(query, conn, params=(f"%{search}%", f"%{search}%", limit))
         else:
             query = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT ?"
-            df = pd.read_sql_query(query, conn, params=(limit,))
-        conn.close()
-        # JSON互換性のためにNaNをNoneに置換
-        df = df.where(pd.notnull(df), None)
-        return df.to_dict(orient="records")
-    except Exception as e:
+                df = pd.read_sql_query(query, conn, params=(limit,))
+            conn.close()
+
+            # JSON互換性のためにNaN/InfをNoneに置換
+            import numpy as np
+            df = df.replace([np.inf, -np.inf], np.nan).where(pd.notnull(df), None)
+            return df.to_dict(orient="records")
+            except Exception as e:
+
         raise HTTPException(status_code=500, detail=str(e))
 
 from pydantic import BaseModel
