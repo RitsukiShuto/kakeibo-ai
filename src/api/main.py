@@ -126,7 +126,33 @@ async def get_ai_models():
     if os.path.exists(settings_path):
         with open(settings_path, "r", encoding="utf-8") as f:
             settings = json.load(f)
-            return settings.get("ai", {})
+            ai_settings = settings.get("ai", {})
+            
+            personas_dir = "prompts/personas"
+            personas = []
+            if os.path.exists(personas_dir):
+                for file_name in os.listdir(personas_dir):
+                    if file_name.endswith(".md"):
+                        p_id = file_name.replace(".md", "")
+                        name_map = {"gal": "ギャル", "butler": "執事", "zen": "癒やし系", "default": "標準（丁寧）", "sergeant": "軍曹（厳しめ）"}
+                        desc_map = {
+                            "gal": "絵文字たっぷりでフレンドリーにアドバイスします",
+                            "butler": "お嬢様・ご主人様として丁重にお仕えします",
+                            "zen": "落ち着いたトーンで心に寄り添いアドバイスします",
+                            "default": "標準的で丁寧なアシスタントです",
+                            "sergeant": "厳しくスパルタに家計を指導します"
+                        }
+                        personas.append({
+                            "id": p_id,
+                            "name": name_map.get(p_id, p_id.title()),
+                            "description": desc_map.get(p_id, "AIキャラクター")
+                        })
+            
+            ai_settings["available_personas"] = personas
+            if "active_persona" not in ai_settings:
+                ai_settings["active_persona"] = "gal"
+                
+            return ai_settings
     return {"error": "Settings file not found"}
 
 @app.put("/api/settings/active-model")
@@ -147,6 +173,31 @@ async def update_active_model(data: dict = Body(...)):
         if "ai" not in settings:
             settings["ai"] = {}
         settings["ai"]["active_model"] = new_model
+        
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2, ensure_ascii=False)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/settings/active-persona")
+async def update_active_persona(data: dict = Body(...)):
+    config_dir = get_config_dir()
+    settings_path = os.path.join(config_dir, "settings.json")
+    new_persona = data.get("active_persona")
+    
+    if not new_persona:
+        raise HTTPException(status_code=400, detail="active_persona is required")
+        
+    try:
+        settings = {}
+        if os.path.exists(settings_path):
+            with open(settings_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+        
+        if "ai" not in settings:
+            settings["ai"] = {}
+        settings["ai"]["active_persona"] = new_persona
         
         with open(settings_path, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=2, ensure_ascii=False)

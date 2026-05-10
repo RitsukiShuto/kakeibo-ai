@@ -63,9 +63,17 @@ export interface AIModel {
   description: string;
 }
 
+export interface AIPersona {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface AISettings {
   active_model: string;
   available_models: AIModel[];
+  active_persona?: string;
+  available_personas?: AIPersona[];
 }
 
 export interface ReimbursementSuggestion {
