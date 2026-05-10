@@ -14,6 +14,7 @@ export interface Transaction {
   transaction_id: string;
   transaction_date: string;
   category: string;
+  genre: string;
   amount: number;
   comment: string;
   source: string;
@@ -21,6 +22,11 @@ export interface Transaction {
   is_reimbursement: number;
   self_amount: number | null;
   reimbursement_status: string | null;
+}
+
+export interface CategoryMetadata {
+  category: string;
+  genre: string;
 }
 
 export interface KPI {

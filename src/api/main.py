@@ -223,14 +223,67 @@ async def get_transactions(limit: int = 50, search: Optional[str] = None):
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
         if search:
-            query = "SELECT * FROM transactions WHERE comment LIKE ? OR category LIKE ? ORDER BY transaction_date DESC LIMIT ?"
-            df = pd.read_sql_query(query, conn, params=(f"%{search}%", f"%{search}%", limit))
+            # 金額での検索（数値として一致するか、文字列として含まれるか）
+            amount_query = ""
+            params = [f"%{search}%", f"%{search}%", f"%{search}%"]
+            
+            try:
+                search_val = float(search)
+                amount_query = " OR amount = ?"
+                params.append(search_val)
+            except ValueError:
+                pass
+                
+            query = f"SELECT * FROM transactions WHERE comment LIKE ? OR category LIKE ? OR genre LIKE ?{amount_query} ORDER BY transaction_date DESC LIMIT ?"
+            params.append(limit)
+            df = pd.read_sql_query(query, conn, params=params)
         else:
             query = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT ?"
             df = pd.read_sql_query(query, conn, params=(limit,))
         conn.close()
 
         return df_to_json_safe_dict(df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/transactions/categories")
+async def get_all_categories():
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path)
+        # DBからユニークな大項目・中項目を取得
+        query = "SELECT DISTINCT category, genre FROM transactions"
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        
+        # 予算設定からも取得
+        config_dir = get_config_dir()
+        budget = load_budget(config_dir)
+        budget_categories = []
+        if budget:
+            for section in ["fixed", "variable"]:
+                section_data = budget.get("monthly", {}).get("budget", {}).get(section, {})
+                for major, minors in section_data.items():
+                    if isinstance(minors, dict):
+                        for minor in minors.keys():
+                            budget_categories.append({"category": major, "genre": minor})
+                    else:
+                        budget_categories.append({"category": major, "genre": ""})
+        
+        # 統合してユニークにする
+        db_cats = df.to_dict(orient="records")
+        all_cats = db_cats + budget_categories
+        
+        # 重複削除
+        seen = set()
+        unique_cats = []
+        for c in all_cats:
+            k = (c["category"], c["genre"])
+            if k not in seen:
+                seen.add(k)
+                unique_cats.append(c)
+        
+        return unique_cats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
