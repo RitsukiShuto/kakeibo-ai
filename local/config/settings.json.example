@@ -1,11 +1,23 @@
 {
-    "is_setup_completed": false,
-    "ai": {
-        "active_model": "gemini-2.0-flash",
-        "available_models": [
-            {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash (高速・安価)", "description": "レスポンスが速く、日常的な分析に適しています。"},
-            {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro (高性能)", "description": "より深い洞察と複雑な推論が可能です。"},
-            {"id": "gemini-3.1-pro-preview", "name": "Gemini 3.1 Pro Preview (最新)", "description": "最新の実験的なモデルです。"}
-        ]
-    }
+  "is_setup_completed": false,
+  "ai": {
+    "active_model": "gemini-flash-latest",
+    "available_models": [
+      {
+        "id": "gemini-flash-lite-latest",
+        "name": "Gemini Flash Lite (最速・超軽量)",
+        "description": "極めて高速でコスト効率に優れています。要約や単純な分類など、速度が最優先される日常的な分析に最適です。"
+      },
+      {
+        "id": "gemini-flash-latest",
+        "name": "Gemini Flash (高速・バランス)",
+        "description": "速度と精度のバランスに優れたモデルです。多くのトランザクションデータの処理や、一般的な家計アドバイスに適しています。"
+      },
+      {
+        "id": "gemini-pro-latest",
+        "name": "Gemini Pro (高性能・多機能)",
+        "description": "高度な推論と深い洞察が可能なフラッグシップモデルです。複雑な財務状況の分析や、長期的な貯蓄戦略の立案に力を発揮します。"
+      }
+    ]
+  }
 }
