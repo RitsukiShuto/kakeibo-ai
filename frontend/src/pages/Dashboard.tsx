@@ -26,7 +26,7 @@ const Dashboard: React.FC = () => {
     setLoading(true);
     try {
       const [kpiRes, baRes, assetRes, histRes, txRes, pendingRes] = await Promise.all([
-        client.get<KPI>('/api/kpi'),
+        client.get<KPI>(`/api/kpi?timeframe=${timeframe}`),
         client.get<BudgetActual[]>('/api/budget-actual'),
         client.get<AssetTrend[]>('/api/assets'),
         client.get<AnalysisHistory[]>(`/api/analysis-history?timeframe=${timeframe}`),
@@ -61,6 +61,7 @@ const Dashboard: React.FC = () => {
         timeframes={['daily', 'weekly', 'monthly']}
         activeTimeframe={timeframe}
         onTimeframeChange={setTimeframe}
+        loading={loading}
       />
       
       {loading ? (

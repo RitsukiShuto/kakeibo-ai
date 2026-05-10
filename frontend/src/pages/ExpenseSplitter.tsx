@@ -142,7 +142,7 @@ const ExpenseSplitter: React.FC = () => {
                         </div>
                         <div className="flex gap-2">
                           <button className="btn-success btn-small" onClick={() => handleApplySuggestion(tx.transaction_id)}>立替にする</button>
-                          <button className="btn-text btn-small" onClick={() => setSuggestions(suggestions.filter(s => s.transaction_id !== tx.transaction_id))}>無視</button>
+                          <button className="btn-text btn-small" onClick={() => setSuggestions(prev => prev.filter(s => s.transaction_id !== tx.transaction_id))}>無視</button>
                         </div>
                       </div>
                     </div>

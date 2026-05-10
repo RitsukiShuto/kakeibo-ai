@@ -1,26 +1,49 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Save, X, Edit2 } from 'lucide-react';
+import { Search, Save, X, Edit2, ChevronDown, ChevronUp, ArrowUp } from 'lucide-react';
 import client from '../api/client';
 import type { Transaction, CategoryMetadata } from '../api/client';
 import TopHeader from '../components/TopHeader';
+
+const LIMIT = 50;
 
 const Transactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<CategoryMetadata[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<Transaction>>({});
+  
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
+  const [showTopBtn, setShowTopBtn] = useState(false);
 
-  const fetchTransactions = async () => {
-    setLoading(true);
+  const fetchTransactions = async (currentOffset: number, append: boolean = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+    
     try {
-      const res = await client.get<Transaction[]>(`/api/transactions?limit=100&search=${search}`);
-      setTransactions(res.data);
+      const res = await client.get<Transaction[]>(`/api/transactions?limit=${LIMIT}&offset=${currentOffset}&search=${search}`);
+      const newTransactions = res.data;
+      
+      if (append) {
+        setTransactions(prev => [...prev, ...newTransactions]);
+      } else {
+        setTransactions(newTransactions);
+      }
+      
+      setHasMore(newTransactions.length === LIMIT);
     } catch (error) {
       console.error('Failed to fetch transactions', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -39,10 +62,48 @@ const Transactions: React.FC = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchTransactions();
+      setOffset(0);
+      fetchTransactions(0, false);
     }, 500);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowTopBtn(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const handleSort = (key: keyof Transaction) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    const valA = a[sortConfig.key] || '';
+    const valB = b[sortConfig.key] || '';
+
+    if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLoadMore = () => {
+    const nextOffset = offset + LIMIT;
+    setOffset(nextOffset);
+    fetchTransactions(nextOffset, true);
+  };
 
   const handleEdit = (tx: Transaction) => {
     setEditingId(tx.transaction_id);
@@ -59,7 +120,9 @@ const Transactions: React.FC = () => {
     try {
       await client.put(`/api/transactions/${id}`, editValues);
       setEditingId(null);
-      fetchTransactions();
+      // Reload current data without resetting offset (just simple refresh for now)
+      fetchTransactions(0, false);
+      setOffset(0);
     } catch (error) {
       console.error('Failed to update transaction', error);
     }
@@ -81,13 +144,13 @@ const Transactions: React.FC = () => {
 
   return (
     <>
-      <TopHeader title="明細一覧" onRefresh={fetchTransactions} />
+      <TopHeader title="明細一覧" onRefresh={() => { setOffset(0); fetchTransactions(0, false); }} />
       
       <div className="page-content">
         <div className="card mb-4">
           <div className="card-body">
             <div className="ai-input-group">
-              <Search size={20} className="text-muted" style={{ alignSelf: 'center' }} />
+              <Search size={20} className="text-muted" style={{ alignSelf: 'center', marginLeft: '12px' }} />
               <input 
                 type="text" 
                 className="form-control" 
@@ -104,17 +167,29 @@ const Transactions: React.FC = () => {
             <table className="transaction-table">
               <thead>
                 <tr>
-                  <th style={{ width: '120px' }}>日付</th>
-                  <th style={{ width: '150px' }}>大項目</th>
-                  <th style={{ width: '150px' }}>中項目</th>
-                  <th style={{ width: '120px' }}>金額</th>
-                  <th>内容</th>
-                  <th style={{ width: '100px' }}>立替</th>
+                  <th style={{ width: '120px', cursor: 'pointer' }} onClick={() => handleSort('transaction_date')}>
+                    日付 {sortConfig.key === 'transaction_date' ? (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />) : null}
+                  </th>
+                  <th style={{ width: '150px', cursor: 'pointer' }} onClick={() => handleSort('category')}>
+                    大項目 {sortConfig.key === 'category' ? (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />) : null}
+                  </th>
+                  <th style={{ width: '150px', cursor: 'pointer' }} onClick={() => handleSort('genre')}>
+                    中項目 {sortConfig.key === 'genre' ? (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />) : null}
+                  </th>
+                  <th style={{ width: '120px', cursor: 'pointer' }} onClick={() => handleSort('amount')}>
+                    金額 {sortConfig.key === 'amount' ? (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />) : null}
+                  </th>
+                  <th style={{ cursor: 'pointer' }} onClick={() => handleSort('comment')}>
+                    内容 {sortConfig.key === 'comment' ? (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />) : null}
+                  </th>
+                  <th style={{ width: '100px', cursor: 'pointer' }} onClick={() => handleSort('is_reimbursement')}>
+                    立替 {sortConfig.key === 'is_reimbursement' ? (sortConfig.direction === 'asc' ? <ChevronUp size={14} className="inline" /> : <ChevronDown size={14} className="inline" />) : null}
+                  </th>
                   <th style={{ width: '100px' }}>操作</th>
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((tx) => (
+                {sortedTransactions.map((tx) => (
                   <tr key={tx.transaction_id} className={editingId === tx.transaction_id ? 'editing-row' : ''}>
                     <td style={{ fontSize: '0.85rem' }}>{tx.transaction_date}</td>
                     <td>
@@ -210,20 +285,62 @@ const Transactions: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            
             {transactions.length === 0 && !loading && (
-              <div className="text-muted p-8 text-center">明細が見つかりません。</div>
+              <div className="text-muted p-8 text-center" style={{ padding: '32px' }}>明細が見つかりません。</div>
             )}
-            {loading && <div className="p-8 text-center text-muted">読み込み中...</div>}
+            
+            {loading && !loadingMore && <div className="text-center text-muted" style={{ padding: '32px' }}>読み込み中...</div>}
+            
+            {hasMore && transactions.length > 0 && (
+              <div style={{ padding: '24px', textAlign: 'center', borderTop: '1px solid var(--border)' }}>
+                <button 
+                  className="btn-outline" 
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? '読み込み中...' : 'さらに読み込む'} 
+                  {!loadingMore && <ChevronDown size={16} />}
+                </button>
+              </div>
+            )}
+            
           </div>
         </div>
       </div>
+      
+      {showTopBtn && (
+        <button 
+          onClick={scrollToTop}
+          className="btn-primary"
+          style={{
+            position: 'fixed',
+            bottom: '40px',
+            right: '40px',
+            zIndex: 1000,
+            borderRadius: '50%',
+            width: '48px',
+            height: '48px',
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            animation: 'fadeIn 0.3s ease-out'
+          }}
+          title="トップへ戻る"
+        >
+          <ArrowUp size={24} />
+        </button>
+      )}
 
       <style>{`
         .badge-category {
           background: rgba(59, 130, 246, 0.1);
           color: var(--primary);
-          padding: 2px 8px;
-          border-radius: 4px;
+          padding: 4px 10px;
+          border-radius: 6px;
           font-size: 0.85rem;
           font-weight: 500;
         }
@@ -231,9 +348,10 @@ const Transactions: React.FC = () => {
           background-color: rgba(59, 130, 246, 0.05);
         }
         .form-control-sm {
-          padding: 4px 8px;
+          padding: 6px 10px;
           font-size: 0.85rem;
           height: auto;
+          background: rgba(0,0,0,0.4);
         }
       `}</style>
     </>

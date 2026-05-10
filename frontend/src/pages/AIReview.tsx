@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, FileText } from 'lucide-react';
+import { Calendar, FileText, Info, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import client from '../api/client';
 import type { AnalysisHistory } from '../api/client';
 import TopHeader from '../components/TopHeader';
@@ -110,8 +112,83 @@ const AIReview: React.FC = () => {
                   {selectedReview.summary}
                 </div>
                 <h4 className="mb-2">詳細レポート</h4>
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'var(--text-main)', padding: '15px', backgroundColor: 'var(--bg-color)', borderRadius: '8px' }}>
-                  {reportContent}
+                <div className="markdown-content" style={{ color: 'var(--text-main)', padding: '20px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      blockquote(props: any) {
+                        const { node, children } = props;
+                        
+                        try {
+                          const pNode = node.children?.find((n: any) => n.type === 'element' && n.tagName === 'p');
+                          if (pNode && pNode.children && pNode.children.length > 0) {
+                            const textNode = pNode.children[0];
+                            if (textNode.type === 'text' && textNode.value.startsWith('[!')) {
+                              const match = textNode.value.match(/^\[!(\w+)\](?:[ \t]*(.*))?/);
+                              if (match) {
+                                const type = match[1].toUpperCase();
+                                const titleText = match[2] || type.charAt(0) + type.slice(1).toLowerCase();
+                                
+                                let Icon = Info;
+                                let colorVar = 'var(--primary)';
+                                let bgColor = 'rgba(59, 130, 246, 0.1)';
+                                
+                                if (type === 'WARNING' || type === 'CAUTION') {
+                                  Icon = AlertTriangle; colorVar = 'var(--warning)'; bgColor = 'rgba(245, 158, 11, 0.1)';
+                                } else if (type === 'DANGER' || type === 'ERROR') {
+                                  Icon = AlertCircle; colorVar = 'var(--danger)'; bgColor = 'rgba(239, 68, 68, 0.1)';
+                                } else if (type === 'SUCCESS' || type === 'TIP' || type === 'DONE') {
+                                  Icon = CheckCircle; colorVar = 'var(--success)'; bgColor = 'rgba(16, 185, 129, 0.1)';
+                                }
+                      
+                                const lines = textNode.value.split('\n');
+                                lines.shift(); 
+                                const newText = lines.join('\n');
+                                
+                                const modifiedChildren = React.Children.map(children, (child, index) => {
+                                  if (index === 0 && React.isValidElement(child)) {
+                                     const childProps = child.props as any;
+                                     const newPChildren = React.Children.map(childProps.children, (pChild, pIndex) => {
+                                       if (pIndex === 0 && typeof pChild === 'string') {
+                                          return newText;
+                                       }
+                                       return pChild;
+                                     });
+                                     return React.cloneElement(child, {}, newPChildren);
+                                  }
+                                  return child;
+                                });
+                      
+                                return (
+                                  <div style={{
+                                    borderLeft: `4px solid ${colorVar}`,
+                                    backgroundColor: bgColor,
+                                    padding: '12px 16px',
+                                    margin: '16px 0',
+                                    borderRadius: '0 8px 8px 0'
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: colorVar, fontWeight: 'bold', marginBottom: '8px', fontSize: '0.95rem' }}>
+                                      <Icon size={18} />
+                                      <span>{titleText}</span>
+                                    </div>
+                                    <div style={{ margin: 0, opacity: 0.9 }}>
+                                      {modifiedChildren}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            }
+                          }
+                        } catch (e) {
+                          // Fallback to normal rendering on error
+                        }
+                        
+                        return <blockquote style={{ borderLeft: '4px solid var(--border)', paddingLeft: '16px', color: 'var(--text-muted)', margin: '16px 0' }} {...props} />;
+                      }
+                    }}
+                  >
+                    {reportContent}
+                  </ReactMarkdown>
                 </div>
               </div>
             ) : (

@@ -46,11 +46,11 @@ def load_budget(config_dir: str):
     if os.path.exists(budget_path):
         with open(budget_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # 旧形式の互換性維持
+            # 旧形式の互換性維持: 各カテゴリを独立した項目として扱う
             if "budget" not in data.get("monthly", {}):
                 old_categories = data.get("monthly", {}).get("categories", {})
                 if "monthly" not in data: data["monthly"] = {}
-                data["monthly"]["budget"] = {"variable": {"その他": old_categories}}
+                data["monthly"]["budget"] = {"variable": {cat: amt for cat, amt in old_categories.items()}}
             return data
     return None
 
@@ -159,7 +159,8 @@ async def root():
     return {"message": "Kakeibo AI API is running"}
 
 @app.get("/api/kpi")
-async def get_kpi():
+async def get_kpi(timeframe: str = "monthly"):
+    conn = None
     try:
         db_path = get_db_path()
         config_dir = get_config_dir()
@@ -167,16 +168,34 @@ async def get_kpi():
         budget_categories = get_budget_category_totals(budget)
         total_budget = sum(budget_categories.values()) if budget_categories else 0
         
-        current_month = datetime.now().strftime("%Y-%m")
+        # timeframe に応じた日付フィルタを構築
+        now = datetime.now()
+        if timeframe == "daily":
+            date_pattern = now.strftime("%Y-%m-%d")
+        elif timeframe == "weekly":
+            # 今週の月曜日から今日まで
+            from datetime import timedelta
+            monday = now - timedelta(days=now.weekday())
+            date_pattern = None  # 範囲指定を使用
+        else:  # monthly (default)
+            date_pattern = now.strftime("%Y-%m")
+        
         conn = sqlite3.connect(db_path)
-        query_total = f"SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment'"
-        actual_total = pd.read_sql_query(query_total, conn)['total'].iloc[0]
+        
+        if timeframe == "weekly":
+            from datetime import timedelta
+            monday = now - timedelta(days=now.weekday())
+            query_total = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date BETWEEN ? AND ? AND mode='payment'"
+            actual_total = pd.read_sql_query(query_total, conn, params=(monday.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")))['total'].iloc[0]
+        else:
+            query_total = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date LIKE ? AND mode='payment'"
+            actual_total = pd.read_sql_query(query_total, conn, params=(f"{date_pattern}%",))['total'].iloc[0]
+        
         actual_total = int(actual_total) if pd.notnull(actual_total) else 0
 
         query_assets = "SELECT SUM(amount) as total FROM assets WHERE acquired_date = (SELECT MAX(acquired_date) FROM assets)"
         total_assets = pd.read_sql_query(query_assets, conn)['total'].iloc[0]
         total_assets = int(total_assets) if pd.notnull(total_assets) else 0
-        conn.close()
 
         return {
             "budget": total_budget,
@@ -187,9 +206,13 @@ async def get_kpi():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/budget-actual")
 async def get_budget_actual():
+    conn = None
     try:
         db_path = get_db_path()
         config_dir = get_config_dir()
@@ -200,9 +223,8 @@ async def get_budget_actual():
             
         current_month = datetime.now().strftime("%Y-%m")
         conn = sqlite3.connect(db_path)
-        query = f"SELECT category, SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment' GROUP BY category"
-        df_actual = pd.read_sql_query(query, conn)
-        conn.close()
+        query = "SELECT category, SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual FROM transactions WHERE transaction_date LIKE ? AND mode='payment' GROUP BY category"
+        df_actual = pd.read_sql_query(query, conn, params=(f"{current_month}%",))
         
         result = []
         for cat, b_amt in budget_categories.items():
@@ -216,9 +238,13 @@ async def get_budget_actual():
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/transactions")
-async def get_transactions(limit: int = 50, search: Optional[str] = None):
+async def get_transactions(limit: int = 50, offset: int = 0, search: Optional[str] = None):
+    conn = None
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
@@ -234,27 +260,30 @@ async def get_transactions(limit: int = 50, search: Optional[str] = None):
             except ValueError:
                 pass
                 
-            query = f"SELECT * FROM transactions WHERE comment LIKE ? OR category LIKE ? OR genre LIKE ?{amount_query} ORDER BY transaction_date DESC LIMIT ?"
+            query = f"SELECT * FROM transactions WHERE comment LIKE ? OR category LIKE ? OR genre LIKE ?{amount_query} ORDER BY transaction_date DESC LIMIT ? OFFSET ?"
             params.append(limit)
+            params.append(offset)
             df = pd.read_sql_query(query, conn, params=params)
         else:
-            query = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT ?"
-            df = pd.read_sql_query(query, conn, params=(limit,))
-        conn.close()
+            query = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT ? OFFSET ?"
+            df = pd.read_sql_query(query, conn, params=(limit, offset))
 
         return df_to_json_safe_dict(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/transactions/categories")
 async def get_all_categories():
+    conn = None
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
         # DBからユニークな大項目・中項目を取得
         query = "SELECT DISTINCT category, genre FROM transactions"
         df = pd.read_sql_query(query, conn)
-        conn.close()
         
         # 予算設定からも取得
         config_dir = get_config_dir()
@@ -286,11 +315,15 @@ async def get_all_categories():
         return unique_cats
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 from pydantic import BaseModel
 
 class TransactionUpdate(BaseModel):
     category: Optional[str] = None
+    genre: Optional[str] = None
     comment: Optional[str] = None
     is_reimbursement: Optional[int] = None
     self_amount: Optional[int] = None
@@ -298,6 +331,7 @@ class TransactionUpdate(BaseModel):
 
 @app.put("/api/transactions/{transaction_id}")
 async def update_transaction(transaction_id: str, update: TransactionUpdate):
+    conn = None
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
@@ -317,40 +351,49 @@ async def update_transaction(transaction_id: str, update: TransactionUpdate):
         query = f"UPDATE transactions SET {', '.join(fields)} WHERE transaction_id = ?"
         cursor.execute(query, values)
         conn.commit()
-        conn.close()
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/analysis-history")
 async def get_analysis_history(timeframe: str = "monthly"):
+    conn = None
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
         query = "SELECT * FROM analysis_history WHERE timeframe = ? ORDER BY created_at DESC"
         df = pd.read_sql_query(query, conn, params=(timeframe,))
-        conn.close()
         return df_to_json_safe_dict(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/analysis-history/{history_id}/content")
 async def get_analysis_content(history_id: int):
+    conn = None
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT report_path FROM analysis_history WHERE id = ?", (history_id,))
         row = cursor.fetchone()
-        conn.close()
         
         if not row or not row[0]:
             raise HTTPException(status_code=404, detail="Report not found")
             
         report_path = row[0]
-        # `./reports` から始まる相対パスを、プロジェクトルートからのパスに調整
+        # 相対パスをプロジェクトルートからの絶対パスに変換
         if report_path.startswith("./"):
             report_path = report_path[2:]
+        if not os.path.isabs(report_path):
+            report_path = os.path.join(ROOT_DIR, report_path)
             
         if os.path.exists(report_path):
             with open(report_path, "r", encoding="utf-8") as f:
@@ -358,11 +401,17 @@ async def get_analysis_content(history_id: int):
             return {"content": content}
         else:
             raise HTTPException(status_code=404, detail=f"Report file not found at {report_path}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/reimbursements/pending")
 async def get_pending_reimbursements():
+    conn = None
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
@@ -373,13 +422,16 @@ async def get_pending_reimbursements():
         ORDER BY transaction_date DESC
         """
         df = pd.read_sql_query(query, conn)
-        conn.close()
         return df_to_json_safe_dict(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/assets")
 async def get_assets():
+    conn = None
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
@@ -390,10 +442,12 @@ async def get_assets():
         ORDER BY acquired_date ASC
         """
         df = pd.read_sql_query(query, conn)
-        conn.close()
         return df_to_json_safe_dict(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.get("/api/settings/budget")
 async def get_budget_settings():
@@ -437,12 +491,12 @@ async def update_profile_settings(data: dict):
 
 @app.post("/api/expense-splitter/detect")
 async def detect_reimbursements():
+    conn = None
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
         query = "SELECT * FROM transactions WHERE mode='payment' AND is_reimbursement=0 ORDER BY transaction_date DESC LIMIT 20"
         df_recent = pd.read_sql_query(query, conn)
-        conn.close()
         
         if df_recent.empty:
             return []
@@ -466,6 +520,9 @@ async def detect_reimbursements():
         return suggestions
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.post("/api/expense-splitter/parse")
 async def parse_reimbursement(text: str = Body(..., embed=True), total_amount: int = Body(..., embed=True)):
