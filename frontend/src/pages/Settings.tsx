@@ -13,6 +13,7 @@ const Settings: React.FC = () => {
   const [activeMode, setActiveMode] = useState<'ui' | 'json'>('ui');
   const [activeTab, setActiveTab] = useState<'ai' | 'profile' | 'budget'>('ai');
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, modelId: string | null }>({ isOpen: false, modelId: null });
 
   // JSON string states for the 'Advanced' tab
   const [budgetJson, setBudgetJson] = useState('');
@@ -27,11 +28,29 @@ const Settings: React.FC = () => {
         client.get<AISettings>('/api/settings/ai-models')
       ]);
       
-      setBudget(budgetRes.data);
+      // 旧形式の budget.json を正規化: monthly.categories → monthly.budget.variable
+      let budgetData = budgetRes.data;
+      if (budgetData?.monthly && !budgetData.monthly.budget) {
+        const oldCategories = budgetData.monthly.categories || {};
+        budgetData = {
+          ...budgetData,
+          monthly: {
+            ...budgetData.monthly,
+            budget: {
+              fixed: {},
+              variable: Object.fromEntries(
+                Object.entries(oldCategories).map(([cat, amt]) => [cat, amt])
+              )
+            }
+          }
+        };
+      }
+      
+      setBudget(budgetData);
       setProfile(profileRes.data);
       setAiSettings(aiRes.data);
       
-      setBudgetJson(JSON.stringify(budgetRes.data, null, 2));
+      setBudgetJson(JSON.stringify(budgetData, null, 2));
       setProfileJson(JSON.stringify(profileRes.data, null, 2));
     } catch (error) {
       console.error('Failed to fetch settings', error);
@@ -64,21 +83,34 @@ const Settings: React.FC = () => {
       setBudget(finalBudget);
       setProfile(finalProfile);
       setMessage({ text: '設定を保存しました', type: 'success' });
+      setTimeout(() => setMessage(null), 3000);
     } catch (error: any) {
       setMessage({ text: `保存に失敗しました: ${error.message}`, type: 'error' });
+      setTimeout(() => setMessage(null), 5000);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleModelChange = async (modelId: string) => {
+  const handleModelChange = (modelId: string) => {
+    if (aiSettings?.active_model === modelId) return;
+    setConfirmModal({ isOpen: true, modelId });
+  };
+
+  const confirmModelChange = async () => {
+    const modelId = confirmModal.modelId;
+    if (!modelId) return;
+    
+    setConfirmModal({ isOpen: false, modelId: null });
     setSaving(true);
     try {
       await client.put('/api/settings/active-model', { active_model: modelId });
       setAiSettings(prev => prev ? { ...prev, active_model: modelId } : null);
       setMessage({ text: 'AIモデルを変更しました', type: 'success' });
+      setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage({ text: 'モデルの変更に失敗しました', type: 'error' });
+      setTimeout(() => setMessage(null), 5000);
     } finally {
       setSaving(false);
     }
@@ -110,12 +142,31 @@ const Settings: React.FC = () => {
     setBudgetJson(JSON.stringify(newBudget, null, 2));
   };
 
-  const renderInvestmentPolicy = () => {
-    const val = profile?.user?.investment_policy;
-    if (typeof val === 'object' && val !== null) {
-      return JSON.stringify(val);
+  const handleAddCategory = (section: string) => {
+    const name = window.prompt('新しい項目の名前（例: 食費、通信費）を入力してください');
+    if (!name || name.trim() === '') return;
+    
+    const newBudget = { ...budget };
+    if (!newBudget.monthly.budget) newBudget.monthly.budget = { fixed: {}, variable: {} };
+    if (!newBudget.monthly.budget[section]) newBudget.monthly.budget[section] = {};
+    
+    if (newBudget.monthly.budget[section][name] !== undefined) {
+      alert('その項目は既に存在します');
+      return;
     }
-    return val || '';
+    
+    newBudget.monthly.budget[section][name] = 0;
+    setBudget(newBudget);
+    setBudgetJson(JSON.stringify(newBudget, null, 2));
+  };
+
+  const handleDeleteCategory = (section: string, category: string) => {
+    if (window.confirm(`「${category}」を削除してもよろしいですか？`)) {
+      const newBudget = { ...budget };
+      delete newBudget.monthly.budget[section][category];
+      setBudget(newBudget);
+      setBudgetJson(JSON.stringify(newBudget, null, 2));
+    }
   };
 
   if (loading) return <div className="page-content">読み込み中...</div>;
@@ -213,12 +264,59 @@ const Settings: React.FC = () => {
                       />
                     </div>
                     <div className="form-group">
-                      <label>投資方針</label>
-                      <textarea 
-                        className="form-control" style={{ height: '100px' }}
-                        value={renderInvestmentPolicy()} 
-                        onChange={(e) => updateProfileField('user.investment_policy', e.target.value)} 
+                      <label>趣味 (カンマ区切り)</label>
+                      <input 
+                        type="text" className="form-control" 
+                        value={Array.isArray(profile?.user?.hobbies) ? profile.user.hobbies.join(', ') : (profile?.user?.hobbies || '')} 
+                        onChange={(e) => {
+                          const arr = e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean);
+                          updateProfileField('user.hobbies', arr);
+                        }} 
                       />
+                    </div>
+                    
+                    <div className="form-group mt-4">
+                      <label style={{ fontSize: '1.05rem', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '12px' }}>
+                        投資方針 (Investment Policy)
+                      </label>
+                      
+                      <div className="policy-editor-container" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        {(() => {
+                          const renderPolicyEditor = (obj: any, path: string = 'user.investment_policy') => {
+                            if (typeof obj !== 'object' || obj === null) {
+                              return (
+                                <input 
+                                  type="text" 
+                                  className="form-control" 
+                                  style={{ background: 'rgba(0,0,0,0.3)' }}
+                                  value={obj || ''} 
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const num = Number(val);
+                                    updateProfileField(path, val === '' ? '' : (!isNaN(num) ? num : val));
+                                  }}
+                                />
+                              );
+                            }
+                            
+                            return (
+                              <div style={{ marginLeft: path === 'user.investment_policy' ? 0 : '16px', borderLeft: path === 'user.investment_policy' ? 'none' : '2px solid rgba(59, 130, 246, 0.3)', paddingLeft: path === 'user.investment_policy' ? 0 : '16px', marginTop: path === 'user.investment_policy' ? 0 : '8px' }}>
+                                {Object.entries(obj).map(([key, val]) => (
+                                  <div key={key} className="form-group mb-3">
+                                    <label style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      {typeof val === 'object' && val !== null ? <Wallet size={14} className="text-primary" /> : null}
+                                      {key}
+                                    </label>
+                                    {renderPolicyEditor(val, `${path}.${key}`)}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          };
+                          
+                          return renderPolicyEditor(profile?.user?.investment_policy || {});
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -249,15 +347,47 @@ const Settings: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'budget' && (
-              <div className="flex flex-col gap-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {activeTab === 'budget' && (() => {
+              const incomeAmount = budget?.monthly?.income || 0;
+              let totalBudgetAmount = 0;
+              totalBudgetAmount += budget?.monthly?.savings_goal || 0;
+              totalBudgetAmount += budget?.monthly?.investment_goal || 0;
+              
+              const calcSection = (sectionData: any) => {
+                if (!sectionData) return;
+                Object.values(sectionData).forEach((val: any) => {
+                  if (typeof val === 'number') totalBudgetAmount += val;
+                  else if (typeof val === 'object' && val !== null) {
+                    Object.values(val).forEach((v: any) => {
+                      if (typeof v === 'number') totalBudgetAmount += v;
+                    });
+                  }
+                });
+              };
+              calcSection(budget?.monthly?.budget?.fixed);
+              calcSection(budget?.monthly?.budget?.variable);
+              
+              const isOverBudget = incomeAmount > 0 && totalBudgetAmount > incomeAmount;
+
+              const surplus = incomeAmount - totalBudgetAmount;
+
+              return (
+                <div className="flex flex-col gap-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {isOverBudget && (
+                    <div className="review-summary" style={{ borderLeftColor: 'var(--danger)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--text-main)' }}>
+                      <AlertTriangle size={18} className="text-danger inline mr-2" style={{ verticalAlign: 'text-bottom' }} />
+                      <span className="font-bold">警告: </span>
+                      予算・目標の合計（{totalBudgetAmount.toLocaleString()}円）が、月間総収入（{incomeAmount.toLocaleString()}円）を上回っています。このままでは赤字になる可能性があります。
+                    </div>
+                  )}
+
                 <div className="card">
                   <div className="card-header">
                     <h3><Wallet size={20} /> 全体目標</h3>
                   </div>
                   <div className="card-body">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                      <div className="form-group">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                      <div className="form-group mb-0">
                         <label>月間総収入</label>
                         <input 
                           type="number" className="form-control" 
@@ -265,7 +395,7 @@ const Settings: React.FC = () => {
                           onChange={(e) => updateBudgetField('monthly.income', parseInt(e.target.value))} 
                         />
                       </div>
-                      <div className="form-group">
+                      <div className="form-group mb-0">
                         <label>貯蓄目標額</label>
                         <input 
                           type="number" className="form-control" 
@@ -273,13 +403,19 @@ const Settings: React.FC = () => {
                           onChange={(e) => updateBudgetField('monthly.savings_goal', parseInt(e.target.value))} 
                         />
                       </div>
-                      <div className="form-group">
+                      <div className="form-group mb-0">
                         <label>投資目標額</label>
                         <input 
                           type="number" className="form-control" 
                           value={budget?.monthly?.investment_goal || 0} 
                           onChange={(e) => updateBudgetField('monthly.investment_goal', parseInt(e.target.value))} 
                         />
+                      </div>
+                      <div className="form-group mb-0" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: `1px solid ${surplus >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}` }}>
+                        <label style={{ color: surplus >= 0 ? 'var(--success)' : 'var(--danger)' }}>割り振り可能な余剰資金</label>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: surplus >= 0 ? 'var(--success)' : 'var(--danger)', marginTop: 'auto' }}>
+                          {surplus >= 0 ? '+' : ''}{surplus.toLocaleString()} 円
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -293,8 +429,13 @@ const Settings: React.FC = () => {
                     <div className="card-body">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
                         {Object.entries(budget?.monthly?.budget?.[section] || {}).map(([category, subcategories]: [string, any]) => (
-                          <div key={category} className="budget-category-box">
-                            <div className="budget-category-title">{category}</div>
+                          <div key={category} className="budget-category-box" style={{ position: 'relative' }}>
+                            <button 
+                              onClick={() => handleDeleteCategory(section, category)}
+                              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1 }}
+                              title="この項目を削除"
+                            >×</button>
+                            <div className="budget-category-title" style={{ paddingRight: '24px' }}>{category}</div>
                             {typeof subcategories === 'object' ? (
                               Object.entries(subcategories).map(([sub, amount]: [string, any]) => (
                                 <div key={sub} className="form-group mb-2">
@@ -304,8 +445,9 @@ const Settings: React.FC = () => {
                                     value={amount} 
                                     onChange={(e) => {
                                       const newBudget = { ...budget };
-                                      newBudget.monthly.budget[section][category][sub] = parseInt(e.target.value);
+                                      newBudget.monthly.budget[section][category][sub] = parseInt(e.target.value) || 0;
                                       setBudget(newBudget);
+                                      setBudgetJson(JSON.stringify(newBudget, null, 2));
                                     }} 
                                   />
                                 </div>
@@ -317,20 +459,30 @@ const Settings: React.FC = () => {
                                   value={subcategories} 
                                   onChange={(e) => {
                                     const newBudget = { ...budget };
-                                    newBudget.monthly.budget[section][category] = parseInt(e.target.value);
+                                    newBudget.monthly.budget[section][category] = parseInt(e.target.value) || 0;
                                     setBudget(newBudget);
+                                    setBudgetJson(JSON.stringify(newBudget, null, 2));
                                   }} 
                                 />
                               </div>
                             )}
                           </div>
                         ))}
+                        
+                        <div 
+                          className="budget-category-box" 
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', cursor: 'pointer', background: 'transparent', opacity: 0.7, minHeight: '120px' }}
+                          onClick={() => handleAddCategory(section)}
+                        >
+                          <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.1rem' }}>+ 新規項目を追加</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+              );
+            })()}
           </div>
         ) : (
           <div className="dashboard-grid" style={{ padding: 0 }}>
@@ -355,6 +507,29 @@ const Settings: React.FC = () => {
           </div>
         )}
       </div>
+
+      {confirmModal.isOpen && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
+          <div className="card glass" style={{ maxWidth: '400px', width: '90%', padding: '24px' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertTriangle className="text-warning" size={24} />
+              モデル変更の確認
+            </h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.5 }}>
+              AIモデルを「<strong style={{ color: 'var(--text-main)' }}>{confirmModal.modelId}</strong>」に変更しますか？<br/>
+              本番環境での分析コストやレスポンス品質に影響する可能性があります。
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="btn-outline" onClick={() => setConfirmModal({ isOpen: false, modelId: null })}>
+                キャンセル
+              </button>
+              <button className="btn-primary" onClick={confirmModelChange}>
+                変更する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .tab-link {

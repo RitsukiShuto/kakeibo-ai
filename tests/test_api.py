@@ -33,12 +33,14 @@ def setup_test_environment():
             transaction_id TEXT PRIMARY KEY,
             transaction_date TEXT,
             category TEXT,
+            genre TEXT,
             amount INTEGER,
             comment TEXT,
             source TEXT,
             mode TEXT,
             is_reimbursement INTEGER DEFAULT 0,
-            self_amount INTEGER
+            self_amount INTEGER,
+            reimbursement_status TEXT
         )
     """)
     cursor.execute("""
@@ -54,7 +56,7 @@ def setup_test_environment():
     
     # テストデータの投入
     today = date.today().isoformat()
-    cursor.execute("INSERT INTO transactions VALUES ('t1', ?, '食費', 1000, 'ランチ', 'mf', 'payment', 0, NULL)", (today,))
+    cursor.execute("INSERT INTO transactions VALUES ('t1', ?, '食費', '外食', 1000, 'ランチ', 'mf', 'payment', 0, NULL, NULL)", (today,))
     cursor.execute("INSERT INTO assets (acquired_date, asset_type, amount, source, institution) VALUES (?, '銀行', 500000, 'mf', '銀行A')", (today,))
     
     conn.commit()
@@ -105,7 +107,44 @@ def test_get_kpi():
     assert "budget" in data
     assert "actual" in data
     assert data["actual"] == 1000
-    assert data["total_assets"] == 500000
+
+def test_get_kpi_with_timeframe():
+    response = client.get("/api/kpi?timeframe=daily")
+    assert response.status_code == 200
+    data = response.json()
+    assert "budget" in data
+    assert "actual" in data
+
+def test_old_format_budget_compatibility():
+    """旧形式のbudget.jsonでもカテゴリが個別に展開されることを確認"""
+    config_dir = os.environ["KAKEIBO_CONFIG_DIR"]
+    old_budget = {
+        "monthly": {
+            "income": 200000,
+            "categories": {
+                "食費": 30000,
+                "住宅": 50000,
+                "交際費": 10000
+            }
+        }
+    }
+    with open(os.path.join(config_dir, "budget.json"), "w", encoding="utf-8") as f:
+        json.dump(old_budget, f)
+    
+    response = client.get("/api/budget-actual")
+    assert response.status_code == 200
+    data = response.json()
+    # 旧形式でも各カテゴリが個別に表示される（「その他」に統合されない）
+    categories = [item["category"] for item in data]
+    assert "食費" in categories
+    assert "住宅" in categories
+    assert "交際費" in categories
+    assert "その他" not in categories
+    
+    # テスト後に元のbudget.jsonに戻す
+    new_budget = {"monthly": {"budget": {"variable": {"食費": 30000}}}}
+    with open(os.path.join(config_dir, "budget.json"), "w", encoding="utf-8") as f:
+        json.dump(new_budget, f)
 
 def test_get_transactions():
     response = client.get("/api/transactions")

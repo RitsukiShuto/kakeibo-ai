@@ -7,6 +7,7 @@ interface TopHeaderProps {
   timeframes?: string[];
   activeTimeframe?: string;
   onTimeframeChange?: (tf: string) => void;
+  loading?: boolean;
 }
 
 const TopHeader: React.FC<TopHeaderProps> = ({ 
@@ -14,7 +15,8 @@ const TopHeader: React.FC<TopHeaderProps> = ({
   onRefresh, 
   timeframes = [], 
   activeTimeframe, 
-  onTimeframeChange 
+  onTimeframeChange,
+  loading = false
 }) => {
   const tfLabels: Record<string, string> = {
     daily: '日次',
@@ -44,14 +46,27 @@ const TopHeader: React.FC<TopHeaderProps> = ({
       </div>
 
       <div className="header-actions">
-        <button className="btn-refresh" onClick={onRefresh}>
-          <RefreshCcw size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+        <button className="btn-refresh" onClick={onRefresh} disabled={loading}>
+          <RefreshCcw 
+            size={16} 
+            style={{ 
+              marginRight: '8px', 
+              verticalAlign: 'middle',
+              animation: loading ? 'spin 1s linear infinite' : 'none' 
+            }} 
+          />
           <span>更新</span>
         </button>
         <div className="user-profile">
           <User size={24} />
         </div>
       </div>
+      
+      <style>{`
+        @keyframes spin {
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </header>
   );
 };
