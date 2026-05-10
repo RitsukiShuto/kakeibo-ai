@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Target, Wallet, Plus, Trash2, Code } from 'lucide-react';
+import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Target, Wallet, Code } from 'lucide-react';
 import client from '../api/client';
 import type { AISettings, AIModel } from '../api/client';
 import TopHeader from '../components/TopHeader';
