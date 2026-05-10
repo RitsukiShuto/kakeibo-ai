@@ -50,3 +50,7 @@ class AIResponse(BaseModel):
     budget_status: List[BudgetStatus] = Field(default_factory=list, description="予算の達成状況")
     totonoi_score: int = Field(..., description="ととのい指数")
     savings_potential: int = Field(..., description="節約可能額")
+    model_name: Optional[str] = Field(None, description="分析に使用したモデル名")
+    prompt_tokens: Optional[int] = Field(None, description="プロンプトのトークン数")
+    response_tokens: Optional[int] = Field(None, description="レスポンスのトークン数")
+    total_tokens: Optional[int] = Field(None, description="合計トークン数")
