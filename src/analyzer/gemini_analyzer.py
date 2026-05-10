@@ -284,11 +284,15 @@ class GeminiAnalyzer:
             if not model_to_use.startswith("models/"):
                 model_to_use = f"models/{model_to_use}"
 
-            # レガシーな名前を高速な2.0系にマッピング（1.5系が404になる場合があるため）
-            if "pro-latest" in model_to_use or "1.5-pro" in model_to_use:
-                model_to_use = "models/gemini-2.0-flash" # 安定性と速度のため一旦2.0-flashへ
-            elif "flash-latest" in model_to_use or "1.5-flash" in model_to_use:
-                model_to_use = "models/gemini-2.0-flash"
+            # レガシーな名前を高速な最新世代にマッピング（SDK互換性と安定性のため）
+            if "pro-latest" in model_to_use or "1.5-pro" in model_to_use or "2.0-pro" in model_to_use:
+                model_to_use = "models/gemini-2.5-pro" # 2026年時点の推奨
+            elif "flash-latest" in model_to_use or "1.5-flash" in model_to_use or "2.0-flash" in model_to_use:
+                model_to_use = "models/gemini-2.5-flash"
+            else:
+                # 明示的に最新を指定していない場合は 2.5-flash をデフォルトにする
+                if model_to_use == "models/gemini-2.0-flash":
+                    model_to_use = "models/gemini-2.5-flash"
             
             print(f"DEBUG: Actual model being used: {model_to_use}")
 
