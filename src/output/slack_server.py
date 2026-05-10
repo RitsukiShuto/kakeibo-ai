@@ -80,17 +80,104 @@ def handle_last_command(ack, command, respond):
     ack()
     handle_last(respond)
 
-# 互換性のための /review コマンド
-@app.command("/review")
-def handle_legacy_review_command(ack, command, respond):
-    ack()
-    raw_text = command.get("text", "").strip()
-    args = raw_text.split()
-    handle_review_logic(respond, args)
+# ------------------------------------------------------------------------------
+# イベントハンドラ
+# ------------------------------------------------------------------------------
+
+@app.event("app_mention")
+def handle_app_mention_events(body, say, logger):
+    """メンション時にチャット回答する"""
+    event = body["event"]
+    user_id = event["user"]
+    text = event["text"]
+    
+    # メンション部分を削除
+    # 例: <@U12345678> こんにちは -> こんにちは
+    clean_text = re.sub(r"<@.*?>", "", text).strip()
+    
+    if not clean_text:
+        say(f"はい、<@{user_id}>さん！何かお手伝いできることはありますか？✨\n`/kakeibo-help` でコマンド一覧が見れるよ！")
+        return
+
+    handle_chat_logic(say, user_id, clean_text)
+
+@app.event("message")
+def handle_message_events(body, say, logger):
+    """DM時にチャット回答する"""
+    event = body["event"]
+    # チャンネルタイプが 'im' (DM) の場合のみ反応
+    if event.get("channel_type") != "im":
+        return
+    # ボット自身のメッセージには反応しない
+    if event.get("bot_id"):
+        return
+        
+    user_id = event["user"]
+    text = event["text"]
+    handle_chat_logic(say, user_id, text)
 
 # ------------------------------------------------------------------------------
 # ロジックの実装
 # ------------------------------------------------------------------------------
+
+import re
+import json
+
+def handle_chat_logic(say, user_id, message):
+    """チャット回答の共通ロジック"""
+    # 読み込み中を伝える
+    # say("🤔 考えてるからちょっと待ってね...")
+    
+    def run_async_chat():
+        try:
+            db = Database(db_path=DB_PATH)
+            config_dir = os.path.join(ROOT_DIR, "local/config")
+            
+            # コンテキスト情報の取得
+            import sqlite3
+            import pandas as pd
+            from src.models import Transaction
+            from datetime import date
+            
+            conn = sqlite3.connect(DB_PATH)
+            query_tx = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT 10"
+            df_tx = pd.read_sql_query(query_tx, conn)
+            recent_transactions = [Transaction(
+                transaction_id=row['transaction_id'],
+                transaction_date=date.fromisoformat(row['transaction_date']),
+                category=row['category'],
+                genre=row['genre'],
+                amount=row['amount'],
+                comment=row['comment'],
+                source=row['source'],
+                mode=row['mode']
+            ) for _, row in df_tx.iterrows()]
+            conn.close()
+            
+            asset_summary = db.get_asset_category_summary()
+            profile = load_config(os.path.join(config_dir, "profile.json"))
+            budget = load_config(os.path.join(config_dir, "budget.json"))
+            
+            from src.analyzer.gemini_analyzer import GeminiAnalyzer
+            analyzer = GeminiAnalyzer()
+            
+            # Slackのメンションには履歴は一旦含めない（簡易化のため）
+            response = analyzer.chat(
+                message=message,
+                history=None,
+                profile=profile,
+                budget=budget,
+                assets_summary=asset_summary,
+                recent_transactions=recent_transactions
+            )
+            
+            say(f"<@{user_id}> {response}")
+            
+        except Exception as e:
+            print(f"Chat logic error: {e}")
+            say(f"❌ ごめん、エラーになっちゃった...: `{e}`")
+
+    threading.Thread(target=run_async_chat).start()
 
 def handle_review_logic(respond, args):
     """分析実行ロジック"""

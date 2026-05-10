@@ -8,6 +8,16 @@
         "target": {
             "date": "YYYY-MM-DD",
             "description": "達成したい目標"
+        },
+        "life_plan": {
+            "current_age": 30,
+            "retirement_age": 65,
+            "annual_return_rate": 5.0,
+            "annual_inflation_rate": 1.0,
+            "monthly_living_expenses_post_retirement": 200000,
+            "events": [
+                {"age": 35, "name": "住宅購入", "amount": 5000000}
+            ]
         }
     },
     "preferences": {

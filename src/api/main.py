@@ -9,6 +9,7 @@ from src.db.database import Database
 from src.models import Transaction as TransactionModel
 from dotenv import load_dotenv
 from typing import Optional, List
+from pydantic import BaseModel
 
 load_dotenv("local/.env")
 
@@ -40,6 +41,12 @@ def get_config_dir():
     if not os.path.isabs(path):
         path = os.path.join(ROOT_DIR, path)
     return path
+
+def load_config(path: str):
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
 def load_budget(config_dir: str):
     budget_path = os.path.join(config_dir, "budget.json")
@@ -370,8 +377,6 @@ async def get_all_categories():
         if conn:
             conn.close()
 
-from pydantic import BaseModel
-
 class TransactionUpdate(BaseModel):
     category: Optional[str] = None
     genre: Optional[str] = None
@@ -379,6 +384,63 @@ class TransactionUpdate(BaseModel):
     is_reimbursement: Optional[int] = None
     self_amount: Optional[int] = None
     reimbursement_status: Optional[str] = None
+
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[dict]] = None
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    conn = None
+    try:
+        db_path = get_db_path()
+        config_dir = get_config_dir()
+        
+        # 1. コンテキスト情報の取得
+        conn = sqlite3.connect(db_path)
+        # 最近の取引10件
+        query_tx = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT 10"
+        df_tx = pd.read_sql_query(query_tx, conn)
+        from src.models import Transaction
+        from datetime import date
+        recent_transactions = [Transaction(
+            transaction_id=row['transaction_id'],
+            transaction_date=date.fromisoformat(row['transaction_date']),
+            category=row['category'],
+            genre=row['genre'],
+            amount=row['amount'],
+            comment=row['comment'],
+            source=row['source'],
+            mode=row['mode']
+        ) for _, row in df_tx.iterrows()]
+        
+        # 資産状況
+        db_instance = Database(db_path=db_path)
+        asset_summary = db_instance.get_asset_category_summary()
+        
+        # プロファイルと予算
+        profile = load_config(os.path.join(config_dir, "profile.json"))
+        budget = load_config(os.path.join(config_dir, "budget.json"))
+        
+        # 2. AIによる回答生成
+        from src.analyzer.gemini_analyzer import GeminiAnalyzer
+        analyzer = GeminiAnalyzer()
+        response = analyzer.chat(
+            message=request.message,
+            history=request.history,
+            profile=profile,
+            budget=budget,
+            assets_summary=asset_summary,
+            recent_transactions=recent_transactions
+        )
+        
+        return {"response": response}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.put("/api/transactions/{transaction_id}")
 async def update_transaction(transaction_id: str, update: TransactionUpdate):
@@ -479,6 +541,58 @@ async def get_pending_reimbursements():
     finally:
         if conn:
             conn.close()
+
+@app.get("/api/life-plan/simulation")
+async def get_life_plan_simulation():
+    try:
+        db_path = get_db_path()
+        config_dir = get_config_dir()
+        
+        # 1. データの取得
+        db_instance = Database(db_path=db_path)
+        assets_summary = db_instance.get_asset_category_summary()
+        total_assets = sum(a['amount'] for a in assets_summary)
+        
+        profile = load_config(os.path.join(config_dir, "profile.json"))
+        budget = load_config(os.path.join(config_dir, "budget.json"))
+        
+        user_info = profile.get("user", {})
+        life_plan = user_info.get("life_plan", {})
+        
+        if not life_plan:
+            raise HTTPException(status_code=400, detail="Life plan settings not found in profile.json")
+            
+        # 2. シミュレーション実行
+        from src.utils.life_plan_calculator import LifePlanCalculator
+        
+        monthly_savings = budget.get("monthly", {}).get("savings_goal", 0) + budget.get("monthly", {}).get("investment_goal", 0)
+        
+        calculator = LifePlanCalculator(
+            current_assets=total_assets,
+            monthly_savings=monthly_savings,
+            current_age=life_plan.get("current_age", 30),
+            retirement_age=life_plan.get("retirement_age", 65),
+            annual_return_rate=life_plan.get("annual_return_rate", 3.0),
+            annual_inflation_rate=life_plan.get("annual_inflation_rate", 1.0),
+            monthly_expenses_post_retirement=life_plan.get("monthly_living_expenses_post_retirement", 200000),
+            events=life_plan.get("events", [])
+        )
+        
+        trajectory = calculator.simulate(end_age=100)
+        
+        # 3. AIアドバイスの生成
+        from src.analyzer.gemini_analyzer import GeminiAnalyzer
+        analyzer = GeminiAnalyzer()
+        advice = analyzer.analyze_life_plan(trajectory, profile, budget)
+        
+        return {
+            "trajectory": trajectory,
+            "advice": advice,
+            "settings": life_plan
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/assets")
 async def get_assets():
