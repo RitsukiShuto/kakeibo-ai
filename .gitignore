@@ -16,7 +16,6 @@ dist/
 .idea/
 
 # --- Secrets & Credentials (CRITICAL) ---
-# 全ての機密・ローカル設定ファイルを local/ に集約し、フォルダごと除外
 local/.env
 local/mf_session
 local/*.db
@@ -31,11 +30,6 @@ input_data.json
 data/csv/*
 data/import/transactions/*
 
-
-# --- User Profiles (PERSONAL INFO) ---
-# 雛形としての .example だけ残し、実データは除外
-# config/ フォルダ内の実データは local/config/ へ移動済み
-
 # --- Reports & Temporary Outputs (PERSONAL INFO) ---
 reports/
 latest_review.md
@@ -45,6 +39,7 @@ debug_output.txt
 logs/*.log
 *.log
 test-results/
+logs/e2e_error.png
 
 # --- Automation & Sync Tools (PERSONAL CONFIG) ---
 tools/sync_to_pi.sh
@@ -57,5 +52,3 @@ infra/systemd/
 .DS_Store
 Thumbs.db
 tools/list_issues.py
-logs/e2e_error.png
-logs/e2e_error.png
