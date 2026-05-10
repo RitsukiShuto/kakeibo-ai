@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 from src.models import Transaction, Asset
 from src.fetcher.base_fetcher import BaseFetcher
+from src.utils.category_mapper import CategoryMapper
 
 load_dotenv("local/.env")
 
@@ -21,6 +22,7 @@ class MoneyForwardFetcher(BaseFetcher):
         self.password = os.getenv("MF_PASSWORD")
         self.user_data_dir = os.path.join(os.getcwd(), "local/mf_session")
         self.logger = logging.getLogger(__name__)
+        self.mapper = CategoryMapper()
 
     def _login_and_update(self, page, headless: bool):
         self.logger.info("Navigating to sign_in page...")
@@ -313,11 +315,17 @@ class MoneyForwardFetcher(BaseFetcher):
                 self_amount = 0 # デフォルトで全額立替（経費精算待ち）として扱う
                 reimbursement_status = "pending"
 
+            raw_category = str(row[col_major]) if col_major else "未分類"
+            raw_genre = str(row[col_minor]) if col_minor else ""
+            
+            # カテゴリマッピングの適用
+            mapped_category, mapped_genre = self.mapper.apply_mapping(raw_category, raw_genre)
+
             transactions.append(Transaction(
                 transaction_id=str(row[col_id]) if col_id else None,
                 transaction_date=datetime.strptime(str(row[col_date]), "%Y/%m/%d").date(),
-                category=str(row[col_major]) if col_major else "未分類",
-                genre=str(row[col_minor]) if col_minor else "",
+                category=mapped_category,
+                genre=mapped_genre,
                 amount=abs(amount),
                 comment=comment_text,
                 source="MoneyForward",

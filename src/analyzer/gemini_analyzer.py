@@ -208,56 +208,40 @@ class GeminiAnalyzer:
             print(f"Error detecting reimbursements: {e}")
             return []
 
-    def chat(self, message: str, history: List[dict] = None, profile: dict = None, budget: dict = None, assets_summary: List[dict] = None, recent_transactions: List[Transaction] = None) -> str:
+    def suggest_category_mappings(self, unmapped_items: List[dict], target_categories: List[str]) -> List[dict]:
         """
-        家計に関するインタラクティブなチャット回答を生成する
+        未マッピングの項目に対して、予算カテゴリへのマッピングを提案する
         """
-        active_persona = self._get_active_persona()
-        persona_path = f"prompts/personas/{active_persona}.md"
-        if not os.path.exists(persona_path):
-            persona_path = "prompts/personas/default.md"
-            
-        persona_settings = self._load_prompt_file(persona_path)
-        
-        user_info = profile.get("user", {}) if profile else {}
-        system_prompt = (
-            f"{persona_settings}\n\n"
-            "あなたは優秀な家計簿アシスタントです。ユーザーからの質問に対して、"
-            "現在の家計状況を考慮した具体的で親しみやすいアドバイスを提供してください。\n"
-        )
-        
-        if assets_summary:
-            total = sum(a['amount'] for a in assets_summary)
-            system_prompt += f"\n現在の総資産: {total:,}円\n"
-            system_prompt += "資産内訳:\n" + "\n".join([f"- {a['category']}: {a['amount']:,}円" for a in assets_summary])
-            
-        if recent_transactions:
-            system_prompt += "\n\n最近の支出明細（直近10件）:\n"
-            for t in recent_transactions[:10]:
-                system_prompt += f"- {t.transaction_date}: {t.category}({t.genre}) {t.amount}円 {t.comment}\n"
+        if not unmapped_items or not target_categories:
+            return []
 
-        # チャットセッションの開始（履歴がある場合）
-        contents = []
-        if history:
-            for msg in history:
-                role = "user" if msg["role"] == "user" else "model"
-                contents.append({"role": role, "parts": [msg["content"]]})
-        
-        contents.append({"role": "user", "parts": [message]})
+        system_prompt = (
+            "あなたは優秀な家計簿アシスタントです。金融サービスから取得した「元のカテゴリ・中項目」を、"
+            "ユーザーが設定した「予算カテゴリ」のどれに分類すべきか提案してください。\n"
+            "可能な限り正確に分類し、判断がつかない場合は最も近いものを選んでください。\n"
+            "返却は以下のJSON形式のみで行ってください。コードブロックは含めないでください。\n"
+            "{\"suggestions\": [{\"raw_category\": \"元の大項目\", \"raw_genre\": \"元の中項目\", \"suggested_category\": \"予算カテゴリ名\", \"suggested_genre\": \"提案する中項目名\", \"reason\": \"理由\"}]}"
+        )
+
+        user_input = {
+            "unmapped_items": unmapped_items,
+            "target_categories": target_categories
+        }
 
         try:
             response = self.client.models.generate_content(
                 model=self.model_name,
-                contents=contents,
+                contents=f"{system_prompt}\n\n対象データ:\n{json.dumps(user_input, ensure_ascii=False)}",
                 config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=0.7
+                    response_mime_type="application/json",
+                    temperature=0.1
                 )
             )
-            return response.text.strip()
+            result = json.loads(response.text.strip())
+            return result.get("suggestions", [])
         except Exception as e:
-            print(f"Chat error: {e}")
-            return "ごめん、ちょっと調子が悪いみたい。後でもう一度話しかけてね！"
+            print(f"Error suggesting category mappings: {e}")
+            return []
 
     def analyze_life_plan(self, trajectory: List[dict], profile: dict, budget: dict) -> str:
         """

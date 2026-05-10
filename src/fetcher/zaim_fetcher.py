@@ -5,6 +5,7 @@ from pyzaim import ZaimAPI
 from dotenv import load_dotenv
 from src.models import Transaction, Asset
 from src.fetcher.base_fetcher import BaseFetcher
+from src.utils.category_mapper import CategoryMapper
 
 load_dotenv("local/.env")
 
@@ -21,6 +22,7 @@ class ZaimFetcher(BaseFetcher):
         self.api = ZaimAPI(consumer_id, consumer_secret, access_token, access_token_secret, oauth_verifier=None)
         self.categories = self.api.category()
         self.genres = self.api.genre()
+        self.mapper = CategoryMapper()
 
     def fetch_transactions(self, days: int = 30) -> List[Transaction]:
         today = date.today()
@@ -33,11 +35,17 @@ class ZaimFetcher(BaseFetcher):
         
         transactions = []
         for item in raw_data:
+            raw_category = self._get_category_name(item["category_id"])
+            raw_genre = self._get_genre_name(item["genre_id"])
+            
+            # カテゴリマッピングの適用
+            mapped_category, mapped_genre = self.mapper.apply_mapping(raw_category, raw_genre)
+
             transactions.append(Transaction(
                 transaction_id=str(item["id"]),
                 transaction_date=date.fromisoformat(item["date"]),
-                category=self._get_category_name(item["category_id"]),
-                genre=self._get_genre_name(item["genre_id"]),
+                category=mapped_category,
+                genre=mapped_genre,
                 amount=item["amount"],
                 comment=item["comment"] or "",
                 source="Zaim",
