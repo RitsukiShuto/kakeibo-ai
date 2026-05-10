@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Scale, ChartArea, Bot, List, Handshake, ExternalLink } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,6 +11,7 @@ import AssetChart from '../components/AssetChart';
 import TopHeader from '../components/TopHeader';
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [kpi, setKpi] = useState<KPI | null>(null);
   const [budgetActual, setBudgetActual] = useState<BudgetActual[]>([]);
   const [assetTrend, setAssetTrend] = useState<AssetTrend[]>([]);
@@ -18,6 +20,7 @@ const Dashboard: React.FC = () => {
   const [pendingReimbursements, setPendingReimbursements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('monthly');
+  const [assetTimeframe, setAssetTimeframe] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>('all');
 
   const fetchData = async () => {
     setLoading(true);
@@ -114,7 +117,7 @@ const Dashboard: React.FC = () => {
                       {latestReview.summary}
                     </ReactMarkdown>
                   </div>
-                  <button className="btn-outline btn-small mt-3">
+                  <button className="btn-outline btn-small mt-3" onClick={() => navigate('/ai-review')}>
                     全文レポートを開く <ExternalLink size={14} />
                   </button>
                 </>
@@ -128,9 +131,21 @@ const Dashboard: React.FC = () => {
           <div className="card section-assets">
             <div className="card-header">
               <h3><ChartArea size={20} /> 資産推移</h3>
+              <div className="timeframe-tabs" style={{ fontSize: '0.7rem' }}>
+                {['1m', '3m', '6m', '1y', 'all'].map((tf) => (
+                  <button 
+                    key={tf} 
+                    className={`tab-btn ${assetTimeframe === tf ? 'active' : ''}`}
+                    onClick={() => setAssetTimeframe(tf as any)}
+                    style={{ padding: '4px 8px' }}
+                  >
+                    {tf.toUpperCase()}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="card-body">
-              <AssetChart data={assetTrend} />
+              <AssetChart data={assetTrend} timeframe={assetTimeframe} />
             </div>
           </div>
 
@@ -155,7 +170,9 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div className="text-muted">精算待ちの項目はありません。✨</div>
               )}
-              <button className="btn-text w-100 mt-4">すべての立替を管理</button>
+              <button className="btn-text w-100 mt-4" onClick={() => navigate('/expense-splitter')}>
+                すべての立替を管理
+              </button>
             </div>
           </div>
 
@@ -176,7 +193,9 @@ const Dashboard: React.FC = () => {
                   </li>
                 ))}
               </ul>
-              <button className="btn-text w-100 mt-4">すべての明細を表示</button>
+              <button className="btn-text w-100 mt-4" onClick={() => navigate('/transactions')}>
+                すべての明細を表示
+              </button>
             </div>
           </div>
         </div>
