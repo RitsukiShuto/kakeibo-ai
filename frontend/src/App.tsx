@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-import { Dashboard, Transactions, AIReview, ExpenseSplitter, Settings, AIChat } from './pages';
+import { Dashboard, Transactions, AIReview, ExpenseSplitter, Settings, AIChat, LifePlan } from './pages';
 import './index.css';
 
 function App() {
@@ -14,6 +14,7 @@ function App() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/ai-review" element={<AIReview />} />
             <Route path="/ai-chat" element={<AIChat />} />
+            <Route path="/life-plan" element={<LifePlan />} />
             <Route path="/expense-splitter" element={<ExpenseSplitter />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

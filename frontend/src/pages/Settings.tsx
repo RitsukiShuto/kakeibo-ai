@@ -17,11 +17,29 @@ const Settings: React.FC = () => {
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, modelId: string | null }>({ isOpen: false, modelId: null });
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  const [hoveredSuggestion, setHoveredSuggestion] = useState<number | null>(null);
 
   // JSON string states for the 'Advanced' tab
   const [budgetJson, setBudgetJson] = useState('');
   const [profileJson, setProfileJson] = useState('');
   const [mappingJson, setMappingJson] = useState('');
+
+  // Load suggestions from sessionStorage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem('ai_mapping_suggestions');
+    if (saved) {
+      try {
+        setAiSuggestions(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse saved suggestions', e);
+      }
+    }
+  }, []);
+
+  // Save suggestions to sessionStorage when they change
+  useEffect(() => {
+    sessionStorage.setItem('ai_mapping_suggestions', JSON.stringify(aiSuggestions));
+  }, [aiSuggestions]);
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -596,7 +614,13 @@ const Settings: React.FC = () => {
                     {aiSuggestions.length > 0 ? (
                       <div className="flex flex-col gap-3">
                         {aiSuggestions.map((s, idx) => (
-                          <div key={idx} className="suggestion-item" style={{ background: 'var(--bg-color)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div 
+                            key={idx} 
+                            className="suggestion-item" 
+                            style={{ position: 'relative', background: 'var(--bg-color)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            onMouseEnter={() => setHoveredSuggestion(idx)}
+                            onMouseLeave={() => setHoveredSuggestion(null)}
+                          >
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                 {s.raw_category} {s.raw_genre ? `> ${s.raw_genre}` : ''}
@@ -612,6 +636,23 @@ const Settings: React.FC = () => {
                             <button className="btn-outline" onClick={() => applySuggestion(s)} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
                               採用
                             </button>
+
+                            {hoveredSuggestion === idx && s.examples && s.examples.length > 0 && (
+                              <div className="card glass" style={{ 
+                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, 
+                                marginTop: '4px', padding: '12px', fontSize: '0.75rem', 
+                                background: 'var(--card-bg)', border: '1px solid var(--primary)' 
+                              }}>
+                                <div style={{ fontWeight: 'bold', marginBottom: '8px', color: 'var(--primary)' }}>該当する直近の明細:</div>
+                                {s.examples.map((ex: any, eidx: number) => (
+                                  <div key={eidx} style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>{ex.transaction_date}</span>
+                                    <span style={{ flex: 1 }}>{ex.comment}</span>
+                                    <span style={{ fontWeight: 'bold' }}>{ex.amount.toLocaleString()}円</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
