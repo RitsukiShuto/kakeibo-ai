@@ -103,16 +103,38 @@ def handle_review_logic(respond, args):
     if timeframe not in ["daily", "weekly", "monthly", "quarterly", "yearly"]:
         timeframe = "weekly"
 
-    skip_msg = " (データ取得はスキップして爆速でいくよ！🚀)" if skip_fetch else ""
-    respond(f"🆗 了解！{timeframe}の家計簿を分析してくるから、ちょっと待っててね！✨{skip_msg}")
+    initial_msg = f"🆗 了解！{timeframe}の家計簿を分析するよ！✨"
+    if not skip_fetch:
+        initial_msg += "\n🔄 まずは最新のデータを取得してくるね。1分くらいかかるかも！"
+    else:
+        initial_msg += " (データ取得はスキップして爆速でいくよ！🚀)"
+    
+    respond(initial_msg)
     
     def run_async_analysis():
+        def progress_update(msg):
+            try:
+                respond(msg)
+            except: pass
+
         try:
-            result = run_review(timeframe=timeframe, headless=True, skip_fetch=skip_fetch)
+            # 最新データを取得して分析
+            # run_review 内でエラーが発生した場合は例外が飛ぶ想定
+            result = run_review(
+                timeframe=timeframe, 
+                headless=True, 
+                skip_fetch=skip_fetch,
+                progress_callback=progress_update
+            )
             if not result:
-                respond("❌ ごめん、分析中にエラーが出ちゃったみたい...。後でもう一回試してみて！")
+                respond("❌ ごめん、分析結果が空だったみたい...。設定やデータを確認してみて！")
         except Exception as e:
-            respond(f"❌ 分析中に致命的なエラーが発生しました: {str(e)}")
+            error_msg = str(e)
+            print(f"Error in async analysis: {e}")
+            if "Timeout" in error_msg or "locator" in error_msg:
+                respond("❌ MoneyForward へのログインでタイムアウトが発生したよ...。サーバーの負荷が高いか、セッションが切れちゃったかも。後でもう一度試してね！")
+            else:
+                respond(f"❌ 分析中にエラーが発生したよ: `{error_msg}`")
 
     threading.Thread(target=run_async_analysis).start()
 
@@ -148,7 +170,6 @@ def handle_model_logic(respond, args):
         if new_key in available_models:
             new_model = available_models[new_key]
             try:
-                import json
                 settings = {}
                 if os.path.exists(settings_path):
                     with open(settings_path, "r", encoding="utf-8") as f:
