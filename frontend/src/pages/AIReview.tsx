@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, FileText, Info, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
+import { Calendar, FileText, Info, AlertTriangle, AlertCircle, CheckCircle, Bot } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import client from '../api/client';
@@ -106,7 +106,15 @@ const AIReview: React.FC = () => {
           <div className="card-body">
             {selectedReview ? (
               <div className="review-full-text">
-                <div className="badge score-good mb-4">Score: {selectedReview.score}</div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+                  <div className="badge score-good">Score: {selectedReview.score}</div>
+                  {selectedReview.total_tokens && (
+                    <div className="badge" style={{ backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                      <Bot size={14} className="inline mr-1" />
+                      {selectedReview.model_name || 'AI Model'} ({selectedReview.total_tokens.toLocaleString()} tokens)
+                    </div>
+                  )}
+                </div>
                 <h4 className="mb-2">要約</h4>
                 <div className="review-summary mb-4">
                   {selectedReview.summary}

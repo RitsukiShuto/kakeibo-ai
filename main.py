@@ -170,12 +170,13 @@ def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_f
         # 3. Slack通知
         if output_slack:
             notifier = SlackNotifier()
-            model_info = f" (Model: {ai_response.model_name})" if ai_response.model_name else ""
             notifier.send_block_kit(
-                title=f"家計簿AIレビュー ({timeframe}){model_info}",
+                title=f"家計簿AIレビュー ({timeframe})",
                 report=ai_response.slack_report,
                 actions=ai_response.actions,
-                score=ai_response.totonoi_score
+                score=ai_response.totonoi_score,
+                model_name=ai_response.model_name,
+                total_tokens=ai_response.total_tokens
             )
             if graph_path:
                 notifier.upload_file(graph_path, f"資産推移グラフ ({timeframe})")
