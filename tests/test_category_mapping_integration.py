@@ -60,31 +60,38 @@ def test_mf_mapping_integration(mock_read_csv, mapping_file):
 
 @patch('src.fetcher.zaim_fetcher.ZaimAPI')
 def test_zaim_mapping_integration(mock_zaim_api, mapping_file):
-    with patch('src.utils.category_mapper.CategoryMapper.__init__', lambda self, path=mapping_file: setattr(self, 'mapping_path', path) or setattr(self, 'mapping', self._load_mapping())):
-        mock_instance = mock_zaim_api.return_value
-        mock_instance.category.return_value = [
-            {'id': 1, 'name': '未分類'},
-            {'id': 2, 'name': '食費'}
-        ]
-        mock_instance.genre.return_value = [
-            {'id': 11, 'name': 'ランチ'},
-            {'id': 12, 'name': 'コンビニ'}
-        ]
-        mock_instance.data.return_value = [
-            {'id': 1, 'date': '2024-01-01', 'category_id': 1, 'genre_id': 0, 'amount': 100, 'mode': 'payment', 'comment': ''},
-            {'id': 2, 'date': '2024-01-02', 'category_id': 2, 'genre_id': 11, 'amount': 200, 'mode': 'payment', 'comment': ''},
-            {'id': 3, 'date': '2024-01-03', 'category_id': 2, 'genre_id': 12, 'amount': 300, 'mode': 'payment', 'comment': ''}
-        ]
-        
-        fetcher = ZaimFetcher()
-        transactions = fetcher.fetch_transactions()
-        
-        # 未分類 -> その他
-        assert transactions[0].category == "その他"
-        
-        # ランチ -> 食費/昼食
-        assert transactions[1].category == "食費"
-        assert transactions[1].genre == "昼食"
-        
-        # コンビニ -> 日用品
-        assert transactions[2].genre == "日用品"
+    env_vars = {
+        "ZAIM_CONSUMER_ID": "test_id",
+        "ZAIM_CONSUMER_SECRET": "test_secret",
+        "ZAIM_ACCESS_TOKEN": "test_token",
+        "ZAIM_ACCESS_TOKEN_SECRET": "test_token_secret"
+    }
+    with patch.dict('os.environ', env_vars):
+        with patch('src.utils.category_mapper.CategoryMapper.__init__', lambda self, path=mapping_file: setattr(self, 'mapping_path', path) or setattr(self, 'mapping', self._load_mapping())):
+            mock_instance = mock_zaim_api.return_value
+            mock_instance.category.return_value = [
+                {'id': 1, 'name': '未分類'},
+                {'id': 2, 'name': '食費'}
+            ]
+            mock_instance.genre.return_value = [
+                {'id': 11, 'name': 'ランチ'},
+                {'id': 12, 'name': 'コンビニ'}
+            ]
+            mock_instance.data.return_value = [
+                {'id': 1, 'date': '2024-01-01', 'category_id': 1, 'genre_id': 0, 'amount': 100, 'mode': 'payment', 'comment': ''},
+                {'id': 2, 'date': '2024-01-02', 'category_id': 2, 'genre_id': 11, 'amount': 200, 'mode': 'payment', 'comment': ''},
+                {'id': 3, 'date': '2024-01-03', 'category_id': 2, 'genre_id': 12, 'amount': 300, 'mode': 'payment', 'comment': ''}
+            ]
+            
+            fetcher = ZaimFetcher()
+            transactions = fetcher.fetch_transactions()
+            
+            # 未分類 -> その他
+            assert transactions[0].category == "その他"
+            
+            # ランチ -> 食費/昼食
+            assert transactions[1].category == "食費"
+            assert transactions[1].genre == "昼食"
+            
+            # コンビニ -> 日用品
+            assert transactions[2].genre == "日用品"
