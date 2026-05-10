@@ -8,6 +8,7 @@ def test_handle_review_command():
     command = {"user_id": "U123", "text": "monthly skip"}
     
     with patch('src.output.slack_server.threading.Thread') as mock_thread:
+        # 新しい引数(3つ)に合わせて呼び出し
         handle_review_command(mock_ack, command, mock_respond)
         
         mock_ack.assert_called_once()
