@@ -67,6 +67,18 @@ def get_budget_category_totals(budget):
                 totals[category] = subcategories
     return totals
 
+def df_to_json_safe_dict(df):
+    """
+    DataFrameをJSON互換の辞書リストに変換する。
+    NaNやInfをNone(null)に確実に置換する。
+    """
+    import numpy as np
+    # 一度すべての NaN/Inf を None に変換
+    # 浮動小数点列の場合は単純な where では戻ることがあるため、
+    # mask を使って明示的にオブジェクト型として None を入れる
+    df_safe = df.replace([np.inf, -np.inf], np.nan)
+    return [{k: (v if pd.notnull(v) else None) for k, v in record.items()} for record in df_safe.to_dict(orient="records")]
+
 @app.get("/api/status")
 async def get_status():
     try:
@@ -158,18 +170,21 @@ async def get_kpi():
         current_month = datetime.now().strftime("%Y-%m")
         conn = sqlite3.connect(db_path)
         query_total = f"SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date LIKE '{current_month}%' AND mode='payment'"
-        actual_total = pd.read_sql_query(query_total, conn)['total'].iloc[0] or 0
-        
+        actual_total = pd.read_sql_query(query_total, conn)['total'].iloc[0]
+        actual_total = int(actual_total) if pd.notnull(actual_total) else 0
+
         query_assets = "SELECT SUM(amount) as total FROM assets WHERE acquired_date = (SELECT MAX(acquired_date) FROM assets)"
-        total_assets = pd.read_sql_query(query_assets, conn)['total'].iloc[0] or 0
+        total_assets = pd.read_sql_query(query_assets, conn)['total'].iloc[0]
+        total_assets = int(total_assets) if pd.notnull(total_assets) else 0
         conn.close()
-        
+
         return {
             "budget": total_budget,
-            "actual": int(actual_total),
-            "remaining": max(0, total_budget - int(actual_total)),
-            "total_assets": int(total_assets)
+            "actual": actual_total,
+            "remaining": max(0, total_budget - actual_total),
+            "total_assets": total_assets
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -215,10 +230,7 @@ async def get_transactions(limit: int = 50, search: Optional[str] = None):
             df = pd.read_sql_query(query, conn, params=(limit,))
         conn.close()
 
-        # JSON互換性のためにNaN/InfをNoneに置換
-        import numpy as np
-        df = df.replace([np.inf, -np.inf], np.nan).where(pd.notnull(df), None)
-        return df.to_dict(orient="records")
+        return df_to_json_safe_dict(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -265,7 +277,7 @@ async def get_analysis_history(timeframe: str = "monthly"):
         query = "SELECT * FROM analysis_history WHERE timeframe = ? ORDER BY created_at DESC"
         df = pd.read_sql_query(query, conn, params=(timeframe,))
         conn.close()
-        return df.to_dict(orient="records")
+        return df_to_json_safe_dict(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -309,7 +321,7 @@ async def get_pending_reimbursements():
         """
         df = pd.read_sql_query(query, conn)
         conn.close()
-        return df.to_dict(orient="records")
+        return df_to_json_safe_dict(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -326,7 +338,7 @@ async def get_assets():
         """
         df = pd.read_sql_query(query, conn)
         conn.close()
-        return df.to_dict(orient="records")
+        return df_to_json_safe_dict(df)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
