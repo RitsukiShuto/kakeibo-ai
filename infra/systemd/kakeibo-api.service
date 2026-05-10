@@ -1,0 +1,16 @@
+[Unit]
+Description=Kakeibo AI API Server
+After=network.target
+
+[Service]
+Type=simple
+User=r410
+WorkingDirectory=/home/r410/kakeibo-ai
+ExecStart=/home/r410/miniconda3/bin/conda run -n kakeibo-ai uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=10
+StandardOutput=inherit
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target
