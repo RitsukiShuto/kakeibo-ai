@@ -35,8 +35,28 @@ class GeminiAnalyzer:
         print(f"Selected model: {model}")
         return model
 
+    def _get_active_persona(self):
+        # 設定ファイルから現在のキャラクターを取得
+        settings_path = "local/config/settings.json"
+        persona = 'gal' # デフォルト
+        
+        if os.path.exists(settings_path):
+            try:
+                with open(settings_path, "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+                    persona = settings.get("ai", {}).get("active_persona", persona)
+            except Exception as e:
+                print(f"Warning: Failed to load settings.json, using default persona: {e}")
+        return persona
+
     def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None) -> Optional[AIResponse]:
-        persona_settings = self._load_prompt_file("prompts/persona_settings.md")
+        # キャラクター設定を読み込む
+        active_persona = self._get_active_persona()
+        persona_path = f"prompts/personas/{active_persona}.md"
+        if not os.path.exists(persona_path):
+            persona_path = "prompts/personas/default.md"
+            
+        persona_settings = self._load_prompt_file(persona_path)
         system_prompt_template = self._load_prompt_file("prompts/system_prompt.md")
         timeframe_prompt = self._load_prompt_file(f"prompts/{timeframe}_prompt.md")
         
