@@ -170,8 +170,9 @@ def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_f
         # 3. Slack通知
         if output_slack:
             notifier = SlackNotifier()
+            model_info = f" (Model: {ai_response.model_name})" if ai_response.model_name else ""
             notifier.send_block_kit(
-                title=f"家計簿AIレビュー ({timeframe})",
+                title=f"家計簿AIレビュー ({timeframe}){model_info}",
                 report=ai_response.slack_report,
                 actions=ai_response.actions,
                 score=ai_response.totonoi_score
@@ -185,7 +186,11 @@ def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_f
             summary=ai_response.slack_report, 
             report_path=saved_path or "", 
             score=ai_response.totonoi_score, 
-            raw_response=json.dumps(ai_response.model_dump(), ensure_ascii=False)
+            raw_response=json.dumps(ai_response.model_dump(), ensure_ascii=False),
+            model_name=ai_response.model_name,
+            prompt_tokens=ai_response.prompt_tokens,
+            response_tokens=ai_response.response_tokens,
+            total_tokens=ai_response.total_tokens
         )
         return ai_response
 

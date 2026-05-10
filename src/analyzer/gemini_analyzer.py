@@ -105,6 +105,14 @@ class GeminiAnalyzer:
             json_candidate = re.sub(r'\s+', ' ', json_candidate)
 
             result_json = json.loads(json_candidate)
+            
+            # 使用したモデル名とトークン使用量を記録
+            usage = response.usage_metadata
+            result_json["model_name"] = self.model_name
+            result_json["prompt_tokens"] = usage.prompt_token_count
+            result_json["response_tokens"] = usage.candidates_token_count
+            result_json["total_tokens"] = usage.total_token_count
+            
             ai_response = AIResponse(**result_json)
             return ai_response
 
