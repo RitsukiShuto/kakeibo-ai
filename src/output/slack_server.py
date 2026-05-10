@@ -37,40 +37,60 @@ def start_heartbeat():
 app = App(token=SLACK_BOT_TOKEN or "xoxb-dummy", token_verification_enabled=False)
 
 # ------------------------------------------------------------------------------
-# 共通コマンド: /kakeibo [action] [args]
+# スラッシュコマンドの実装
 # ------------------------------------------------------------------------------
-@app.command("/kakeibo")
-def handle_kakeibo_command(ack, command, respond):
-    ack()
-    raw_text = command.get("text", "").strip()
-    parts = raw_text.split()
-    
-    action = parts[0].lower() if parts else "help"
-    args = parts[1:] if len(parts) > 1 else []
 
-    if action == "check":
-        handle_check(respond, args)
-    elif action == "stats":
-        handle_stats(respond, args)
-    elif action == "character":
-        handle_character(respond, args)
-    elif action == "last":
-        handle_last(respond)
-    elif action == "review":
-        # /kakeibo review [timeframe] [skip]
-        handle_review_logic(respond, args)
-    else:
-        handle_help(respond)
-
-# ------------------------------------------------------------------------------
-# 既存の /review も維持しつつ、共通ロジックへ誘導
-# ------------------------------------------------------------------------------
-@app.command("/review")
+@app.command("/kakeibo-review")
 def handle_review_command(ack, command, respond):
+    """家計簿の分析を実行します。[分析モード] [データ取得]"""
     ack()
     raw_text = command.get("text", "").strip()
     args = raw_text.split()
     handle_review_logic(respond, args)
+
+@app.command("/kakeibo-help")
+def handle_help_command(ack, command, respond):
+    """ヘルプを参照します"""
+    ack()
+    handle_help(respond)
+
+@app.command("/kakeibo-model")
+def handle_model_command(ack, command, respond):
+    """分析に使用するモデルを変更します"""
+    ack()
+    raw_text = command.get("text", "").strip()
+    args = raw_text.split()
+    handle_model_logic(respond, args)
+
+@app.command("/kakeibo-check")
+def handle_check_command(ack, command, respond):
+    """今月の残予算と進捗率を即座に表示します"""
+    ack()
+    handle_check(respond)
+
+@app.command("/kakeibo-stats-ai")
+def handle_stats_ai_command(ack, command, respond):
+    """今月の合計トークン使用量を表示します"""
+    ack()
+    handle_stats_ai(respond)
+
+@app.command("/kakeibo-last")
+def handle_last_command(ack, command, respond):
+    """最新の分析レポートを再表示します"""
+    ack()
+    handle_last(respond)
+
+# 互換性のための /review コマンド
+@app.command("/review")
+def handle_legacy_review_command(ack, command, respond):
+    ack()
+    raw_text = command.get("text", "").strip()
+    args = raw_text.split()
+    handle_review_logic(respond, args)
+
+# ------------------------------------------------------------------------------
+# ロジックの実装
+# ------------------------------------------------------------------------------
 
 def handle_review_logic(respond, args):
     """分析実行ロジック"""
@@ -96,19 +116,66 @@ def handle_review_logic(respond, args):
 
     threading.Thread(target=run_async_analysis).start()
 
-def handle_check(respond, args):
+def handle_model_logic(respond, args):
+    """モデル切り替えロジック"""
+    config_dir = os.path.join(ROOT_DIR, "local/config")
+    settings_path = os.path.join(config_dir, "settings.json")
+    
+    available_models = {
+        "pro": "gemini-pro-latest",
+        "flash": "gemini-flash-latest",
+        "lite": "gemini-flash-lite-latest"
+    }
+
+    if not args:
+        # 現在のモデルを確認
+        current = "flash"
+        if os.path.exists(settings_path):
+            try:
+                with open(settings_path, "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+                    current = settings.get("ai", {}).get("active_model", "gemini-flash-latest")
+            except: pass
+        
+        model_list = "\n".join([f"• `{k}`: {v}" for k, v in available_models.items()])
+        respond(
+            f"🤖 *現在の使用モデル*: `{current}`\n\n"
+            f"切り替えたい時は以下のように打ってね！\n{model_list}\n"
+            f"例: `/kakeibo-model pro`"
+        )
+    else:
+        new_key = args[0].lower()
+        if new_key in available_models:
+            new_model = available_models[new_key]
+            try:
+                import json
+                settings = {}
+                if os.path.exists(settings_path):
+                    with open(settings_path, "r", encoding="utf-8") as f:
+                        settings = json.load(f)
+                
+                if "ai" not in settings: settings["ai"] = {}
+                settings["ai"]["active_model"] = new_model
+                
+                with open(settings_path, "w", encoding="utf-8") as f:
+                    json.dump(settings, f, indent=2, ensure_ascii=False)
+                
+                respond(f"✅ 使用モデルを `{new_model}` に変更したよ！次回の分析から適用されるよ！✨")
+            except Exception as e:
+                respond(f"❌ 設定の保存に失敗しました: {e}")
+        else:
+            respond(f"❌ `{new_key}` は有効な選択肢じゃないみたい...。`pro`, `flash`, `lite` から選んでね！")
+
+def handle_check(respond):
     """予算チェックロジック"""
     try:
         db = Database(db_path=DB_PATH)
         now = datetime.now()
         current_month = now.strftime("%Y-%m")
         
-        # 予算データの読み込み
         config_dir = os.path.join(ROOT_DIR, "local/config")
-        from main import load_config
         budget_data = load_config(os.path.join(config_dir, "budget.json"))
         
-        # 実績の取得 (簡易計算)
         import sqlite3
         import pandas as pd
         conn = sqlite3.connect(DB_PATH)
@@ -116,7 +183,6 @@ def handle_check(respond, args):
         actual = pd.read_sql_query(query, conn)['total'].iloc[0] or 0
         conn.close()
         
-        # カテゴリ別予算の集計
         monthly = budget_data.get("monthly", {})
         total_budget = sum(monthly.get("categories", {}).values())
         
@@ -135,77 +201,26 @@ def handle_check(respond, args):
     except Exception as e:
         respond(f"❌ 状況の取得に失敗しました: {e}")
 
-def handle_stats(respond, args):
-    """統計・使用量ロジック"""
-    if "ai" in [a.lower() for a in args]:
-        try:
-            import sqlite3
-            conn = sqlite3.connect(DB_PATH)
-            cur = conn.cursor()
-            cur.execute("SELECT SUM(prompt_tokens), SUM(response_tokens), SUM(total_tokens) FROM analysis_history WHERE created_at >= date('now', 'start of month')")
-            row = cur.fetchone()
-            conn.close()
-            
-            p, r, t = row if row and row[0] else (0, 0, 0)
-            respond(
-                f"🤖 *今月の AI 使用量統計*\n"
-                f"• プロンプト: {p or 0:,} tokens\n"
-                f"• レスポンス: {r or 0:,} tokens\n"
-                f"• *合計: {t or 0:,} tokens*\n\n"
-                f"無料枠を賢く使って節約中だよ！💅✨"
-            )
-        except Exception as e:
-            respond(f"❌ 統計の取得に失敗しました: {e}")
-    else:
-        respond("💡 `stats ai` と打つと、AIのトークン使用量が見れるよ！")
-
-def handle_character(respond, args):
-    """キャラクター切り替え"""
-    config_dir = os.path.join(ROOT_DIR, "local/config")
-    settings_path = os.path.join(config_dir, "settings.json")
-    
-    available_personas = {
-        "gal": "ギャル (デフォルト)",
-        "butler": "執事 (丁寧・上品)",
-        "zen": "禅師 (厳格・古風)"
-    }
-
-    if not args:
-        # 現在のキャラを確認
-        current = "gal"
-        if os.path.exists(settings_path):
-            try:
-                with open(settings_path, "r", encoding="utf-8") as f:
-                    settings = json.load(f)
-                    current = settings.get("ai", {}).get("active_persona", "gal")
-            except: pass
+def handle_stats_ai(respond):
+    """AI使用量統計ロジック"""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT SUM(prompt_tokens), SUM(response_tokens), SUM(total_tokens) FROM analysis_history WHERE created_at >= date('now', 'start of month')")
+        row = cur.fetchone()
+        conn.close()
         
-        persona_list = "\n".join([f"• `{k}`: {v}" for k, v in available_personas.items()])
+        p, r, t = row if row and row[0] is not None else (0, 0, 0)
         respond(
-            f"👗 *現在のキャラ設定*: {available_personas.get(current, current)}\n\n"
-            f"切り替えたい時は以下のように打ってね！\n{persona_list}\n"
-            f"例: `/kakeibo character butler`"
+            f"🤖 *今月の AI 使用量統計*\n"
+            f"• プロンプト: {p or 0:,} tokens\n"
+            f"• レスポンス: {r or 0:,} tokens\n"
+            f"• *合計: {t or 0:,} tokens*\n\n"
+            f"無料枠を賢く使って節約中だよ！💅✨"
         )
-    else:
-        new_persona = args[0].lower()
-        if new_persona in available_personas:
-            try:
-                settings = {}
-                if os.path.exists(settings_path):
-                    with open(settings_path, "r", encoding="utf-8") as f:
-                        settings = json.load(f)
-                
-                if "ai" not in settings: settings["ai"] = {}
-                settings["ai"]["active_persona"] = new_persona
-                
-                with open(settings_path, "w", encoding="utf-8") as f:
-                    json.dump(settings, f, indent=2, ensure_ascii=False)
-                
-                respond(f"✨ キャラクターを `{available_personas[new_persona]}` に変更したよ！次回の分析から反映されるから楽しみにしててね！💖")
-            except Exception as e:
-                respond(f"❌ 設定の保存に失敗しました: {e}")
-        else:
-            respond(f"❌ `{new_persona}` というキャラクターはいないみたい...。`gal`, `butler`, `zen` から選んでね！")
+    except Exception as e:
+        respond(f"❌ 統計の取得に失敗しました: {e}")
 
 def handle_last(respond):
     """最新レポート表示"""
@@ -222,12 +237,13 @@ def handle_last(respond):
 def handle_help(respond):
     respond(
         "👋 *Kakeibo AI スラッシュコマンド・ヘルプ*\n\n"
-        "• `/kakeibo check` : 今月の残予算を確認するよ！💰\n"
-        "• `/kakeibo last`  : 最新の分析レポートを再表示するよ！📝\n"
-        "• `/kakeibo stats ai` : AIのトークン使用量を確認できるよ！🤖\n"
-        "• `/kakeibo review [tf]` : 指定した期間で分析を開始するよ！(tf: daily, weekly, etc)\n"
-        "• `/kakeibo help`  : このヘルプを表示するよ！\n\n"
-        "既存の `/review [tf]` も今まで通り使えるから安心してね！✨"
+        "• `/kakeibo-check` : 今月の残予算と進捗率を確認するよ！💰\n"
+        "• `/kakeibo-review [tf]` : 家計簿の分析を実行するよ！(tf: daily, weekly, etc)\n"
+        "• `/kakeibo-model [m]` : 使用する AI モデルを変更するよ！(m: pro, flash, lite)\n"
+        "• `/kakeibo-stats-ai` : 今月の AI トークン使用量を表示するよ！🤖\n"
+        "• `/kakeibo-last` : 最新の分析レポートを再表示するよ！📝\n"
+        "• `/kakeibo-help` : このヘルプを表示するよ！\n\n"
+        "既存の `/review [tf]` も引き続き利用可能です！✨"
     )
 
 @app.action("action_done")

@@ -56,7 +56,7 @@ python main.py --source mf --timeframe monthly --skip-fetch
 python src/output/slack_server.py
 ```
 > **💡 利用可能なコマンド:**
-> `/kakeibo check` (予算確認), `/kakeibo character` (キャラ変更), `/kakeibo review` (分析実行) など。
+> `/kakeibo-check` (予算確認), `/kakeibo-model` (モデル変更), `/kakeibo-review` (分析実行) など。
 > 詳細は [Slack スラッシュコマンド一覧](docs/SLACK_COMMANDS.md) を参照してください。
 
 ### パターンD: Docker Compose による一括起動 (推奨)
