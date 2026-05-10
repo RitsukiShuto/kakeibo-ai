@@ -55,6 +55,10 @@ export interface AnalysisHistory {
   score: number;
   summary: string;
   report_path: string;
+  model_name?: string;
+  prompt_tokens?: number;
+  response_tokens?: number;
+  total_tokens?: number;
 }
 
 export interface AIModel {

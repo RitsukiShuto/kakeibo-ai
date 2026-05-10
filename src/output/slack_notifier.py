@@ -88,7 +88,7 @@ class SlackNotifier:
         except Exception as e:
             print(f"Failed to send simple notification: {e}")
 
-    def send_block_kit(self, title: str, report: str, actions: List[AIAction], score: int):
+    def send_block_kit(self, title: str, report: str, actions: List[AIAction], score: int, model_name: str = None, total_tokens: int = None):
         """
         Slack Web API を使用して DM を送信する
         """
@@ -152,12 +152,18 @@ class SlackNotifier:
         blocks.append({
             "type": "divider"
         })
+        context_text = f"詳細レポートは Obsidian または <{self.dashboard_url}|🌐 Webダッシュボード> でチェックしてね！✨ (v{__version__})"
+        if model_name or total_tokens:
+            token_str = f" / {total_tokens:,} tokens" if total_tokens else ""
+            model_str = model_name or "AI"
+            context_text += f" | 🤖 {model_str}{token_str}"
+
         blocks.append({
             "type": "context",
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": f"詳細レポートは Obsidian または <{self.dashboard_url}|🌐 Webダッシュボード> でチェックしてね！✨ (v{__version__})"
+                    "text": context_text
                 }
             ]
         })
