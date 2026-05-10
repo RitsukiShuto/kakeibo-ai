@@ -391,7 +391,7 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
+def chat(request: ChatRequest):
     conn = None
     try:
         db_path = get_db_path()
@@ -560,7 +560,7 @@ async def get_pending_reimbursements():
             conn.close()
 
 @app.get("/api/life-plan/simulation")
-async def get_life_plan_simulation():
+def get_life_plan_simulation():
     try:
         db_path = get_db_path()
         config_dir = get_config_dir()
@@ -692,7 +692,7 @@ async def update_mapping_settings(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/settings/mapping/suggest")
-async def suggest_mappings():
+def suggest_mappings():
     conn = None
     try:
         db_path = get_db_path()
@@ -771,7 +771,7 @@ async def suggest_mappings():
             conn.close()
 
 @app.post("/api/expense-splitter/detect")
-async def detect_reimbursements():
+def detect_reimbursements():
     conn = None
     try:
         db_path = get_db_path()
@@ -806,7 +806,7 @@ async def detect_reimbursements():
             conn.close()
 
 @app.post("/api/expense-splitter/parse")
-async def parse_reimbursement(text: str = Body(..., embed=True), total_amount: int = Body(..., embed=True)):
+def parse_reimbursement(text: str = Body(..., embed=True), total_amount: int = Body(..., embed=True)):
     try:
         from src.analyzer.gemini_analyzer import GeminiAnalyzer
         analyzer = GeminiAnalyzer()
