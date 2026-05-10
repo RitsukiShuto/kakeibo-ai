@@ -9,6 +9,7 @@ from src.db.database import Database
 from src.models import Transaction as TransactionModel
 from dotenv import load_dotenv
 from typing import Optional, List
+from pydantic import BaseModel
 
 load_dotenv("local/.env")
 
@@ -40,6 +41,12 @@ def get_config_dir():
     if not os.path.isabs(path):
         path = os.path.join(ROOT_DIR, path)
     return path
+
+def load_config(path: str):
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
 def load_budget(config_dir: str):
     budget_path = os.path.join(config_dir, "budget.json")
@@ -370,8 +377,6 @@ async def get_all_categories():
         if conn:
             conn.close()
 
-from pydantic import BaseModel
-
 class TransactionUpdate(BaseModel):
     category: Optional[str] = None
     genre: Optional[str] = None
@@ -537,6 +542,58 @@ async def get_pending_reimbursements():
         if conn:
             conn.close()
 
+@app.get("/api/life-plan/simulation")
+async def get_life_plan_simulation():
+    try:
+        db_path = get_db_path()
+        config_dir = get_config_dir()
+        
+        # 1. データの取得
+        db_instance = Database(db_path=db_path)
+        assets_summary = db_instance.get_asset_category_summary()
+        total_assets = sum(a['amount'] for a in assets_summary)
+        
+        profile = load_config(os.path.join(config_dir, "profile.json"))
+        budget = load_config(os.path.join(config_dir, "budget.json"))
+        
+        user_info = profile.get("user", {})
+        life_plan = user_info.get("life_plan", {})
+        
+        if not life_plan:
+            raise HTTPException(status_code=400, detail="Life plan settings not found in profile.json")
+            
+        # 2. シミュレーション実行
+        from src.utils.life_plan_calculator import LifePlanCalculator
+        
+        monthly_savings = budget.get("monthly", {}).get("savings_goal", 0) + budget.get("monthly", {}).get("investment_goal", 0)
+        
+        calculator = LifePlanCalculator(
+            current_assets=total_assets,
+            monthly_savings=monthly_savings,
+            current_age=life_plan.get("current_age", 30),
+            retirement_age=life_plan.get("retirement_age", 65),
+            annual_return_rate=life_plan.get("annual_return_rate", 3.0),
+            annual_inflation_rate=life_plan.get("annual_inflation_rate", 1.0),
+            monthly_expenses_post_retirement=life_plan.get("monthly_living_expenses_post_retirement", 200000),
+            events=life_plan.get("events", [])
+        )
+        
+        trajectory = calculator.simulate(end_age=100)
+        
+        # 3. AIアドバイスの生成
+        from src.analyzer.gemini_analyzer import GeminiAnalyzer
+        analyzer = GeminiAnalyzer()
+        advice = analyzer.analyze_life_plan(trajectory, profile, budget)
+        
+        return {
+            "trajectory": trajectory,
+            "advice": advice,
+            "settings": life_plan
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/assets")
 async def get_assets():
     conn = None
@@ -596,6 +653,90 @@ async def update_profile_settings(data: dict):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/settings/mapping")
+async def get_mapping_settings():
+    config_dir = get_config_dir()
+    mapping_path = os.path.join(config_dir, "mapping.json")
+    if os.path.exists(mapping_path):
+        with open(mapping_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"category_mappings": {}, "genre_mappings": {}}
+
+@app.put("/api/settings/mapping")
+async def update_mapping_settings(data: dict):
+    config_dir = get_config_dir()
+    mapping_path = os.path.join(config_dir, "mapping.json")
+    try:
+        with open(mapping_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/settings/mapping/suggest")
+async def suggest_mappings():
+    conn = None
+    try:
+        db_path = get_db_path()
+        config_dir = get_config_dir()
+        
+        # 1. 予算カテゴリの取得
+        budget = load_budget(config_dir)
+        if not budget:
+            raise HTTPException(status_code=400, detail="Budget not configured")
+        
+        target_categories = []
+        monthly_budget = budget.get("monthly", {}).get("budget", {})
+        for section in ["fixed", "variable"]:
+            target_categories.extend(monthly_budget.get(section, {}).keys())
+        
+        # 2. 現在のマッピングを取得
+        mapping_path = os.path.join(config_dir, "mapping.json")
+        current_mappings = {"category_mappings": {}, "genre_mappings": {}}
+        if os.path.exists(mapping_path):
+            with open(mapping_path, "r", encoding="utf-8") as f:
+                current_mappings = json.load(f)
+        
+        # 3. DBから未マッピングのユニークな項目を取得
+        conn = sqlite3.connect(db_path)
+        query = "SELECT DISTINCT category, genre FROM transactions"
+        df = pd.read_sql_query(query, conn)
+        
+        unmapped_items = []
+        for _, row in df.iterrows():
+            cat = row['category']
+            gen = row['genre']
+            
+            # マッピング済みかチェック
+            is_mapped = False
+            if cat in current_mappings.get("category_mappings", {}):
+                is_mapped = True
+            if gen in current_mappings.get("genre_mappings", {}):
+                is_mapped = True
+                
+            # 予算カテゴリに直接含まれているかチェック
+            if cat in target_categories:
+                is_mapped = True
+                
+            if not is_mapped:
+                unmapped_items.append({"category": cat, "genre": gen})
+        
+        if not unmapped_items:
+            return []
+            
+        # 4. AIで提案
+        from src.analyzer.gemini_analyzer import GeminiAnalyzer
+        analyzer = GeminiAnalyzer()
+        suggestions = analyzer.suggest_category_mappings(unmapped_items[:20], target_categories) # 一度に20件までに制限
+        
+        return suggestions
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
 @app.post("/api/expense-splitter/detect")
 async def detect_reimbursements():
