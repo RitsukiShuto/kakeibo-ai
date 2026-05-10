@@ -608,11 +608,22 @@ def get_life_plan_simulation():
         analyzer = GeminiAnalyzer()
         advice = analyzer.analyze_life_plan(trajectory, profile, budget)
         
+        # フロントエンド表示用に補完した設定を返す
+        full_settings = {
+            "current_age": life_plan.get("current_age", 30),
+            "retirement_age": life_plan.get("retirement_age", 65),
+            "annual_return_rate": life_plan.get("annual_return_rate", 3.0),
+            "annual_inflation_rate": life_plan.get("annual_inflation_rate", 1.0),
+            "monthly_living_expenses_post_retirement": life_plan.get("monthly_living_expenses_post_retirement", 200000),
+            "events": life_plan.get("events", []),
+            "monthly_savings": monthly_savings
+        }
+
         print("DEBUG: Successfully generated simulation and advice")
         return {
             "trajectory": trajectory,
             "advice": advice,
-            "settings": life_plan
+            "settings": full_settings
         }
 
     except Exception as e:

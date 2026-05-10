@@ -44,7 +44,7 @@ const LifePlan: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error || !data || !data.trajectory) {
     return (
       <>
         <TopHeader title="ライフプラン・シミュレーション" />
@@ -52,8 +52,8 @@ const LifePlan: React.FC = () => {
           <div className="card bg-danger/10 border-danger/20 p-6 flex flex-col items-center gap-4 text-center">
             <AlertCircle size={48} className="text-danger" />
             <div>
-              <h3 className="text-xl font-bold mb-2">設定が必要です</h3>
-              <p className="text-muted mb-4">{error}</p>
+              <h3 className="text-xl font-bold mb-2">設定またはデータの取得に失敗しました</h3>
+              <p className="text-muted mb-4">{error || 'シミュレーションデータが空です。'}</p>
               <a href="/settings" className="btn-primary inline-flex items-center gap-2">
                 <SettingsIcon size={18} /> 設定画面へ
               </a>
@@ -65,7 +65,7 @@ const LifePlan: React.FC = () => {
   }
 
   const { trajectory, advice, settings } = data;
-  const lastAsset = trajectory[trajectory.length - 1].assets;
+  const lastAsset = trajectory.length > 0 ? trajectory[trajectory.length - 1].assets : 0;
   const isBankrupt = trajectory.some((t: any) => t.assets < 0);
   const retirementYear = trajectory.find((t: any) => t.is_retired);
 
@@ -78,7 +78,7 @@ const LifePlan: React.FC = () => {
           <div className="card lg:col-span-2">
             <div className="card-header flex justify-between items-center">
               <h3><TrendingUp size={20} /> 資産推移予測 (100歳まで)</h3>
-              <div className="text-xs text-muted">※運用利回り {settings.annual_return_rate}% / インフレ {settings.annual_inflation_rate}%</div>
+              <div className="text-xs text-muted">※運用利回り {settings?.annual_return_rate || 0}% / インフレ {settings?.annual_inflation_rate || 0}%</div>
             </div>
             <div className="card-body" style={{ height: '400px' }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -151,9 +151,9 @@ const LifePlan: React.FC = () => {
                   </div>
                   <div className="divider"></div>
                   <div className="text-xs text-muted leading-relaxed">
-                    現在の月間貯蓄額: {(settings.monthly_savings || 0).toLocaleString()}円<br/>
-                    引退後の月間生活費: {settings.monthly_living_expenses_post_retirement.toLocaleString()}円<br/>
-                    引退予定年齢: {settings.retirement_age}歳
+                    現在の月間貯蓄額: {(settings?.monthly_savings || 0).toLocaleString()}円<br/>
+                    引退後の月間生活費: {(settings?.monthly_living_expenses_post_retirement || 0).toLocaleString()}円<br/>
+                    引退予定年齢: {settings?.retirement_age || '--'}歳
                   </div>
                 </div>
               </div>
@@ -165,7 +165,7 @@ const LifePlan: React.FC = () => {
               </div>
               <div className="card-body">
                 <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                  {advice}
+                  {advice || '診断を生成できませんでした。'}
                 </div>
                 <a href="/ai-chat" className="mt-4 text-xs text-primary flex items-center justify-end gap-1 font-bold">
                   詳しくチャットで相談する <ChevronRight size={14} />
@@ -189,14 +189,14 @@ const LifePlan: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {settings.events.map((e: any, idx: number) => (
+                {(settings?.events || []).map((e: any, idx: number) => (
                   <tr key={idx}>
                     <td>{e.age}歳</td>
                     <td>{e.name}</td>
-                    <td className="text-right text-danger">-{e.amount.toLocaleString()}円</td>
+                    <td className="text-right text-danger">-{e.amount?.toLocaleString() || 0}円</td>
                   </tr>
                 ))}
-                {settings.events.length === 0 && (
+                {(!settings?.events || settings.events.length === 0) && (
                   <tr>
                     <td colSpan={3} className="text-center text-muted py-4">設定されたイベントはありません</td>
                   </tr>
@@ -204,7 +204,7 @@ const LifePlan: React.FC = () => {
               </tbody>
             </table>
             <p className="mt-4 text-xs text-muted">
-              ※これらの設定は「設定 ＞ プロフィール ＞ Advanced(JSON)」から編集できます。
+              ※これらの設定は「設定 ＞ ライフプラン設定」から編集できます。
             </p>
           </div>
         </div>
