@@ -138,10 +138,6 @@ class GeminiAnalyzer:
 
         except Exception as e:
             print(f"AI Analysis error: {e}")
-            try:
-                print(f"Raw text (first 500 chars): {raw_text[:500].encode('utf-8', errors='replace').decode('utf-8')}")
-            except:
-                print("Could not display raw text due to encoding issues.")
             return None
 
     def parse_reimbursement_text(self, text: str, total_amount: int) -> Optional[dict]:
@@ -289,6 +285,58 @@ class GeminiAnalyzer:
         except Exception as e:
             print(f"Life plan analysis error: {e}")
             return "シミュレーション結果の分析中にエラーが発生したよ。データを見直してみてね！"
+
+    def chat(self, message: str, history: List[dict] = None, profile: dict = None, budget: dict = None, assets_summary: List[dict] = None, recent_transactions: List[Transaction] = None, model_override: str = None) -> str:
+        """
+        家計に関するインタラクティブなチャット回答を生成する
+        """
+        active_persona = self._get_active_persona()
+        persona_path = f"prompts/personas/{active_persona}.md"
+        if not os.path.exists(persona_path):
+            persona_path = "prompts/personas/default.md"
+            
+        persona_settings = self._load_prompt_file(persona_path)
+        
+        system_prompt = (
+            f"{persona_settings}\n\n"
+            "あなたは優秀な家計簿アシスタントです。ユーザーからの質問に対して、"
+            "現在の家計状況を考慮した具体的で親しみやすいアドバイスを提供してください。\n"
+        )
+        
+        if assets_summary:
+            total = sum(a['amount'] for a in assets_summary)
+            system_prompt += f"\n現在の総資産: {total:,}円\n"
+            system_prompt += "資産内訳:\n" + "\n".join([f"- {a['category']}: {a['amount']:,}円" for a in assets_summary])
+            
+        if recent_transactions:
+            system_prompt += "\n\n最近の支出明細（直近10件）:\n"
+            for t in recent_transactions[:10]:
+                system_prompt += f"- {t.transaction_date}: {t.category}({t.genre}) {t.amount}円 {t.comment}\n"
+
+        # チャットセッションの開始（履歴がある場合）
+        contents = []
+        if history:
+            for msg in history:
+                role = "user" if msg["role"] == "user" else "model"
+                contents.append({"role": role, "parts": [msg["content"]]})
+        
+        contents.append({"role": "user", "parts": [message]})
+
+        target_model = model_override or self.model_name
+
+        try:
+            response = self.client.models.generate_content(
+                model=target_model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.7
+                )
+            )
+            return response.text.strip()
+        except Exception as e:
+            print(f"Chat error: {e}")
+            return "ごめん、ちょっと調子が悪いみたい。後でもう一度話しかけてね！"
 
     def _load_prompt_file(self, file_path: str) -> str:
         if os.path.exists(file_path):

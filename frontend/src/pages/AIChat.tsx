@@ -12,7 +12,23 @@ const AIChat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
+  const [activeModel, setActiveModel] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const fetchModels = async () => {
+    try {
+      const res = await client.get('/api/settings/ai-models');
+      setAvailableModels(res.data.available_models || []);
+      setActiveModel(res.data.active_model || '');
+    } catch (error) {
+      console.error('Failed to fetch models', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchModels();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,7 +55,8 @@ const AIChat: React.FC = () => {
 
       const res = await client.post('/api/chat', {
         message: input,
-        history: history
+        history: history,
+        model: activeModel // モデルを指定
       });
 
       const assistantMessage: Message = { role: 'assistant', content: res.data.response };
@@ -57,6 +74,22 @@ const AIChat: React.FC = () => {
       <TopHeader title="AI チャット相談" onRefresh={() => setMessages([])} />
       
       <div className="page-content flex flex-col" style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+        <div className="flex justify-end mb-2">
+          <div className="flex items-center gap-2 bg-card-bg p-2 rounded-lg border border-border">
+            <Bot size={16} className="text-primary" />
+            <select 
+              className="form-control form-control-sm" 
+              style={{ width: 'auto', background: 'transparent', border: 'none', padding: '0 4px', fontSize: '0.8rem' }}
+              value={activeModel}
+              onChange={(e) => setActiveModel(e.target.value)}
+            >
+              {availableModels.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="card flex-1 flex flex-col mb-4 overflow-hidden" style={{ display: 'flex', flexDirection: 'column', flex: 1, marginBottom: '1rem', overflow: 'hidden' }}>
           <div className="card-header">
             <h3><MessageSquare size={20} /> AIと家計の相談</h3>

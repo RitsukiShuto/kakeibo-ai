@@ -388,6 +388,7 @@ class TransactionUpdate(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[dict]] = None
+    model: Optional[str] = None
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
@@ -431,7 +432,8 @@ async def chat(request: ChatRequest):
             profile=profile,
             budget=budget,
             assets_summary=asset_summary,
-            recent_transactions=recent_transactions
+            recent_transactions=recent_transactions,
+            model_override=request.model
         )
         
         return {"response": response}
@@ -729,6 +731,21 @@ async def suggest_mappings():
         from src.analyzer.gemini_analyzer import GeminiAnalyzer
         analyzer = GeminiAnalyzer()
         suggestions = analyzer.suggest_category_mappings(unmapped_items[:20], target_categories) # 一度に20件までに制限
+        
+        # 5. 各提案に該当する直近の明細を紐付ける
+        for s in suggestions:
+            raw_cat = s.get("raw_category")
+            raw_gen = s.get("raw_genre")
+            
+            if raw_gen:
+                q = "SELECT transaction_date, amount, comment FROM transactions WHERE category = ? AND genre = ? ORDER BY transaction_date DESC LIMIT 3"
+                p = (raw_cat, raw_gen)
+            else:
+                q = "SELECT transaction_date, amount, comment FROM transactions WHERE category = ? AND (genre IS NULL OR genre = '') ORDER BY transaction_date DESC LIMIT 3"
+                p = (raw_cat,)
+            
+            matches = pd.read_sql_query(q, conn, params=p)
+            s["examples"] = matches.to_dict(orient="records")
         
         return suggestions
 
