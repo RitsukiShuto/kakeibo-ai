@@ -55,3 +55,25 @@ PR の説明欄には、必ず **「`tools/run_regression.py` をパスした旨
 docker compose ps
 docker compose logs backend --tail 50
 ```
+
+---
+
+## 📂 ディレクトリ構成と役割
+
+プロジェクトの整合性を維持するため、以下の構成に従ってファイルを配置してください。
+
+| ディレクトリ | 役割 | 主な内容 |
+| :--- | :--- | :--- |
+| `src/` | **コアロジック** | バックエンド API, 分析エンジン, DB 操作, データ取得 |
+| `frontend/` | **Web UI** | React (Vite) によるダッシュボード実装 |
+| `scripts/` | **自動化・設定** | システムセットアップ (`setup.sh`), 実行補助 (`run.sh`) |
+| `tools/` | **ユーティリティ** | データインポート, 手動分析, リグレッションテスト |
+| `docs/` | **ドキュメント** | 本番環境仕様 (`PROD_ENV.md`), トラブルシューティング (`TROUBLESHOOTING.md`) |
+| `infra/` | **インフラ構成** | Docker, Nginx, Systemd の設定ファイル |
+| `local/` | **ローカル環境** | 環境変数 (`.env`), ローカル DB, 設定ファイル |
+
+### スクリプトの実行方法
+開発や運用のためのスクリプトを実行する際は、プロジェクトのルートディレクトリから以下の形式で実行してください。
+
+- **Python ツール**: `python tools/xxx.py` (例: `python tools/import_mf_csv.py`)
+- **シェルスクリプト**: `bash scripts/xxx.sh` (例: `bash scripts/setup.sh`)

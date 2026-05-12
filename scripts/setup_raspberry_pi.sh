@@ -1,6 +1,10 @@
 #!/bin/bash
 
 # Raspberry Pi 専用セットアップスクリプト
+# scripts/ ディレクトリからルートディレクトリへ移動
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT" || exit 1
+
 # ---------------------------------------------------------
 ENV_NAME="kakeibo-ai"
 PYTHON_VERSION="3.10"

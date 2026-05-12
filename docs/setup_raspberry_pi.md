@@ -61,6 +61,8 @@ scp -r local/ [ユーザー名]@[IPアドレス]:~/kakeibo-ai/
 ## 5. Docker による実行 (推奨)
 現在、最も簡単で確実なセットアップ方法は **Docker Compose** を使用することです。これにより、OS へのライブラリ手動インストールや仮想環境の構築をスキップできます。
 
+詳細な環境仕様については、[本番環境仕様書 (PROD_ENV.md)](PROD_ENV.md) を参照してください。
+
 ```bash
 # Docker / Docker Compose のインストール（未導入の場合）
 curl -fsSL https://get.docker.com -o get-docker.sh
@@ -70,15 +72,17 @@ sudo usermod -aG docker $USER
 docker compose build
 docker compose up -d
 ```
-これにより、以下の3つのサービスが自動起動します：
+これにより、以下のサービスが自動起動します：
 - **Slack Bot**: `/review` コマンドを受け付けます。
-- **Dashboard**: `http://[PiのIP]:8501` で閲覧可能です。
-- **Cron**: 毎日 23:50 に自動レビューを実行します。
+- **Dashboard**: `http://[PiのIP]:5173` で閲覧可能です。
+- **Backend API**: `http://[PiのIP]:8000` で稼働します。
+- **Cron**: 自動で定期タスク（マネーフォワード取得等）を実行します。
 
 ---
 
 ## 6. 手動セットアップ (非Docker環境の場合)
 Docker を使用しない場合は、以下の手順に従ってください。
+※現在、Docker Compose での運用を推奨しており、手動セットアップはメンテナンスが限定的です。
 
 ```bash
 # サービスファイルのコピー
@@ -87,13 +91,13 @@ sudo cp infra/systemd/kakeibo-*.timer /etc/systemd/system/
 
 # デーモンのリロードと有効化
 sudo systemctl daemon-reload
-sudo systemctl enable kakeibo-slack.service kakeibo-dashboard.service kakeibo-review.timer
-sudo systemctl start kakeibo-slack.service kakeibo-dashboard.service kakeibo-review.timer
+sudo systemctl enable kakeibo-slack.service kakeibo-api.service kakeibo-review.timer
+sudo systemctl start kakeibo-slack.service kakeibo-api.service kakeibo-review.timer
 ```
 
 
 ## 7. 定期実行の設定 (Cron)
-毎週月曜の朝9時に自動実行する場合の設定例です。
+Docker 環境では `cron` コンテナが自動で管理します。非 Docker 環境で毎週月曜の朝9時に自動実行する場合の設定例です。
 
 ```bash
 crontab -e
@@ -106,6 +110,7 @@ crontab -e
 ---
 
 ## 🛠 トラブルシューティング
-- **Playwright エラー**: `playwright install-deps` が必要になる場合があります（スクリプト内で実行済みですが、失敗した場合は手動で実行してください）。
-- **モジュールが見つからないエラー**: Cron で実行する際、`PYTHONPATH=.` の指定が必要な場合があります。
+詳細なトラブルシューティングについては、[トラブルシューティングガイド (TROUBLESHOOTING.md)](TROUBLESHOOTING.md) を参照してください。
+
+- **Playwright エラー**: `playwright install-deps` が必要になる場合があります。
 - **メモリ不足**: Raspberry Pi 4 (2GB以下) の場合、ブラウザ実行中にスワップメモリを増やす必要があるかもしれません。
