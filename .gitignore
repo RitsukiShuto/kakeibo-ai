@@ -31,6 +31,7 @@ data/csv/*
 data/import/transactions/*
 
 # --- Reports & Temporary Outputs (PERSONAL INFO) ---
+docs/production_status.md
 reports/
 latest_review.md
 debug_output.txt
