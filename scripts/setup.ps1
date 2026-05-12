@@ -1,4 +1,7 @@
 # Kakeibo AI Review System Setup Script
+# ルートディレクトリに移動
+Set-Location "$PSScriptRoot\.."
+
 $EnvName = "kakeibo-ai"
 
 Write-Host "=== kakeibo_AI_ReviewSys Setup Start ===" -ForegroundColor Cyan
@@ -56,6 +59,6 @@ Write-Host "Directories prepared and initial config files created in local/confi
 
 Write-Host "`n=== Setup Completed! ===" -ForegroundColor Cyan
 Write-Host "1. Edit 'local/.env' and set GEMINI_API_KEY, etc."
-Write-Host "2. Run 'powershell ./run.ps1 --no-headless' to login to MoneyForward."
+Write-Host "2. Run 'powershell ./scripts/run.ps1 --no-headless' to login to MoneyForward."
 Write-Host "3. If you have historical CSVs, put them in 'data/import/transactions' and run:"
 Write-Host "   conda run -n $EnvName python tools/import_mf_csv.py [CSV_PATH]" -ForegroundColor Gray

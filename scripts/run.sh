@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # プロジェクトのディレクトリに移動 (cronでの相対パスエラー防止)
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR" || exit 1
+# scripts/ ディレクトリからルートディレクトリへ移動
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT" || exit 1
 
 # 設定: Anaconda/Minicondaのインストール先
 # 環境に合わせて優先順位順に探索します
@@ -27,14 +28,14 @@ if [ -z "$CONDA_BASE" ]; then
 fi
 
 ENV_NAME="kakeibo-ai"
-LOG_DIR="$SCRIPT_DIR/logs"
+LOG_DIR="$PROJECT_ROOT/logs"
 LOG_FILE="$LOG_DIR/execution_$(date +%Y%m%d).log"
 mkdir -p "$LOG_DIR"
 
 {
     echo "--------------------------------------------------"
     echo "Task Started: $(date)"
-    echo "Project Dir: $SCRIPT_DIR"
+    echo "Project Dir: $PROJECT_ROOT"
     
     if [ -z "$CONDA_BASE" ]; then
         echo "Error: Conda not found. Please set CONDA_BASE in run.sh."
@@ -51,8 +52,8 @@ mkdir -p "$LOG_DIR"
     fi
 
     # 引数がある場合はそのまま渡し、ない場合は自動判定に任せる
-    # PYTHONPATHをカレントディレクトリに設定
-    export PYTHONPATH="$SCRIPT_DIR"
+    # PYTHONPATHをプロジェクトルートに設定
+    export PYTHONPATH="$PROJECT_ROOT"
     python main.py "$@"
 
     echo "Task Completed: $(date)"

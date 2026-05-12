@@ -1,4 +1,6 @@
 # Kakeibo AI Review System 実行スクリプト
+# ルートディレクトリに移動
+Set-Location "$PSScriptRoot\.."
 $EnvName = "kakeibo-ai"
 
 Write-Host "=== Kakeibo AI Review System Task Started: $(Get-Date) ===" -ForegroundColor Cyan

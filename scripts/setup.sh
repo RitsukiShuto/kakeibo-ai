@@ -1,6 +1,10 @@
 #!/bin/bash
 
 # Kakeibo AI Review System セットアップスクリプト
+# scripts/ ディレクトリからルートディレクトリへ移動
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT" || exit 1
+
 ENV_NAME="kakeibo-ai"
 
 echo -e "\033[0;36m=== kakeibo_AI_ReviewSys セットアップを開始します ===\033[0m"
@@ -42,6 +46,6 @@ echo "Directories created and initial config files prepared in local/config/."
 
 echo -e "\n\033[0;36m=== セットアップが完了しました！ ===\033[0m"
 echo "1. 'local/.env' ファイルを開き、GEMINI_API_KEY などを設定してください。"
-echo "2. 'bash run.sh --no-headless' を実行して、MoneyForwardにログインしてください。"
+echo "2. 'bash scripts/run.sh --no-headless' を実行して、MoneyForwardにログインしてください。"
 echo "3. 過去の明細CSVがある場合は 'data/import/transactions' に配置し、以下のコマンドで移行できます："
 echo "   conda run -n $ENV_NAME python tools/import_mf_csv.py [CSVパス]"
