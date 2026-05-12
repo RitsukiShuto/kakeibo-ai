@@ -51,7 +51,7 @@ def main():
     env = os.environ.copy()
     env["PYTHONPATH"] = project_root
     env["KAKEIBO_CONFIG_DIR"] = "tests/config"
-    results["Backend Tests"] = run_command("conda run -n kakeibo-ai pytest tests/ --ignore=tests/test_dashboard_e2e.py", cwd=project_root, env=env)
+    results["Backend Tests"] = run_command(f"{sys.executable} -m pytest tests/ --ignore=tests/test_dashboard_e2e.py", cwd=project_root, env=env)
 
     # 2. フロントエンドビルドチェック
     print_step("Frontend Build & Type Check (npm run build)")
@@ -67,7 +67,7 @@ def main():
         print_step("E2E Tests (Playwright)")
         # 注意: E2Eを実行するには API と Frontend がバックグラウンドで動いている必要があります
         # 簡易化のため、ここではフラグがある場合のみ警告を出しつつ試行
-        results["E2E Tests"] = run_command("conda run -n kakeibo-ai pytest tests/test_dashboard_e2e.py", cwd=project_root, env=env)
+        results["E2E Tests"] = run_command(f"{sys.executable} -m pytest tests/test_dashboard_e2e.py", cwd=project_root, env=env)
 
     # 結果のまとめ
     print(f"\n{Colors.BOLD}{Colors.HEADER}=== REGRESSION SUMMARY ==={Colors.ENDC}")

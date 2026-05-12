@@ -345,11 +345,25 @@ class GeminiAnalyzer:
         if history:
             for msg in history:
                 role = "user" if msg["role"] == "user" else "model"
-                contents.append({"role": role, "parts": [msg["content"]]})
+                contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
         
-        contents.append({"role": "user", "parts": [message]})
+        contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
 
         target_model = model_override or self.model_name
+        # モデル名の正規化（models/ プレフィックスの付与）
+        if not target_model.startswith("models/"):
+            target_model = f"models/{target_model}"
+
+        # レガシーな名前を高速な最新世代にマッピング（SDK互換性と安定性のため）
+        if "pro-latest" in target_model or "1.5-pro" in target_model or "2.0-pro" in target_model:
+            target_model = "models/gemini-2.5-pro"
+        elif "flash-latest" in target_model or "1.5-flash" in target_model or "2.0-flash" in target_model:
+            target_model = "models/gemini-2.5-flash"
+        else:
+            if target_model == "models/gemini-2.0-flash":
+                target_model = "models/gemini-2.5-flash"
+        
+        print(f"DEBUG: Chat using model: {target_model}")
 
         try:
             response = self.client.models.generate_content(
@@ -363,6 +377,8 @@ class GeminiAnalyzer:
             return response.text.strip()
         except Exception as e:
             print(f"Chat error: {e}")
+            import traceback
+            traceback.print_exc()
             return "ごめん、ちょっと調子が悪いみたい。後でもう一度話しかけてね！"
 
     def _load_prompt_file(self, file_path: str) -> str:

@@ -1,0 +1,54 @@
+services:
+  slack:
+    build: .
+    container_name: kakeibo-staging-slack
+    restart: unless-stopped
+    env_file:
+      - staging/local/.env
+    volumes:
+      - ./staging/local:/app/local
+      - ./staging/logs:/app/logs
+      - ./staging/data:/app/data
+      - ./staging/reports:/app/reports
+    command: python src/output/slack_server.py
+
+  backend:
+    build: .
+    container_name: kakeibo-staging-api
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    env_file:
+      - staging/local/.env
+    volumes:
+      - ./staging/local:/app/local
+      - ./staging/logs:/app/logs
+      - ./staging/data:/app/data
+      - ./staging/reports:/app/reports
+    command: python src/api/main.py
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kakeibo-staging-frontend
+    restart: unless-stopped
+    ports:
+      - "5174:80"
+    volumes:
+      - ./infra/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+
+  cron:
+    build: .
+    container_name: kakeibo-staging-cron
+    restart: unless-stopped
+    env_file:
+      - staging/local/.env
+    volumes:
+      - ./staging/local:/app/local
+      - ./staging/logs:/app/logs
+      - ./staging/data:/app/data
+      - ./staging/reports:/app/reports
+    entrypoint: /bin/bash /app/infra/docker/entrypoint-cron.sh

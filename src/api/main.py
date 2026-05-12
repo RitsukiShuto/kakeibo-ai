@@ -602,12 +602,6 @@ def get_life_plan_simulation():
         
         trajectory = calculator.simulate(end_age=100)
         
-        # 3. AIアドバイスの生成
-        print("DEBUG: Generating AI advice...")
-        from src.analyzer.gemini_analyzer import GeminiAnalyzer
-        analyzer = GeminiAnalyzer()
-        advice = analyzer.analyze_life_plan(trajectory, profile, budget)
-        
         # フロントエンド表示用に補完した設定を返す
         full_settings = {
             "current_age": life_plan.get("current_age", 30),
@@ -619,10 +613,10 @@ def get_life_plan_simulation():
             "monthly_savings": monthly_savings
         }
 
-        print("DEBUG: Successfully generated simulation and advice")
+        print("DEBUG: Successfully generated simulation")
         return {
             "trajectory": trajectory,
-            "advice": advice,
+            "advice": None, # AIアドバイスは別エンドポイントで取得するように変更
             "settings": full_settings
         }
 
@@ -630,6 +624,48 @@ def get_life_plan_simulation():
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/life-plan/advice")
+def get_life_plan_advice():
+    print("DEBUG: Entering get_life_plan_advice")
+    try:
+        db_path = get_db_path()
+        config_dir = get_config_dir()
+        
+        db_instance = Database(db_path=db_path)
+        assets_summary = db_instance.get_asset_category_summary()
+        total_assets = sum(a['amount'] for a in assets_summary)
+        
+        profile = load_config(os.path.join(config_dir, "profile.json"))
+        budget = load_config(os.path.join(config_dir, "budget.json"))
+        
+        user_info = profile.get("user", {})
+        life_plan = user_info.get("life_plan", {})
+        
+        from src.utils.life_plan_calculator import LifePlanCalculator
+        monthly_savings = budget.get("monthly", {}).get("savings_goal", 0) + budget.get("monthly", {}).get("investment_goal", 0)
+        
+        calculator = LifePlanCalculator(
+            current_assets=total_assets,
+            monthly_savings=monthly_savings,
+            current_age=life_plan.get("current_age", 30),
+            retirement_age=life_plan.get("retirement_age", 65),
+            annual_return_rate=life_plan.get("annual_return_rate", 3.0),
+            annual_inflation_rate=life_plan.get("annual_inflation_rate", 1.0),
+            monthly_expenses_post_retirement=life_plan.get("monthly_living_expenses_post_retirement", 200000),
+            events=life_plan.get("events", [])
+        )
+        trajectory = calculator.simulate(end_age=100)
+        
+        from src.analyzer.gemini_analyzer import GeminiAnalyzer
+        analyzer = GeminiAnalyzer()
+        advice = analyzer.analyze_life_plan(trajectory, profile, budget)
+        
+        return {"advice": advice}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"advice": "アドバイスの生成中にエラーが発生しました。"}
 
 @app.get("/api/assets")
 async def get_assets():

@@ -37,6 +37,9 @@ def mock_gemini_analyzer(monkeypatch):
         {"transaction_id": "test_id", "reason": "高額なため", "confidence": 0.9}
     ]
 
+    # analyze_life_plan のデフォルトレスポンス
+    mock_instance.analyze_life_plan.return_value = "将来の資産推移は良好です。このままの貯蓄ペースを維持しましょう！💅✨"
+    
     # クラスごと差し替え
     monkeypatch.setattr("src.analyzer.gemini_analyzer.GeminiAnalyzer", lambda: mock_instance)
     

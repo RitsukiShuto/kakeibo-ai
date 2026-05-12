@@ -56,3 +56,5 @@ tools/list_issues.py
 dashboard_review.md
 .gitignore
 issue_body.md
+staging/
+backend_log.txt
