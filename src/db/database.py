@@ -6,7 +6,10 @@ from typing import List, Optional
 from src.models import Transaction, Asset
 
 class Database:
-    def __init__(self, db_path: str = "local/kakeibo.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+            db_path = os.getenv("KAKEIBO_DB_PATH", os.path.join(local_dir, "kakeibo.db"))
         self.db_path = db_path
         self._memory_conn = None
         if self.db_path != ":memory:":

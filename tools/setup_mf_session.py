@@ -8,13 +8,15 @@ from dotenv import load_dotenv
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
 sys.path.insert(0, ROOT_DIR)
 
-load_dotenv(os.path.join(ROOT_DIR, "local/.env"))
+local_dir_name = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+load_dotenv(os.path.join(ROOT_DIR, f"{local_dir_name}/.env"))
 
 def setup_session():
     """
     MoneyForwardの初期ログインを行い、セッションを保存するためのツール
     """
-    user_data_dir = os.path.join(ROOT_DIR, "local/mf_session")
+    local_dir_name = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+    user_data_dir = os.path.join(ROOT_DIR, f"{local_dir_name}/mf_session")
     os.makedirs(user_data_dir, exist_ok=True)
 
     print("--- MoneyForward セッションセットアップ ---")

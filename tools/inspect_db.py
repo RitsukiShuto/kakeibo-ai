@@ -1,8 +1,10 @@
 import sqlite3
 import json
+import os
 
 def inspect_db():
-    db_path = "local/kakeibo.db"
+    local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+    db_path = f"{local_dir}/kakeibo.db"
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()

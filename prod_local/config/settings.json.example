@@ -4,6 +4,16 @@
     "active_model": "gemini-flash-latest",
     "available_models": [
       {
+        "id": "llama3.2",
+        "name": "Llama 3.2 (ローカル・高速)",
+        "description": "Metaの最新モデル。ローカルで動作するため無料で利用でき、速度も非常に高速です。"
+      },
+      {
+        "id": "gemma2",
+        "name": "Gemma 2 (ローカル・高性能)",
+        "description": "Googleが提供する軽量・高性能なオープンモデル。ローカルで安定した分析が可能です。"
+      },
+      {
         "id": "gemini-flash-lite-latest",
         "name": "Gemini Flash Lite (最速・超軽量)",
         "description": "極めて高速でコスト効率に優れています。要約や単純な分類など、速度が最優先される日常的な分析に最適です。"

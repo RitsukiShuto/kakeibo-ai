@@ -7,7 +7,7 @@ from src.output.slack_notifier import SlackNotifier
 from src.output.obsidian_writer import ObsidianWriter
 from dotenv import load_dotenv
 
-load_dotenv("local/.env")
+load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
 
 INPUT_FILE = "input_data.json"
 

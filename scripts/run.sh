@@ -37,6 +37,18 @@ mkdir -p "$LOG_DIR"
     echo "Task Started: $(date)"
     echo "Project Dir: $PROJECT_ROOT"
     
+    # 実行環境のベースディレクトリ判定
+    if [ -z "$KAKEIBO_LOCAL_DIR" ]; then
+        if [ -d "$PROJECT_ROOT/prod_local" ]; then
+            export KAKEIBO_LOCAL_DIR="prod_local"
+        elif [ -d "$PROJECT_ROOT/dev_local" ]; then
+            export KAKEIBO_LOCAL_DIR="dev_local"
+        else
+            export KAKEIBO_LOCAL_DIR="local"
+        fi
+        echo "Using base directory: $KAKEIBO_LOCAL_DIR"
+    fi
+
     if [ -z "$CONDA_BASE" ]; then
         echo "Error: Conda not found. Please set CONDA_BASE in run.sh."
         exit 1

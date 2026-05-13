@@ -2,7 +2,8 @@ import sqlite3
 import os
 
 def migrate():
-    db_path = "local/kakeibo.db"
+    local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+    db_path = f"{local_dir}/kakeibo.db"
     if not os.path.exists(db_path):
         print(f"Database not found at {db_path}. Skipping migration.")
         return

@@ -5,9 +5,10 @@ from datetime import datetime
 from src.fetcher.moneyforward_fetcher import MoneyForwardFetcher
 from dotenv import load_dotenv
 
-load_dotenv("local/.env")
+load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
 
-CONFIG_FILE = "local/config/settings.json"
+local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+CONFIG_FILE = f"{local_dir}/config/settings.json"
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -36,7 +37,7 @@ def main():
     password = os.getenv("MF_PASSWORD")
     
     if not user_id or not password:
-        print("エラー: local/.env ファイルに MF_USER_ID と MF_PASSWORD を設定してください。")
+        print(f"エラー: {local_dir}/.env ファイルに MF_USER_ID と MF_PASSWORD を設定してください。")
         return
 
     fetcher = MoneyForwardFetcher()

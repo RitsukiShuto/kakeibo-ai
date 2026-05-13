@@ -1,0 +1,38 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: kakeibo-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kakeibo-api-dev
+    volumes:
+      - .:/app
+      - ./dev_local:/app/local
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - KAKEIBO_DB_PATH=local/kakeibo.db
+    depends_on:
+      - ollama
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kakeibo-frontend-dev
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  ollama_data:

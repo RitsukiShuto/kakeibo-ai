@@ -77,3 +77,38 @@ docker compose logs backend --tail 50
 
 - **Python ツール**: `python tools/xxx.py` (例: `python tools/import_mf_csv.py`)
 - **シェルスクリプト**: `bash scripts/xxx.sh` (例: `bash scripts/setup.sh`)
+
+---
+
+## 💻 ローカル開発環境 (Local Development)
+
+本プロジェクトでは、Docker を使用して本番同様の環境をローカルで再現できます。また、コスト削減のため、開発中は **Local LLM (Ollama)** を利用することを推奨します。
+
+### 1. セットアップと起動
+
+初回、または設定を初期化したい場合は以下のコマンドを実行してください。
+
+```bash
+# 設定の初期化と LLM モデルのプル (対話形式)
+bash scripts/dev.sh setup
+
+# 環境の起動 (API, Frontend, Ollama)
+bash scripts/dev.sh up
+```
+
+### 2. 環境の管理
+
+| コマンド | 内容 |
+| :--- | :--- |
+| `bash scripts/dev.sh up` | 環境を起動します |
+| `bash scripts/dev.sh down` | 環境を停止します |
+| `bash scripts/dev.sh logs` | コンテナのログを表示します |
+| `bash scripts/dev.sh test` | コンテナ内でバックエンドテストを実行します |
+
+### 3. LLM の切り替え
+
+`local/.env` の `LLM_PROVIDER` を書き換えることで、利用する AI を切り替えられます。
+- `ollama`: ローカルの AI モデルを使用 (無料・高速)
+- `gemini`: Google Gemini API を使用 (高精度・有料)
+
+モデルの詳細は `local/config/settings.json` の `active_model` で指定してください。

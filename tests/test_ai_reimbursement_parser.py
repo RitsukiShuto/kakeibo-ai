@@ -1,27 +1,24 @@
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from src.analyzer.gemini_analyzer import GeminiAnalyzer
 
 def test_parse_reimbursement_text(mocker):
-    mock_response_1 = MagicMock()
-    mock_response_1.text = '{"self_amount": 5000, "reason": "test"}'
+    # Providerのモックを作成
+    mock_provider = MagicMock()
     
-    mock_response_2 = MagicMock()
-    mock_response_2.text = '{"self_amount": 5000, "reason": "test"}'
-    
-    mock_response_3 = MagicMock()
-    mock_response_3.text = '{"self_amount": 0, "reason": "test"}'
-    
-    mock_client_instance = MagicMock()
-    mock_client_instance.models.generate_content.side_effect = [
-        mock_response_1,
-        mock_response_2,
-        mock_response_3
+    # generate_contentの戻り値を設定
+    mock_provider.generate_content.side_effect = [
+        '{"self_amount": 5000, "reason": "test"}',
+        '{"self_amount": 5000, "reason": "test"}',
+        '{"self_amount": 0, "reason": "test"}'
     ]
-    mocker.patch('src.analyzer.gemini_analyzer.genai.Client', return_value=mock_client_instance)
+    mock_provider.get_model_name.return_value = "gemini-2.0-flash"
+    
+    # LLMFactory.create_providerをパッチしてモックProviderを返すようにする
+    mocker.patch('src.analyzer.providers.factory.LLMFactory.create_provider', return_value=mock_provider)
 
-    # Ensure GEMINI_API_KEY is set so __init__ doesn't fail
-    mocker.patch.dict(os.environ, {"GEMINI_API_KEY": "dummy"})
+    # Ensure environment variables are set
+    mocker.patch.dict(os.environ, {"GEMINI_API_KEY": "dummy", "LLM_PROVIDER": "gemini"})
 
     analyzer = GeminiAnalyzer()
     

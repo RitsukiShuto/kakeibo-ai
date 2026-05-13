@@ -4,9 +4,9 @@ services:
     container_name: kakeibo-slack
     restart: unless-stopped
     env_file:
-      - local/.env
+      - prod_local/.env
     volumes:
-      - ./local:/app/local
+      - ./prod_local:/app/local
       - ./logs:/app/logs
       - ./data:/app/data
       - ./reports:/app/reports
@@ -19,9 +19,9 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - local/.env
+      - prod_local/.env
     volumes:
-      - ./local:/app/local
+      - ./prod_local:/app/local
       - ./logs:/app/logs
       - ./data:/app/data
       - ./reports:/app/reports
@@ -45,9 +45,9 @@ services:
     container_name: kakeibo-cron
     restart: unless-stopped
     env_file:
-      - local/.env
+      - prod_local/.env
     volumes:
-      - ./local:/app/local
+      - ./prod_local:/app/local
       - ./logs:/app/logs
       - ./data:/app/data
       - ./reports:/app/reports

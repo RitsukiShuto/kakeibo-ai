@@ -24,13 +24,24 @@ from src.output.obsidian_writer import ObsidianWriter
 from src.output.visualizer import Visualizer
 
 from dotenv import load_dotenv
-load_dotenv("local/.env")
+
+# ベースディレクトリの設定
+LOCAL_DIR = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+load_dotenv(os.path.join(LOCAL_DIR, ".env"))
 
 def load_config(file_path):
-    config_dir = os.getenv("KAKEIBO_CONFIG_DIR", "local/config")
-    # もし引数が local/config を含むパスなら、config_dir で置換
+    # local/config をベースにする
+    config_dir = os.getenv("KAKEIBO_CONFIG_DIR", os.path.join(LOCAL_DIR, "config"))
+    
+    # もし引数が "local/config/" で始まっていたら、現在の config_dir に置き換える
     if file_path.startswith("local/config/"):
         file_path = os.path.join(config_dir, os.path.basename(file_path))
+    elif not os.path.isabs(file_path) and not file_path.startswith(LOCAL_DIR):
+        # 相対パスで、かつ現在の LOCAL_DIR で始まっていない場合は補完を試みる
+        # (ただし、明示的に指定されたパスを尊重するため、存在確認をする)
+        potential_path = os.path.join(LOCAL_DIR, file_path)
+        if os.path.exists(potential_path):
+            file_path = potential_path
         
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:

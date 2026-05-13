@@ -1,26 +1,24 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from datetime import date
-from src.analyzer.gemini_analyzer import GeminiAnalyzer
+from src.analyzer.gemini_analyzer import KakeiboAnalyzer
 from src.models import Transaction
 
 @pytest.fixture
-def mock_genai():
-    with patch('src.analyzer.gemini_analyzer.genai') as mock:
-        yield mock
+def mock_provider():
+    with patch('src.analyzer.providers.factory.LLMFactory.create_provider') as mock_factory:
+        mock_p = MagicMock()
+        mock_factory.return_value = mock_p
+        yield mock_p
 
 @pytest.fixture
 def mock_env():
-    with patch.dict('os.environ', {'GEMINI_API_KEY': 'fake_key'}):
+    with patch.dict('os.environ', {'GEMINI_API_KEY': 'fake_key', 'LLM_PROVIDER': 'gemini'}):
         yield
 
-def test_analyze_kakeibo_success(mock_genai, mock_env):
-    # Mock client and response
-    mock_client = MagicMock()
-    mock_genai.Client.return_value = mock_client
-    
-    mock_response = MagicMock()
-    mock_response.text = '''{
+def test_analyze_kakeibo_success(mock_provider, mock_env):
+    mock_provider.get_model_name.return_value = "gemini-2.0-flash"
+    mock_provider.generate_content.return_value = '''{
         "slack_report": "テスト詳細レポート",
         "obsidian_report": "# テストレポート",
         "actions": [{"command": "KEEP", "description": "いい感じ"}],
@@ -29,14 +27,15 @@ def test_analyze_kakeibo_success(mock_genai, mock_env):
         "totonoi_score": 80,
         "savings_potential": 500
     }'''
-    mock_client.models.generate_content.return_value = mock_response
 
-    analyzer = GeminiAnalyzer()
-    
+    analyzer = KakeiboAnalyzer()
+
     transactions = [
         Transaction(
+            transaction_id="tx_1",
             transaction_date=date(2024, 1, 1),
             category="食費",
+            genre="外食",
             amount=500,
             source="test",
             mode="payment"
@@ -52,14 +51,13 @@ def test_analyze_kakeibo_success(mock_genai, mock_env):
     assert result.totonoi_score == 80
     assert len(result.budget_status) == 1
     assert result.budget_status[0].category == "食費"
-    mock_client.models.generate_content.assert_called_once()
+    mock_provider.generate_content.assert_called_once()
 
-def test_analyze_kakeibo_failure(mock_genai, mock_env):
-    mock_client = MagicMock()
-    mock_genai.Client.return_value = mock_client
-    mock_client.models.generate_content.side_effect = Exception("API Error")
+def test_analyze_kakeibo_failure(mock_provider, mock_env):
+    mock_provider.get_model_name.return_value = "gemini-2.0-flash"
+    mock_provider.generate_content.side_effect = Exception("API Error")
 
-    analyzer = GeminiAnalyzer()
+    analyzer = KakeiboAnalyzer()
     result = analyzer.analyze_kakeibo([], [], "monthly", {"user": {"target": {}}})
 
     assert result is None

@@ -2,7 +2,7 @@ import os
 from google import genai
 from dotenv import load_dotenv
 
-load_dotenv("local/.env")
+load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
 api_key = os.getenv("GEMINI_API_KEY")
 print(f"Using API Key: {api_key[:5]}...{api_key[-5:] if api_key else 'None'}")
 

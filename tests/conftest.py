@@ -7,12 +7,12 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 @pytest.fixture(autouse=True)
-def mock_gemini_analyzer(monkeypatch):
+def mock_kakeibo_analyzer(monkeypatch):
     """
-    全てのテストで GeminiAnalyzer を自動的にモック化し、
+    全てのテストで KakeiboAnalyzer を自動的にモック化し、
     意図しない API 呼び出しと課金を防ぐ。
     """
-    from src.analyzer.gemini_analyzer import GeminiAnalyzer
+    from src.analyzer.gemini_analyzer import KakeiboAnalyzer
     
     mock_instance = MagicMock()
     
@@ -40,7 +40,11 @@ def mock_gemini_analyzer(monkeypatch):
     # analyze_life_plan のデフォルトレスポンス
     mock_instance.analyze_life_plan.return_value = "将来の資産推移は良好です。このままの貯蓄ペースを維持しましょう！💅✨"
     
+    # chat のデフォルトレスポンス
+    mock_instance.chat.return_value = "チャットのテスト回答だよ！✨"
+
     # クラスごと差し替え
+    monkeypatch.setattr("src.analyzer.gemini_analyzer.KakeiboAnalyzer", lambda: mock_instance)
     monkeypatch.setattr("src.analyzer.gemini_analyzer.GeminiAnalyzer", lambda: mock_instance)
     
     return mock_instance

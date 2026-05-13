@@ -22,6 +22,8 @@ local/*.db
 local/config/*.json
 !local/.env.example
 !local/config/*.json.example
+prod_local/
+dev_local/
 
 # --- Databases & Raw Data (PERSONAL INFO) ---
 *.db

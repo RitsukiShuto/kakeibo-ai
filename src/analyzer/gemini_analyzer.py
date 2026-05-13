@@ -1,39 +1,18 @@
 import os
 import json
 import re
-from google import genai
-from google.genai import types
 from datetime import datetime
 from typing import List, Optional
 from dotenv import load_dotenv
 from src.models import Transaction, Asset, AIResponse
+from .providers.factory import LLMFactory
 
-load_dotenv("local/.env")
+load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
 
-class GeminiAnalyzer:
+class KakeiboAnalyzer:
     def __init__(self):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY is missing.")
-        
-        self.client = genai.Client(api_key=api_key)
-        self.model_name = self._select_best_model()
-
-    def _select_best_model(self):
-        # 設定ファイルからモデルを取得
-        settings_path = "local/config/settings.json"
-        model = 'gemini-2.0-flash' # デフォルト
-        
-        if os.path.exists(settings_path):
-            try:
-                with open(settings_path, "r", encoding="utf-8") as f:
-                    settings = json.load(f)
-                    model = settings.get("ai", {}).get("active_model", model)
-            except Exception as e:
-                print(f"Warning: Failed to load settings.json, using default model: {e}")
-                
-        print(f"Selected model: {model}")
-        return model
+        self.provider = LLMFactory.create_provider()
+        self.model_name = self.provider.get_model_name()
 
     def _get_active_persona(self):
         # 設定ファイルから現在のキャラクターを取得
@@ -89,9 +68,8 @@ class GeminiAnalyzer:
             "savings_potential": "今月あといくら節約できるかの概算額（整数）"
         }
 
-        full_prompt = (
-            f"{persona_settings}\n\n"
-            f"{system_prompt}\n\n"
+        full_system_prompt = f"{persona_settings}\n\n{system_prompt}"
+        user_prompt = (
             f"## 今回の分析の特別指示 ({timeframe})\n{timeframe_prompt}\n\n"
             f"## 分析対象データ\n{user_input}\n\n"
             f"## 出力形式\n"
@@ -104,15 +82,12 @@ class GeminiAnalyzer:
         print(f"AI analyzing {len(data)} transactions and {len(assets_summary)} asset categories...")
         
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=full_prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.7
-                )
+            raw_text = self.provider.generate_content(
+                system_prompt=full_system_prompt,
+                user_prompt=user_prompt,
+                response_mime_type="application/json",
+                temperature=0.7
             )
-            raw_text = response.text.strip()
             
             start_idx = raw_text.find('{')
             end_idx = raw_text.rfind('}')
@@ -126,12 +101,8 @@ class GeminiAnalyzer:
 
             result_json = json.loads(json_candidate)
             
-            # 使用したモデル名とトークン使用量を記録
-            usage = response.usage_metadata
+            # 使用したモデル名を記録
             result_json["model_name"] = self.model_name
-            result_json["prompt_tokens"] = usage.prompt_token_count
-            result_json["response_tokens"] = usage.candidates_token_count
-            result_json["total_tokens"] = usage.total_token_count
             
             ai_response = AIResponse(**result_json)
             return ai_response
@@ -155,15 +126,13 @@ class GeminiAnalyzer:
         user_input = f"総額: {total_amount}円\n説明: {text}"
 
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=f"{system_prompt}\n\n{user_input}",
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.1
-                )
+            raw_text = self.provider.generate_content(
+                system_prompt=system_prompt,
+                user_prompt=user_input,
+                response_mime_type="application/json",
+                temperature=0.1
             )
-            result = json.loads(response.text.strip())
+            result = json.loads(raw_text.strip())
             return result
         except Exception as e:
             print(f"Error parsing reimbursement text: {e}")
@@ -190,15 +159,13 @@ class GeminiAnalyzer:
         ])
 
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=f"{system_prompt}\n\n対象明細:\n{tx_list_text}",
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.1
-                )
+            raw_text = self.provider.generate_content(
+                system_prompt=system_prompt,
+                user_prompt=f"対象明細:\n{tx_list_text}",
+                response_mime_type="application/json",
+                temperature=0.1
             )
-            result = json.loads(response.text.strip())
+            result = json.loads(raw_text.strip())
             return result.get("suggestions", [])
         except Exception as e:
             print(f"Error detecting reimbursements: {e}")
@@ -225,15 +192,13 @@ class GeminiAnalyzer:
         }
 
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=f"{system_prompt}\n\n対象データ:\n{json.dumps(user_input, ensure_ascii=False)}",
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.1
-                )
+            raw_text = self.provider.generate_content(
+                system_prompt=system_prompt,
+                user_prompt=f"対象データ:\n{json.dumps(user_input, ensure_ascii=False)}",
+                response_mime_type="application/json",
+                temperature=0.1
             )
-            result = json.loads(response.text.strip())
+            result = json.loads(raw_text.strip())
             return result.get("suggestions", [])
         except Exception as e:
             print(f"Error suggesting category mappings: {e}")
@@ -243,7 +208,6 @@ class GeminiAnalyzer:
         """
         ライフプランシミュレーションの結果を元にAIアドバイスを生成する
         """
-        print("DEBUG: analyze_life_plan started")
         active_persona = self._get_active_persona()
         persona_path = f"prompts/personas/{active_persona}.md"
         if not os.path.exists(persona_path):
@@ -265,7 +229,6 @@ class GeminiAnalyzer:
         )
         
         # 重要な年齢のデータを抽出
-        print("DEBUG: Extracting key ages")
         key_ages = [life_plan.get("retirement_age"), 80, 100]
         summary_trajectory = [t for t in trajectory if t["age"] in key_ages or t["age"] == trajectory[0]["age"]]
         
@@ -275,42 +238,14 @@ class GeminiAnalyzer:
             "simulation_summary": summary_trajectory
         }
 
-        print(f"DEBUG: Calling Gemini API with model: {self.model_name}")
-        import time
-        start_time = time.time()
         try:
-            # モデル名の正規化（models/ プレフィックスの付与）
-            model_to_use = self.model_name
-            if not model_to_use.startswith("models/"):
-                model_to_use = f"models/{model_to_use}"
-
-            # レガシーな名前を高速な最新世代にマッピング（SDK互換性と安定性のため）
-            if "pro-latest" in model_to_use or "1.5-pro" in model_to_use or "2.0-pro" in model_to_use:
-                model_to_use = "models/gemini-2.5-pro" # 2026年時点の推奨
-            elif "flash-latest" in model_to_use or "1.5-flash" in model_to_use or "2.0-flash" in model_to_use:
-                model_to_use = "models/gemini-2.5-flash"
-            else:
-                # 明示的に最新を指定していない場合は 2.5-flash をデフォルトにする
-                if model_to_use == "models/gemini-2.0-flash":
-                    model_to_use = "models/gemini-2.5-flash"
-            
-            print(f"DEBUG: Actual model being used: {model_to_use}")
-
-            response = self.client.models.generate_content(
-                model=model_to_use,
-                contents=f"{system_prompt}\n\nシミュレーションデータ:\n{json.dumps(user_input, ensure_ascii=False)}",
-                config=types.GenerateContentConfig(
-                    temperature=0.7
-                )
+            return self.provider.generate_content(
+                system_prompt=system_prompt,
+                user_prompt=f"シミュレーションデータ:\n{json.dumps(user_input, ensure_ascii=False)}",
+                temperature=0.7
             )
-            elapsed = time.time() - start_time
-            print(f"DEBUG: Gemini API call successful (took {elapsed:.2f}s)")
-            return response.text.strip()
         except Exception as e:
-            elapsed = time.time() - start_time
-            print(f"DEBUG: Life plan analysis error after {elapsed:.2f}s: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"Life plan analysis error: {e}")
             return "シミュレーション結果の分析中にエラーが発生したよ。データを見直してみてね！"
 
     def chat(self, message: str, history: List[dict] = None, profile: dict = None, budget: dict = None, assets_summary: List[dict] = None, recent_transactions: List[Transaction] = None, model_override: str = None) -> str:
@@ -340,45 +275,15 @@ class GeminiAnalyzer:
             for t in recent_transactions[:10]:
                 system_prompt += f"- {t.transaction_date}: {t.category}({t.genre}) {t.amount}円 {t.comment}\n"
 
-        # チャットセッションの開始（履歴がある場合）
-        contents = []
-        if history:
-            for msg in history:
-                role = "user" if msg["role"] == "user" else "model"
-                contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
-        
-        contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
-
-        target_model = model_override or self.model_name
-        # モデル名の正規化（models/ プレフィックスの付与）
-        if not target_model.startswith("models/"):
-            target_model = f"models/{target_model}"
-
-        # レガシーな名前を高速な最新世代にマッピング（SDK互換性と安定性のため）
-        if "pro-latest" in target_model or "1.5-pro" in target_model or "2.0-pro" in target_model:
-            target_model = "models/gemini-2.5-pro"
-        elif "flash-latest" in target_model or "1.5-flash" in target_model or "2.0-flash" in target_model:
-            target_model = "models/gemini-2.5-flash"
-        else:
-            if target_model == "models/gemini-2.0-flash":
-                target_model = "models/gemini-2.5-flash"
-        
-        print(f"DEBUG: Chat using model: {target_model}")
-
         try:
-            response = self.client.models.generate_content(
-                model=target_model,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=0.7
-                )
+            return self.provider.chat(
+                system_prompt=system_prompt,
+                history=history or [],
+                message=message,
+                temperature=0.7
             )
-            return response.text.strip()
         except Exception as e:
             print(f"Chat error: {e}")
-            import traceback
-            traceback.print_exc()
             return "ごめん、ちょっと調子が悪いみたい。後でもう一度話しかけてね！"
 
     def _load_prompt_file(self, file_path: str) -> str:
@@ -472,3 +377,9 @@ class GeminiAnalyzer:
         text += f"**資産総額: {total_asset:,}円**\n"
 
         return text
+
+class GeminiAnalyzer(KakeiboAnalyzer):
+    """
+    Backward compatibility class name.
+    """
+    pass

@@ -7,7 +7,7 @@ from src.models import Transaction, Asset
 from src.fetcher.base_fetcher import BaseFetcher
 from src.utils.category_mapper import CategoryMapper
 
-load_dotenv("local/.env")
+load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
 
 class ZaimFetcher(BaseFetcher):
     def __init__(self):

@@ -11,10 +11,12 @@ from dotenv import load_dotenv
 from typing import Optional, List
 from pydantic import BaseModel
 
-load_dotenv("local/.env")
-
 # プロジェクトルートの取得
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+
+# ベースディレクトリの設定
+LOCAL_DIR = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+load_dotenv(os.path.join(ROOT_DIR, LOCAL_DIR, ".env"))
 
 app = FastAPI(title="Kakeibo AI API")
 
@@ -29,7 +31,7 @@ app.add_middleware(
 
 # 環境変数から設定を取得。テスト時はこれらを上書きする。
 def get_db_path():
-    path = os.getenv("KAKEIBO_DB_PATH", "local/kakeibo.db")
+    path = os.getenv("KAKEIBO_DB_PATH", os.path.join(LOCAL_DIR, "kakeibo.db"))
     if not os.path.isabs(path):
         path = os.path.join(ROOT_DIR, path)
     return path
@@ -37,7 +39,7 @@ def get_db_path():
 print(f"📡 API starting using database: {get_db_path()}")
 
 def get_config_dir():
-    path = os.getenv("KAKEIBO_CONFIG_DIR", "local/config")
+    path = os.getenv("KAKEIBO_CONFIG_DIR", os.path.join(LOCAL_DIR, "config"))
     if not os.path.isabs(path):
         path = os.path.join(ROOT_DIR, path)
     return path
@@ -437,8 +439,8 @@ def chat(request: ChatRequest):
         budget = load_config(os.path.join(config_dir, "budget.json"))
         
         # 2. AIによる回答生成
-        from src.analyzer.gemini_analyzer import GeminiAnalyzer
-        analyzer = GeminiAnalyzer()
+        from src.analyzer.gemini_analyzer import KakeiboAnalyzer
+        analyzer = KakeiboAnalyzer()
         response = analyzer.chat(
             message=request.message,
             history=request.history,
@@ -657,8 +659,8 @@ def get_life_plan_advice():
         )
         trajectory = calculator.simulate(end_age=100)
         
-        from src.analyzer.gemini_analyzer import GeminiAnalyzer
-        analyzer = GeminiAnalyzer()
+        from src.analyzer.gemini_analyzer import KakeiboAnalyzer
+        analyzer = KakeiboAnalyzer()
         advice = analyzer.analyze_life_plan(trajectory, profile, budget)
         
         return {"advice": advice}
@@ -799,8 +801,8 @@ def suggest_mappings():
             return []
             
         # 4. AIで提案
-        from src.analyzer.gemini_analyzer import GeminiAnalyzer
-        analyzer = GeminiAnalyzer()
+        from src.analyzer.gemini_analyzer import KakeiboAnalyzer
+        analyzer = KakeiboAnalyzer()
         suggestions = analyzer.suggest_category_mappings(unmapped_items[:20], target_categories) # 一度に20件までに制限
         
         # 5. 各提案に該当する直近の明細を紐付ける
@@ -864,8 +866,8 @@ def detect_reimbursements():
 @app.post("/api/expense-splitter/parse")
 def parse_reimbursement(text: str = Body(..., embed=True), total_amount: int = Body(..., embed=True)):
     try:
-        from src.analyzer.gemini_analyzer import GeminiAnalyzer
-        analyzer = GeminiAnalyzer()
+        from src.analyzer.gemini_analyzer import KakeiboAnalyzer
+        analyzer = KakeiboAnalyzer()
         result = analyzer.parse_reimbursement_text(text, total_amount)
         return result
     except Exception as e:

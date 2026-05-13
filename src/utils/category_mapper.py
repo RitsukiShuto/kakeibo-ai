@@ -2,7 +2,10 @@ import json
 import os
 
 class CategoryMapper:
-    def __init__(self, mapping_path="local/config/mapping.json"):
+    def __init__(self, mapping_path: str = None):
+        if mapping_path is None:
+            local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+            mapping_path = os.path.join(local_dir, "config/mapping.json")
         self.mapping_path = mapping_path
         self.mapping = self._load_mapping()
         

@@ -10,7 +10,7 @@ from src.models import Transaction, Asset
 from src.fetcher.base_fetcher import BaseFetcher
 from src.utils.category_mapper import CategoryMapper
 
-load_dotenv("local/.env")
+load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
 
 # ログの設定
 log_dir = os.path.join(os.getcwd(), "logs")
@@ -20,7 +20,8 @@ class MoneyForwardFetcher(BaseFetcher):
     def __init__(self):
         self.user_id = os.getenv("MF_USER_ID")
         self.password = os.getenv("MF_PASSWORD")
-        self.user_data_dir = os.path.join(os.getcwd(), "local/mf_session")
+        local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+        self.user_data_dir = os.path.join(os.getcwd(), local_dir, "mf_session")
         self.logger = logging.getLogger(__name__)
         self.mapper = CategoryMapper()
 

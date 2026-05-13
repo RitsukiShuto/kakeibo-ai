@@ -15,11 +15,13 @@ from main import run_review, load_config
 from src.db.database import Database
 import time
 
-load_dotenv(os.path.join(ROOT_DIR, "local/.env"))
+# ベースディレクトリの設定
+LOCAL_DIR = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+load_dotenv(os.path.join(ROOT_DIR, LOCAL_DIR, ".env"))
 
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN")
-DB_PATH = os.getenv("KAKEIBO_DB_PATH", os.path.join(ROOT_DIR, "local/kakeibo.db"))
+DB_PATH = os.getenv("KAKEIBO_DB_PATH", os.path.join(ROOT_DIR, LOCAL_DIR, "kakeibo.db"))
 
 def start_heartbeat():
     try:
