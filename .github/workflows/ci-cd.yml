@@ -30,7 +30,7 @@ jobs:
         KAKEIBO_CONFIG_DIR: tests/config
       run: |
         mkdir -p tests/config
-        cp local/config/*.json.example tests/config/
+        cp prod_local/config/*.json.example tests/config/
         for f in tests/config/*.json.example; do mv "$f" "${f%.example}"; done
         PYTHONPATH=. python -m pytest tests/ --ignore=tests/test_dashboard_e2e.py
 
