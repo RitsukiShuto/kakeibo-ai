@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, staging ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, staging ]
 
 jobs:
   # 1. 高速フィードバック用の検証 (マージ前チェック)
@@ -83,3 +83,52 @@ jobs:
         run: |
           cd /home/r410/kakeibo-ai
           docker compose run --rm slack python -c "import os; from src.output.slack_notifier import SlackNotifier; SlackNotifier().send_notification('❌ デプロイ失敗 (Docker)', 'デプロイ中にエラーが発生しました。ログを確認してください。')"
+
+  # 3. Deployment to Staging (stagingブランチへのプッシュ時のみ実行)
+  deploy-staging:
+    name: Deploy to Staging (Raspberry Pi)
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: self-hosted
+    steps:
+      - name: Update code and restart containers
+        run: |
+          # ターゲットディレクトリがない場合は作成 (初回のみ)
+          if [ ! -d "/home/r410/kakeibo-staging" ]; then
+            mkdir -p /home/r410/kakeibo-staging
+            cd /home/r410/kakeibo-staging
+            git init
+            git remote add origin https://github.com/r410/kakeibo-ai.git
+          fi
+          cd /home/r410/kakeibo-staging
+          git fetch origin staging
+          git reset --hard origin/staging
+          
+          # 環境構築用ディレクトリの作成
+          mkdir -p staging/local staging/logs staging/data staging/reports
+          
+          # .env がない場合は初期化
+          if [ ! -f "staging/local/.env" ]; then
+            if [ -f "local/.env" ]; then
+              cp local/.env staging/local/.env
+            else
+              touch staging/local/.env
+            fi
+          fi
+
+          # Docker containers update
+          docker compose -f docker-compose.staging.yml build
+          docker compose -f docker-compose.staging.yml up -d
+
+      - name: Slack Notification (Success)
+        if: success()
+        run: |
+          cd /home/r410/kakeibo-staging
+          export COMMIT_MSG="$(git log -1 --pretty=format:'%s')"
+          docker compose -f docker-compose.staging.yml run --rm slack python -c "import os; from src.output.slack_notifier import SlackNotifier; from src import __version__; msg = os.environ.get('COMMIT_MSG', 'なし'); SlackNotifier().send_notification('🧪 Staging デプロイ完了', f'Kakeibo AI Staging (v{__version__}) が正常に更新されました。\n\n*最終コミット:*\n> {msg}')"
+
+      - name: Slack Notification (Failure)
+        if: failure()
+        run: |
+          cd /home/r410/kakeibo-staging
+          docker compose -f docker-compose.staging.yml run --rm slack python -c "import os; from src.output.slack_notifier import SlackNotifier; SlackNotifier().send_notification('❌ Staging デプロイ失敗', 'Staging環境のデプロイ中にエラーが発生しました。ログを確認してください。')"
