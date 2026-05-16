@@ -43,13 +43,21 @@ python tools/run_regression.py
 
 ### 4. プルリクエストのルール
 
+本プロジェクトでは、コードの安全性を担保するため、以下のブランチ戦略を徹底します。
+
+1. **作業ブランチ (`feature/*`, `fix/*`)**: 各機能開発やバグ修正を行います。
+2. **`staging` ブランチ**: 準本番環境への反映用。作業ブランチからの PR はまずここへマージします。Raspberry Pi 上のステージング環境で動作確認を行います。
+3. **`main` ブランチ**: 本番環境。`staging` での検証完了後、`staging` から `main` への PR を作成し、マージすることで本番デプロイが実行されます。
+
 PR の説明欄には、必ず **「`tools/run_regression.py` をパスした旨（またはその出力）」** を記載してください。これをパスしていない PR はマージされません。
 
 ---
 
 ## 﨟槫勠 Raspberry Pi へのデプロイ
 
-`main` にマージされると、GitHub Actions が自動的に Raspberry Pi へデプロイを開始します。
+- **`staging` にマージされると**: GitHub Actions が自動的に Raspberry Pi のステージング環境 (`/home/r410/STG_kakeibo-ai`) へデプロイします。
+- **`main` にマージされると**: GitHub Actions が自動的に Raspberry Pi の本番環境 (`/home/r410/kakeibo-ai`) へデプロイを開始します。
+
 デプロイ後は以下のコマンドでサービスの健康状態を確認してください。
 
 ```bash
