@@ -11,6 +11,7 @@
 - [x] **Frontend**: ライフプラン画面の UI/UX 刷新 (2026-05-13)
 - [x] **Infra**: ステージング環境のディレクトリ構成と Docker 設定の基礎構築 (2026-05-13)
 - [x] **Deploy**: 最新の修正を本番環境 (Raspberry Pi) へデプロイ完了 (2026-05-13)
+- [x] **Infra**: 開発環境における Ollama GPU 支援（NVIDIA Container Toolkit）の設定と検証 (2026-05-14)
 - [ ] **Infra**: GitHub Actions による `staging` ブランチの自動デプロイ実装
 - [ ] **Tool**: 本番 DB からステージングへの匿名化同期スクリプト (`sync_prod_to_staging.py`)
 - [ ] **Backend**: CSV インポート API の実装
@@ -20,6 +21,7 @@
 1. **UI/UX 刷新**: ライフプラン画面を 2 カラム化し、Markdown による AI アドバイス表示に対応。
 2. **本番デプロイ**: SSH 経由での自動デプロイフローにより、最新のフロント/バックを本番環境へ反映。
 3. **ステージング基盤**: `kakeibo-staging` プロジェクトとして本番と隔離された環境で Docker コンテナを起動可能にした。
+4. **Ollama GPU 支援**: 開発環境の Ollama コンテナで GPU (NVIDIA) を利用可能にし、高速なローカル LLM 実行環境を構築。
 
 ## 💡 メモ
 - ステージング環境（Port 8001/5174）が動作することを確認済み。
