@@ -46,9 +46,10 @@ app = App(token=SLACK_BOT_TOKEN or "xoxb-dummy", token_verification_enabled=Fals
 def handle_review_command(ack, command, respond):
     """家計簿の分析を実行します。[分析モード] [データ取得]"""
     ack()
+    user_id = command.get("user_id")
     raw_text = command.get("text", "").strip()
     args = raw_text.split()
-    handle_review_logic(respond, args)
+    handle_review_logic(respond, args, user_id=user_id)
 
 @app.command("/kakeibo-help")
 def handle_help_command(ack, command, respond):
@@ -181,7 +182,7 @@ def handle_chat_logic(say, user_id, message):
 
     threading.Thread(target=run_async_chat).start()
 
-def handle_review_logic(respond, args):
+def handle_review_logic(respond, args, user_id=None):
     """分析実行ロジック"""
     skip_fetch = "skip" in [a.lower() for a in args]
     timeframe_args = [a.lower() for a in args if a.lower() != "skip"]
@@ -213,7 +214,8 @@ def handle_review_logic(respond, args):
                 timeframe=timeframe, 
                 headless=True, 
                 skip_fetch=skip_fetch,
-                progress_callback=progress_update
+                progress_callback=progress_update,
+                slack_channel=user_id
             )
             if not result:
                 respond("❌ ごめん、分析結果が空だったみたい...。設定やデータを確認してみて！")

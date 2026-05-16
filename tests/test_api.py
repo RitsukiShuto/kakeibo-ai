@@ -221,3 +221,53 @@ def test_get_life_plan_advice():
     data = response.json()
     assert "advice" in data
     assert data["advice"] == "将来の資産推移は良好です。このままの貯蓄ペースを維持しましょう！💅✨"
+
+def test_transaction_crud():
+    # 1. Create
+    new_tx = {
+        "transaction_date": "2026-05-18",
+        "category": "テスト費",
+        "genre": "検証",
+        "amount": 1000,
+        "comment": "API CRUD TEST",
+        "source": "api_test",
+        "mode": "payment",
+        "is_reimbursement": 0
+    }
+    response = client.post("/api/transactions", json=new_tx)
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["status"] == "success"
+    tx_id = res_data["transaction_id"]
+    
+    # 2. Read
+    response = client.get(f"/api/transactions?search=API CRUD TEST")
+    assert response.status_code == 200
+    data = response.json()
+    assert any(t["transaction_id"] == tx_id for t in data)
+    
+    # 3. Update
+    update_data = {"comment": "API CRUD TEST UPDATED"}
+    response = client.put(f"/api/transactions/{tx_id}", json=update_data)
+    assert response.status_code == 200
+    
+    # 4. Delete
+    response = client.delete(f"/api/transactions/{tx_id}")
+    assert response.status_code == 200
+    
+    # Verify delete
+    response = client.get(f"/api/transactions?search=API CRUD TEST UPDATED")
+    all_ids = [t["transaction_id"] for t in response.json()]
+    assert tx_id not in all_ids
+
+def test_env_settings():
+    response = client.get("/api/settings/env")
+    assert response.status_code == 200
+    data = response.json()
+    assert "LLM_PROVIDER" in data
+
+def test_csv_import_format_check():
+    # Invalid file type
+    files = {'file': ('test.txt', b'hello', 'text/plain')}
+    response = client.post("/api/import/csv", files=files)
+    assert response.status_code == 400

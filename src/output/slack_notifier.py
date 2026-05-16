@@ -54,11 +54,12 @@ class SlackNotifier:
         
         return text
 
-    def send_notification(self, title: str, text: str):
+    def send_notification(self, title: str, text: str, channel: str = None):
         """
         簡易的なテキスト通知
         """
-        if not self.client or not self.user_id:
+        target_channel = channel or self.user_id
+        if not self.client or not target_channel:
             return
 
         blocks = [
@@ -81,18 +82,19 @@ class SlackNotifier:
 
         try:
             self.client.chat_postMessage(
-                channel=self.user_id,
+                channel=target_channel,
                 text=title,
                 blocks=blocks
             )
         except Exception as e:
             print(f"Failed to send simple notification: {e}")
 
-    def send_block_kit(self, title: str, report: str, actions: List[AIAction], score: int, model_name: str = None, total_tokens: int = None):
+    def send_block_kit(self, title: str, report: str, actions: List[AIAction], score: int, model_name: str = None, total_tokens: int = None, channel: str = None):
         """
         Slack Web API を使用して DM を送信する
         """
-        if not self.client or not self.user_id:
+        target_channel = channel or self.user_id
+        if not self.client or not target_channel:
             print("Slack notification skipped: Missing token or user ID.")
             return
 
@@ -172,7 +174,7 @@ class SlackNotifier:
             # chat.postMessage を使用して DM を送信
             # channel 引数に User ID を指定することで DM になる
             response = self.client.chat_postMessage(
-                channel=self.user_id,
+                channel=target_channel,
                 text=f"【家計簿AI】{title}", # 通知用プレーンテキスト
                 blocks=blocks
             )
@@ -183,11 +185,12 @@ class SlackNotifier:
         except Exception as e:
             print(f"Failed to send Slack DM: {e}")
 
-    def upload_file(self, file_path: str, title: str):
+    def upload_file(self, file_path: str, title: str, channel: str = None):
         """
         ファイルを Slack にアップロードし、DM に送信する
         """
-        if not self.client or not self.user_id:
+        target_channel = channel or self.user_id
+        if not self.client or not target_channel:
             return
 
         if not os.path.exists(file_path):
@@ -196,7 +199,7 @@ class SlackNotifier:
 
         try:
             response = self.client.files_upload_v2(
-                channel=self.user_id,
+                channel=target_channel,
                 file=file_path,
                 title=title,
                 initial_comment=f"📊 {title}"
