@@ -29,7 +29,7 @@ class KakeiboAnalyzer:
         return persona
 
     def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None) -> Optional[AIResponse]:
-        # キャラクター設定を読み込む
+        # 1. 各種プロンプトファイルの読み込み
         active_persona = self._get_active_persona()
         persona_path = f"prompts/personas/{active_persona}.md"
         if not os.path.exists(persona_path):
@@ -38,7 +38,9 @@ class KakeiboAnalyzer:
         persona_settings = self._load_prompt_file(persona_path)
         system_prompt_template = self._load_prompt_file("prompts/system_prompt.md")
         timeframe_prompt = self._load_prompt_file(f"prompts/{timeframe}_prompt.md")
+        output_structure = self._load_prompt_file("prompts/output_structure.md")
         
+        # 2. システムプロンプトの構成
         user_info = profile.get("user", {})
         target = user_info.get("target", {})
         system_prompt = system_prompt_template.format(
@@ -49,34 +51,23 @@ class KakeiboAnalyzer:
             target_date=target.get('date', '未設定'),
             target_description=target.get('description', '目標なし')
         )
-
-        user_input = self._create_user_input_text(data, assets_summary, timeframe, budget, previous_summary, actual_monthly_income, comparison_data, pending_reimbursements)
-
-        json_schema = {
-            "slack_report": "Slack用の詳細レポート本文（Markdown/絵文字を駆使して、ギャル風に。※あとの'actions'セクションと重複するため、具体的なアクションリストはここには含めないでください）",
-            "obsidian_report": "Obsidian用のMarkdown形式の詳細レポート全文（Calloutやアクションリストも含めて、1つの完結した記事として作成してください）",
-            "actions": [
-                {"command": "Now/Keep/Stopなどの短いコマンド", "description": "具体的なアクション内容"}
-            ],
-            "asset_breakdown": [
-                {"category": "資産カテゴリ名", "amount": 10000}
-            ],
-            "budget_status": [
-                {"category": "食費", "budget": 40000, "actual": 42000, "status": "超過"}
-            ],
-            "totonoi_score": "0-100の整数",
-            "savings_potential": "今月あといくら節約できるかの概算額（整数）"
-        }
-
         full_system_prompt = f"{persona_settings}\n\n{system_prompt}"
+
+        # 3. 統計データの事前計算
+        stats = self._calculate_statistics(data, budget)
+
+        # 4. ユーザープロンプト（分析対象データ）の構築
+        user_input_text = self._create_user_input_text(
+            data, assets_summary, timeframe, budget, 
+            previous_summary, actual_monthly_income, 
+            comparison_data, pending_reimbursements,
+            stats=stats
+        )
+
         user_prompt = (
             f"## 今回の分析の特別指示 ({timeframe})\n{timeframe_prompt}\n\n"
-            f"## 分析対象データ\n{user_input}\n\n"
-            f"## 出力形式\n"
-            f"以下のJSONスキーマに従って、純粋なJSONオブジェクトのみを出力してください。\n"
-            f"Markdownのコードブロック（```json）は含めないでください。\n"
-            f"全ての項目を必ず埋めてください。\n\n"
-            f"JSON Schema:\n{json.dumps(json_schema, ensure_ascii=False, indent=2)}"
+            f"## 分析対象データと統計情報\n{user_input_text}\n\n"
+            f"{output_structure}"
         )
 
         print(f"AI analyzing {len(data)} transactions and {len(assets_summary)} asset categories...")
@@ -89,6 +80,7 @@ class KakeiboAnalyzer:
                 temperature=0.7
             )
             
+            # JSON部分の抽出（念のため）
             start_idx = raw_text.find('{')
             end_idx = raw_text.rfind('}')
             if start_idx != -1 and end_idx != -1:
@@ -96,6 +88,7 @@ class KakeiboAnalyzer:
             else:
                 json_candidate = raw_text
 
+            # 改行や余計な空白の削除（パースエラー対策）
             json_candidate = json_candidate.replace('\n', ' ').replace('\r', '')
             json_candidate = re.sub(r'\s+', ' ', json_candidate)
 
@@ -292,14 +285,80 @@ class KakeiboAnalyzer:
                 return f.read()
         return ""
 
-    def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None) -> str:
+    def _calculate_statistics(self, data: List[Transaction], budget: dict = None) -> dict:
+        """
+        明細データから統計情報を算出する
+        """
+        stats = {
+            "total_income": 0,
+            "total_expense": 0,
+            "category_totals": {},
+            "budget_usage": {},
+            "high_spending": []
+        }
+        
+        # カテゴリ別集計
+        for t in data:
+            if t.mode == "income":
+                stats["total_income"] += t.amount
+            elif t.mode == "payment":
+                amount = t.self_amount if t.is_reimbursement and t.self_amount is not None else t.amount
+                stats["total_expense"] += amount
+                
+                cat = t.category
+                stats["category_totals"][cat] = stats["category_totals"].get(cat, 0) + amount
+                
+                # 高額支出（1万円以上）
+                if amount >= 10000:
+                    stats["high_spending"].append({
+                        "date": t.transaction_date,
+                        "category": t.category,
+                        "amount": amount,
+                        "comment": t.comment
+                    })
+
+        # 高額支出を金額順にソート
+        stats["high_spending"].sort(key=lambda x: x["amount"], reverse=True)
+
+        # 予算消化率
+        if budget and "monthly" in budget:
+            monthly_categories = budget["monthly"].get("categories", {})
+            for cat, b_amount in monthly_categories.items():
+                actual = stats["category_totals"].get(cat, 0)
+                usage_rate = (actual / b_amount * 100) if b_amount > 0 else 0
+                stats["budget_usage"][cat] = {
+                    "budget": b_amount,
+                    "actual": actual,
+                    "usage_rate": round(usage_rate, 1)
+                }
+                
+        return stats
+
+    def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None, stats: dict = None) -> str:
         text = f"### 分析期間: {timeframe}\n\n"
         
         if previous_summary:
             text += f"#### 0. 前回の分析サマリー\n{previous_summary}\n\n"
 
+        if stats:
+            text += "#### 1. 集計統計データ (Pythonによる事前計算)\n"
+            text += f"- 合計収入: {stats['total_income']:,}円\n"
+            text += f"- 合計支出: {stats['total_expense']:,}円\n"
+            text += f"- 収支差分: {stats['total_income'] - stats['total_expense']:,}円\n"
+            
+            if stats["budget_usage"]:
+                text += "- カテゴリ別予算消化状況:\n"
+                for cat, s in stats["budget_usage"].items():
+                    text += f"  - {cat}: 実績 {s['actual']:,}円 / 予算 {s['budget']:,}円 (消化率: {s['usage_rate']}%)\n"
+            
+            if stats["high_spending"]:
+                text += "- 特筆すべき高額支出:\n"
+                for h in stats["high_spending"][:5]: # 上位5件
+                    text += f"  - {h['date']}: {h['category']} {h['amount']:,}円 ({h['comment']})\n"
+            text += "\n"
+
         if budget:
-            text += "#### 1. 設定されている予算・収入状況 (月次)\n"
+            text += f"#### {2 if stats else 1}. 設定されている予算・収入状況 (月次)\n"
             monthly_budget = budget.get("monthly", {})
             budget_income = monthly_budget.get('income', 0)
             
@@ -315,13 +374,10 @@ class KakeiboAnalyzer:
 
             text += f"- 貯蓄目標: {monthly_budget.get('savings_goal', 0):,}円\n"
             text += f"- 投資目標: {monthly_budget.get('investment_goal', 0):,}円\n"
-            text += "  - カテゴリ別予算:\n"
-            for cat, amt in monthly_budget.get("categories", {}).items():
-                text += f"    - {cat}: {amt:,}円\n"
             text += "\n"
 
         if comparison_data:
-            text += "#### 2. 前期間との定量比較データ\n"
+            text += f"#### {3 if stats else 2}. 前期間との定量比較データ\n"
             # 純資産の前月比
             if "prev_total_assets" in comparison_data:
                 curr = sum(a['amount'] for a in assets_summary)
@@ -334,7 +390,7 @@ class KakeiboAnalyzer:
             if "prev_balance" in comparison_data:
                 curr_income = actual_monthly_income
                 # 立替を考慮した支出計算
-                curr_expense = sum(
+                curr_expense = stats['total_expense'] if stats else sum(
                     (t.self_amount if t.is_reimbursement and t.self_amount is not None else t.amount)
                     for t in data if t.mode == 'payment'
                 )
@@ -352,7 +408,7 @@ class KakeiboAnalyzer:
                 text += f"- 収支の改善度 (前期間比): {bal_diff:+,}円 ({bal_ratio:+.1f}%)\n"
             text += "\n"
 
-        text += "#### 3. 今回追加された差分明細\n"
+        text += f"#### {4 if stats else 3}. 今回追加された差分明細\n"
         if not data:
             text += "なし\n"
         for t in data:
@@ -364,12 +420,12 @@ class KakeiboAnalyzer:
             text += f"- {t.transaction_date}: [{mode_ja}] {t.category}({t.genre}) {amount_display} {t.comment} [{t.source}]\n"
 
         if pending_reimbursements:
-            text += "\n#### 4. 未精算の立替金リスト (リマインド対象)\n"
+            text += f"\n#### {5 if stats else 4}. 未精算の立替金リスト (リマインド対象)\n"
             for t in pending_reimbursements:
                 reimb_amt = t.amount - (t.self_amount or 0)
                 text += f"- {t.transaction_date}: {t.category} {reimb_amt:,}円 (元金額: {t.amount:,}円) {t.comment}\n"
 
-        text += "\n#### 5. 現在の資産状況（カテゴリ別集計済み）\n"
+        text += f"\n#### {6 if stats else 5}. 現在の資産状況（カテゴリ別集計済み）\n"
         total_asset = 0
         for a in assets_summary:
             text += f"- {a['category']}: {a['amount']:,}円\n"
