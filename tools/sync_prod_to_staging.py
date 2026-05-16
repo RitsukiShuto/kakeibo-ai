@@ -6,8 +6,16 @@ from pathlib import Path
 
 def sync_prod_to_staging():
     # Paths
-    # Prefer prod_local/kakeibo.db (actual prod) over local/kakeibo.db (legacy/dev)
-    if Path("prod_local/kakeibo.db").exists():
+    # 1. Try environment variable
+    # 2. Try common production path relative to staging
+    # 3. Try local/prod_local paths
+    env_prod_db = os.getenv("PROD_DB_PATH")
+    
+    if env_prod_db:
+        prod_db_path = Path(env_prod_db).absolute()
+    elif Path("../kakeibo-ai/prod_local/kakeibo.db").exists():
+        prod_db_path = Path("../kakeibo-ai/prod_local/kakeibo.db").absolute()
+    elif Path("prod_local/kakeibo.db").exists():
         prod_db_path = Path("prod_local/kakeibo.db").absolute()
     else:
         prod_db_path = Path("local/kakeibo.db").absolute()
