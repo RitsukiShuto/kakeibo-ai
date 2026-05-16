@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List, Optional
 from dotenv import load_dotenv
 from src.models import Transaction, Asset, AIResponse
-from src.utils.logger import logger
 from .providers.factory import LLMFactory
 
 load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
@@ -26,7 +25,7 @@ class KakeiboAnalyzer:
                     settings = json.load(f)
                     persona = settings.get("ai", {}).get("active_persona", persona)
             except Exception as e:
-                logger.warning(f"Failed to load settings.json, using default persona: {e}")
+                print(f"Warning: Failed to load settings.json, using default persona: {e}")
         return persona
 
     def analyze_kakeibo(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, profile: dict, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None) -> Optional[AIResponse]:
@@ -80,7 +79,7 @@ class KakeiboAnalyzer:
             f"JSON Schema:\n{json.dumps(json_schema, ensure_ascii=False, indent=2)}"
         )
 
-        logger.info(f"AI analyzing {len(data)} transactions and {len(assets_summary)} asset categories...")
+        print(f"AI analyzing {len(data)} transactions and {len(assets_summary)} asset categories...")
         
         try:
             raw_text = self.provider.generate_content(
@@ -109,8 +108,7 @@ class KakeiboAnalyzer:
             return ai_response
 
         except Exception as e:
-            logger.error(f"AI Analysis error: {e}")
-            logger.exception(e)
+            print(f"AI Analysis error: {e}")
             return None
 
     def parse_reimbursement_text(self, text: str, total_amount: int) -> Optional[dict]:
@@ -137,8 +135,7 @@ class KakeiboAnalyzer:
             result = json.loads(raw_text.strip())
             return result
         except Exception as e:
-            logger.error(f"Error parsing reimbursement text: {e}")
-            logger.exception(e)
+            print(f"Error parsing reimbursement text: {e}")
             return None
 
     def detect_potential_reimbursements(self, transactions: List[Transaction]) -> List[dict]:
@@ -171,8 +168,7 @@ class KakeiboAnalyzer:
             result = json.loads(raw_text.strip())
             return result.get("suggestions", [])
         except Exception as e:
-            logger.error(f"Error detecting reimbursements: {e}")
-            logger.exception(e)
+            print(f"Error detecting reimbursements: {e}")
             return []
 
     def suggest_category_mappings(self, unmapped_items: List[dict], target_categories: List[str]) -> List[dict]:
@@ -205,8 +201,7 @@ class KakeiboAnalyzer:
             result = json.loads(raw_text.strip())
             return result.get("suggestions", [])
         except Exception as e:
-            logger.error(f"Error suggesting category mappings: {e}")
-            logger.exception(e)
+            print(f"Error suggesting category mappings: {e}")
             return []
 
     def analyze_life_plan(self, trajectory: List[dict], profile: dict, budget: dict) -> str:
@@ -250,8 +245,7 @@ class KakeiboAnalyzer:
                 temperature=0.7
             )
         except Exception as e:
-            logger.error(f"Life plan analysis error: {e}")
-            logger.exception(e)
+            print(f"Life plan analysis error: {e}")
             return "シミュレーション結果の分析中にエラーが発生したよ。データを見直してみてね！"
 
     def chat(self, message: str, history: List[dict] = None, profile: dict = None, budget: dict = None, assets_summary: List[dict] = None, recent_transactions: List[Transaction] = None, model_override: str = None) -> str:
@@ -277,7 +271,7 @@ class KakeiboAnalyzer:
             system_prompt += "資産内訳:\n" + "\n".join([f"- {a['category']}: {a['amount']:,}円" for a in assets_summary])
             
         if recent_transactions:
-            system_prompt += "\n\n最近の支出明計（直近10件）:\n"
+            system_prompt += "\n\n最近の支出明細（直近10件）:\n"
             for t in recent_transactions[:10]:
                 system_prompt += f"- {t.transaction_date}: {t.category}({t.genre}) {t.amount}円 {t.comment}\n"
 
@@ -289,8 +283,7 @@ class KakeiboAnalyzer:
                 temperature=0.7
             )
         except Exception as e:
-            logger.error(f"Chat error: {e}")
-            logger.exception(e)
+            print(f"Chat error: {e}")
             return "ごめん、ちょっと調子が悪いみたい。後でもう一度話しかけてね！"
 
     def _load_prompt_file(self, file_path: str) -> str:

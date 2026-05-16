@@ -13,7 +13,6 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
 from main import run_review, load_config
 from src.db.database import Database
-from src.utils.logger import logger
 import time
 
 # ベースディレクトリの設定
@@ -27,15 +26,15 @@ DB_PATH = os.getenv("KAKEIBO_DB_PATH", os.path.join(ROOT_DIR, LOCAL_DIR, "kakeib
 def start_heartbeat():
     try:
         db = Database(db_path=DB_PATH)
-        logger.info(f"💓 Heartbeat thread started. Target DB: {DB_PATH}")
+        print(f"💓 Heartbeat thread started. Target DB: {DB_PATH}")
         while True:
             try:
                 db.update_heartbeat("slack")
             except Exception as e:
-                logger.error(f"Error updating heartbeat: {e}")
+                print(f"Error updating heartbeat: {e}")
             time.sleep(60)
     except Exception as e:
-        logger.error(f"Failed to initialize heartbeat thread: {e}")
+        print(f"Failed to initialize heartbeat thread: {e}")
 
 app = App(token=SLACK_BOT_TOKEN or "xoxb-dummy", token_verification_enabled=False)
 
@@ -177,7 +176,7 @@ def handle_chat_logic(say, user_id, message):
             say(f"<@{user_id}> {response}")
             
         except Exception as e:
-            logger.error(f"Chat logic error: {e}")
+            print(f"Chat logic error: {e}")
             say(f"❌ ごめん、エラーになっちゃった...: `{e}`")
 
     threading.Thread(target=run_async_chat).start()
@@ -220,7 +219,7 @@ def handle_review_logic(respond, args):
                 respond("❌ ごめん、分析結果が空だったみたい...。設定やデータを確認してみて！")
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"Error in async analysis: {e}")
+            print(f"Error in async analysis: {e}")
             if "Timeout" in error_msg or "locator" in error_msg:
                 respond("❌ MoneyForward へのログインでタイムアウトが発生したよ...。サーバーの負荷が高いか、セッションが切れちゃったかも。後でもう一度試してね！")
             else:
@@ -363,18 +362,18 @@ def handle_action_done(ack, body, logger):
         ack()
         user_id = body["user"]["id"]
         action_id = body["actions"][0]["value"]
-        logger.info(f"User {user_id} completed action: {action_id}")
+        print(f"User {user_id} completed action: {action_id}")
         app.client.chat_postMessage(
             channel=user_id,
             text=f"✨ マジ！？「{action_id}」達成したとか、せんぱい天才すぎ！アガる〜！💖"
         )
     except Exception as e:
-        logger.error(f"Error handling action_done: {e}")
+        print(f"Error handling action_done: {e}")
 
 def start_slack_server():
-    logger.info("🚀 Starting Slack Socket Mode Server...")
+    print("🚀 Starting Slack Socket Mode Server...")
     if not SLACK_APP_TOKEN or not SLACK_BOT_TOKEN or SLACK_BOT_TOKEN == "xoxb-dummy":
-        logger.error("❌ Error: SLACK_APP_TOKEN or SLACK_BOT_TOKEN is not set correctly.")
+        print("❌ Error: SLACK_APP_TOKEN or SLACK_BOT_TOKEN is not set correctly.")
         return
     
     heartbeat_thread = threading.Thread(target=start_heartbeat, daemon=True)
@@ -382,10 +381,10 @@ def start_slack_server():
     
     try:
         handler = SocketModeHandler(app, SLACK_APP_TOKEN)
-        logger.info("⚡️ Slack Socket Mode Server is running and connected!")
+        print("⚡️ Slack Socket Mode Server is running and connected!")
         handler.start()
     except Exception as e:
-        logger.error(f"❌ Critical Error in Slack Server: {e}")
+        print(f"❌ Critical Error in Slack Server: {e}")
 
 if __name__ == "__main__":
     start_slack_server()

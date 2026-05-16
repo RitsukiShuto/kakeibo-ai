@@ -11,9 +11,7 @@ const AIReview: React.FC = () => {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [reportContent, setReportContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [timeframe, setTimeframe] = useState('monthly');
-  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -30,20 +28,6 @@ const AIReview: React.FC = () => {
       console.error('Failed to fetch analysis history', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGenerateReport = async () => {
-    setGenerating(true);
-    setMessage(null);
-    try {
-      await client.post('/api/analysis/run', { timeframe });
-      setMessage({ text: '分析レポートの生成を開始しました。完了まで1〜2分かかります。完了後に「更新」ボタンを押してください。', type: 'success' });
-    } catch (error) {
-      console.error('Failed to generate report', error);
-      setMessage({ text: '分析レポートの生成開始に失敗しました。', type: 'error' });
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -80,41 +64,13 @@ const AIReview: React.FC = () => {
         onTimeframeChange={setTimeframe}
       />
       
-      <div className="page-content" style={{ padding: '0 1rem' }}>
-        {message && (
-          <div className={`card mb-4 ${message.type === 'error' ? 'border-danger' : 'border-success'}`} 
-               style={{ 
-                 margin: '0 0 1.5rem 0', 
-                 padding: '12px 20px', 
-                 borderLeft: `4px solid ${message.type === 'error' ? 'var(--danger)' : 'var(--success)'}`,
-                 backgroundColor: message.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                 display: 'flex',
-                 alignItems: 'center',
-                 gap: '12px',
-                 borderRadius: '8px'
-               }}>
-            {message.type === 'error' ? <AlertTriangle size={20} className="text-danger" /> : <CheckCircle size={20} className="text-success" />}
-            <div style={{ flex: 1 }}>{message.text}</div>
-            <button onClick={() => setMessage(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
+      <div className="dashboard-grid">
+        {/* History List */}
+        <div className="card section-splitter">
+          <div className="card-header">
+            <h3><Calendar size={20} /> {timeframe === 'daily' ? '日次' : timeframe === 'weekly' ? '週次' : '月次'}分析履歴</h3>
           </div>
-        )}
-
-        <div className="dashboard-grid" style={{ marginTop: 0 }}>
-          {/* History List */}
-          <div className="card section-splitter">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3><Calendar size={20} /> {timeframe === 'daily' ? '日次' : timeframe === 'weekly' ? '週次' : '月次'}分析履歴</h3>
-              <button 
-                className="btn-primary" 
-                onClick={handleGenerateReport} 
-                disabled={generating}
-                style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Bot size={16} />
-                {generating ? '生成中...' : '分析を実行'}
-              </button>
-            </div>
-            <div className="card-body" style={{ padding: 0 }}>
+          <div className="card-body" style={{ padding: 0 }}>
             {loading ? (
               <div className="p-4 text-center">読み込み中...</div>
             ) : history.length > 0 ? (
@@ -249,9 +205,8 @@ const AIReview: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
-  </>
-);
+    </>
+  );
 };
 
 export default AIReview;
