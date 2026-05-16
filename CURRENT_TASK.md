@@ -1,34 +1,37 @@
-# 📝 作業状況・引き継ぎ用 (CURRENT_TASK.md)
+# 実行計画: ステージング環境の高度化とCI/CD構築
 
-## 📅 更新日: 2026-05-14 (Updated)
+ユーザーより承認された「Raspberry Pi上へのステージング環境構築」プランに基づき、コスト削減とデータ分離の要件を追加して実行します。
 
-## 🎯 現在の目標
-- 準本番環境 (Staging) の自動運用化と本番データ同期の安全な確立。
-- Web UI からのデータインポート機能の拡充。
-- AI キャラクター切り替え機能の実装。
+## 1. 目標
+- `staging` ブランチへのプッシュによる自動デプロイを実現する。
+- ステージング環境では低コストなAIモデル（`gemini-1.5-flash`）をデフォルトで使用する。
+- 本番データを匿名化して安全にステージング環境へ同期する仕組みを構築する。
 
-## 🚦 進捗状況
-- [x] **Frontend**: ライフプラン画面の UI/UX 刷新 (2026-05-13)
-- [x] **Infra**: ステージング環境のディレクトリ構成と Docker 設定の基礎構築 (2026-05-13)
-- [x] **Deploy**: 最新の修正を本番環境 (Raspberry Pi) へデプロイ完了 (2026-05-13)
-- [x] **Infra**: 開発環境における Ollama GPU 支援（NVIDIA Container Toolkit）の設定と検証 (2026-05-14)
-- [ ] **Infra**: GitHub Actions による `staging` ブランチの自動デプロイ実装
-- [ ] **Tool**: 本番 DB からステージングへの匿名化同期スクリプト (`sync_prod_to_staging.py`)
-- [ ] **Backend**: CSV インポート API の実装
-- [ ] **Frontend**: 設定画面での AI キャラクター選択機能
+## 2. タスク分割と Issue 管理
 
-## 📌 完了した変更のサマリー
-1. **UI/UX 刷新**: ライフプラン画面を 2 カラム化し、Markdown による AI アドバイス表示に対応。
-2. **本番デプロイ**: SSH 経由での自動デプロイフローにより、最新のフロント/バックを本番環境へ反映。
-3. **ステージング基盤**: `kakeibo-staging` プロジェクトとして本番と隔離された環境で Docker コンテナを起動可能にした。
-4. **Ollama GPU 支援**: 開発環境の Ollama コンテナで GPU (NVIDIA) を利用可能にし、高速なローカル LLM 実行環境を構築。
+### Issue #101: CI/CD Expansion (@sre-deploy)
+- **内容**: `.github/workflows/ci-cd.yml` の拡張。
+- **追加要件**: 
+    - ステージング環境（`staging/` ディレクトリ）へのデプロイフロー構築。
+    - 環境変数で `gemini-1.5-flash` をデフォルトに設定。
 
-## 💡 メモ
-- ステージング環境（Port 8001/5174）が動作することを確認済み。
-- 次の焦点は「いかに本番データを安全にステージングへ持ち込むか（匿名化）」と「GitHub Actions の拡張」。
+### Issue #102: Data Anonymization Sync Script (@backend-engineer)
+- **内容**: `tools/sync_prod_to_staging.py` の作成。
+- **追加要件**:
+    - 本番DBの保護（書き込み禁止チェック）。
+    - データの匿名化（店舗名・メモのハッシュ化/伏せ字化）。
 
----
-## 📅 次のステップ: ステージングの自動化と機能拡張
-1. **Automation**: `.github/workflows/ci-cd.yml` に `staging` 用のジョブを追加。
-2. **Security**: `tools/sync_prod_to_staging.py` を作成し、個人情報（コメント等）をマスクして同期する。
-3. **Feature**: フロントエンドの `Settings.tsx` を拡張し、AI キャラクターの切り替えと CSV アップロードを可能にする。
+### Issue #103: Staging Verification (@qa-tester)
+- **内容**: ステージング環境でのエンドツーエンドテスト。
+- **要件**:
+    - デプロイ後のAPI疎通確認。
+    - AI分析が指定の低コストモデルで行われているかの確認。
+
+## 3. 進行状況
+- [x] 実行計画の策定とIssue更新
+- [ ] Task 1.1: CI/CD実装 (@sre-deploy) - **NEXT**
+- [ ] Task 1.2: データ同期スクリプト実装 (@backend-engineer)
+- [ ] Task 1.3: 検証 (@qa-tester)
+
+## 4. ハンドオフ
+- タスク管理エージェントより `agent-manager` へ、Issue #101 のアサインを依頼します。
