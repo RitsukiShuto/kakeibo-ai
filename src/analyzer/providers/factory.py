@@ -1,5 +1,6 @@
 import os
 import json
+from src.utils.logger import logger
 from .base import BaseLLMProvider
 from .gemini import GeminiProvider
 from .ollama import OllamaProvider
@@ -20,12 +21,12 @@ class LLMFactory:
                     model_name = settings.get("ai", {}).get("active_model")
             except Exception as e:
                 # ログに出力
-                print(f"Error: Failed to parse settings.json: {e}")
+                logger.error(f"Failed to parse settings.json: {e}")
 
         # 設定がない場合はエラーを投げる (ハードコードされたフォールバックを廃止)
         if not model_name:
             error_msg = f"AI model is not configured. Please check 'active_model' in {settings_path}."
-            print(f"Error: {error_msg}")
+            logger.error(error_msg)
             raise ValueError(error_msg)
 
         if provider_type == "gemini":
