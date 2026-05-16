@@ -1,36 +1,37 @@
-# 実行計画: Phase 1 の完遂とツールの整理 (Task 4)
+# 実行計画: ステージング環境の高度化とCI/CD構築
+
+ユーザーより承認された「Raspberry Pi上へのステージング環境構築」プランに基づき、コスト削減とデータ分離の要件を追加して実行します。
 
 ## 1. 目標
-Phase 1 の主要機能を統合・検証し、散在するツール群を整理して保守性の高い CLI 基盤を構築する。
+- `staging` ブランチへのプッシュによる自動デプロイを実現する。
+- ステージング環境では低コストなAIモデル（`gemini-1.5-flash`）をデフォルトで使用する。
+- 本番データを匿名化して安全にステージング環境へ同期する仕組みを構築する。
 
-## 2. 完了済みのタスク (Verified & Ready for Deploy)
+## 2. タスク分割と Issue 管理
 
-### Task 1: データ取得 (Fetch) 機能の API 化と UI 実装
-- [x] **Task 1.1: Fetch API の実装 (@backend-engineer)**
-- [x] **Task 1.2: フロントエンドへの「更新ボタン」追加 (@frontend-engineer)**
+### Issue #101: CI/CD Expansion (@sre-deploy)
+- **内容**: `.github/workflows/ci-cd.yml` の拡張。
+- **追加要件**: 
+    - ステージング環境（`staging/` ディレクトリ）へのデプロイフロー構築。
+    - 環境変数で `gemini-1.5-flash` をデフォルトに設定。
 
-### Task 2: オンデマンド AI レビュー機能の実装
-- [x] **Task 2.1: レビュー生成 API の実装 (@backend-engineer)**
-- [x] **Task 2.2: AI レビュー画面のブラッシュアップ (@frontend-engineer)**
+### Issue #102: Data Anonymization Sync Script (@backend-engineer)
+- **内容**: `tools/sync_prod_to_staging.py` の作成。
+- **追加要件**:
+    - 本番DBの保護（書き込み禁止チェック）。
+    - データの匿名化（店舗名・メモのハッシュ化/伏せ字化）。
 
-### Task 3: ログ出力の標準化
-- [x] **Task 3.1: 共通ロガーの実装 (@backend-engineer)**
-- [x] **Task 3.2: 主要モジュールのリファクタリング (@backend-engineer)**
-- [x] **Task 3.3: ログ出力の検証 (@qa-tester)**
+### Issue #103: Staging Verification (@qa-tester)
+- **内容**: ステージング環境でのエンドツーエンドテスト。
+- **要件**:
+    - デプロイ後のAPI疎通確認。
+    - AI分析が指定の低コストモデルで行われているかの確認。
 
-## 3. 現在進行中のタスク
+## 3. 進行状況
+- [x] 実行計画の策定とIssue更新
+- [ ] Task 1.1: CI/CD実装 (@sre-deploy) - **NEXT**
+- [ ] Task 1.2: データ同期スクリプト実装 (@backend-engineer)
+- [ ] Task 1.3: 検証 (@qa-tester)
 
-### Task 4: Tools ディレクトリの整理と統合 CLI の開発 (Issue #106)
-- [ ] **Task 4.1: ディレクトリ構造の設計と移動 (@backend-engineer)**
-    - `tools/` 配下のスクリプトを機能別に整理。
-- [ ] **Task 4.2: 統合 CLI の実装 (@backend-engineer)**
-    - `python tools/cli.py` を通じた統一インターフェースの提供。
-- [ ] **Task 4.3: 関連設定・スクリプトの修正 (@sre-deploy)**
-    - GitHub Actions や `scripts/` 内のパス参照を更新。
-- [ ] **Task 4.4: セキュリティ・品質検証 (@security-reviewer, @qa-tester)**
-    - 整理後のツール群が正常に動作し、機密情報を適切に扱うことを確認。
-
-## 4. 成功基準
-- `python tools/cli.py --help` で利用可能な全機能が一覧表示されること。
-- 既存の自動化スクリプトや CI が正常に動作すること。
-- `tools/` ディレクトリが整理され、新規ツールの追加場所が明確であること。
+## 4. ハンドオフ
+- タスク管理エージェントより `agent-manager` へ、Issue #101 のアサインを依頼します。

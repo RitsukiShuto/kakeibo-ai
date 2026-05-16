@@ -9,9 +9,12 @@ from dotenv import load_dotenv
 from src.models import Transaction, Asset
 from src.fetcher.base_fetcher import BaseFetcher
 from src.utils.category_mapper import CategoryMapper
-from src.utils.logger import logger
 
 load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
+
+# ログの設定
+log_dir = os.path.join(os.getcwd(), "logs")
+os.makedirs(log_dir, exist_ok=True)
 
 class MoneyForwardFetcher(BaseFetcher):
     def __init__(self):
@@ -19,18 +22,19 @@ class MoneyForwardFetcher(BaseFetcher):
         self.password = os.getenv("MF_PASSWORD")
         local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
         self.user_data_dir = os.path.join(os.getcwd(), local_dir, "mf_session")
+        self.logger = logging.getLogger(__name__)
         self.mapper = CategoryMapper()
 
     def _login_and_update(self, page, headless: bool):
-        logger.info("Navigating to sign_in page...")
+        self.logger.info("Navigating to sign_in page...")
         page.goto("https://moneyforward.com/users/sign_in")
         
         if "sign_in" in page.url:
             if not headless:
-                logger.warning("--- SETUP MODE --- Please complete login in the browser.")
+                self.logger.warning("--- SETUP MODE --- Please complete login in the browser.")
                 page.wait_for_url("https://moneyforward.com/", timeout=300000)
             else:
-                logger.info("Logging in to MoneyForward...")
+                self.logger.info("Logging in to MoneyForward...")
                 try:
                     page.fill('input[name="user[email]"]', self.user_id)
                     page.click('input[type="submit"]')
@@ -38,10 +42,10 @@ class MoneyForwardFetcher(BaseFetcher):
                     page.click('input[type="submit"]')
                     time.sleep(5)
                 except Exception as e:
-                    logger.error(f"Auto login failed: {e}")
+                    self.logger.error(f"Auto login failed: {e}")
                     return False
 
-        logger.info("Updating financial data...")
+        self.logger.info("Updating financial data...")
         page.goto("https://moneyforward.com/", wait_until="networkidle")
         try:
             update_button = page.locator('button:has-text("金融機関からのデータ一括更新"), a:has-text("金融機関からのデータ一括更新"), button:has-text("一括更新"), a:has-text("一括更新")').first
@@ -49,7 +53,7 @@ class MoneyForwardFetcher(BaseFetcher):
                 update_button.click()
                 time.sleep(2)
         except Exception as e:
-            logger.warning(f"Update button click failed: {e}")
+            self.logger.warning(f"Update button click failed: {e}")
 
         # 3. 更新完了を監視
         page.goto("https://moneyforward.com/accounts", wait_until="networkidle")
@@ -60,22 +64,22 @@ class MoneyForwardFetcher(BaseFetcher):
                 time.sleep(5)
                 updating_elements = page.query_selector_all('section#account-table td:has-text("更新中")')
                 if len(updating_elements) == 0:
-                    logger.info("All accounts updated.")
+                    self.logger.info("All accounts updated.")
                     break
-                logger.info(f"Waiting for {len(updating_elements)} accounts to update...")
+                self.logger.info(f"Waiting for {len(updating_elements)} accounts to update...")
             except Exception as e:
-                logger.warning(f"Error during update check (might be navigating): {e}")
+                self.logger.warning(f"Error during update check (might be navigating): {e}")
             
             time.sleep(30)
             try:
                 page.reload(wait_until="networkidle")
             except Exception as e:
-                logger.warning(f"Reload failed: {e}")
+                self.logger.warning(f"Reload failed: {e}")
         
         return True
 
     def fetch_transactions(self, headless: bool = True) -> List[Transaction]:
-        logger.info(f"Starting MF transaction fetch (headless={headless})")
+        self.logger.info(f"Starting MF transaction fetch (headless={headless})")
         with sync_playwright() as p:
             browser_context = self._launch_browser(p, headless)
             page = browser_context.new_page()
@@ -109,7 +113,7 @@ class MoneyForwardFetcher(BaseFetcher):
                 return transactions
 
             except Exception as e:
-                logger.error(f"Failed to fetch transactions: {e}")
+                self.logger.error(f"Failed to fetch transactions: {e}")
                 browser_context.close()
                 return []
 
@@ -117,7 +121,7 @@ class MoneyForwardFetcher(BaseFetcher):
         """
         指定された年月の明細データを取得する（直接URL指定方式）
         """
-        logger.info(f"Starting MF historical fetch for {year}/{month}")
+        self.logger.info(f"Starting MF historical fetch for {year}/{month}")
         
         # 外部からpageが渡されない場合は自前で起動
         if page is None:
@@ -137,7 +141,7 @@ class MoneyForwardFetcher(BaseFetcher):
         try:
             # CSVダウンロード用URLを直接叩く
             csv_url = f"https://moneyforward.com/cf/csv?month={month}&year={year}"
-            logger.info(f"Downloading CSV directly from: {csv_url}")
+            self.logger.info(f"Downloading CSV directly from: {csv_url}")
             
             with page.expect_download(timeout=60000) as download_info:
                 page.goto(csv_url)
@@ -150,11 +154,11 @@ class MoneyForwardFetcher(BaseFetcher):
 
             return self._parse_csv(csv_path)
         except Exception as e:
-            logger.error(f"Failed to download CSV for {year}/{month}: {e}")
+            self.logger.error(f"Failed to download CSV for {year}/{month}: {e}")
             return []
 
     def fetch_assets(self, headless: bool = True) -> List[Asset]:
-        logger.info(f"Starting MF asset fetch (headless={headless})")
+        self.logger.info(f"Starting MF asset fetch (headless={headless})")
         with sync_playwright() as p:
             browser_context = self._launch_browser(p, headless)
             page = browser_context.new_page()
@@ -163,7 +167,7 @@ class MoneyForwardFetcher(BaseFetcher):
                 browser_context.close()
                 return []
 
-            logger.info("Navigating to portfolio page...")
+            self.logger.info("Navigating to portfolio page...")
             page.goto("https://moneyforward.com/bs/portfolio", wait_until="networkidle")
             time.sleep(3)
 
@@ -188,7 +192,7 @@ class MoneyForwardFetcher(BaseFetcher):
                     if not section:
                         continue
                     
-                    logger.info(f"--- Analyzing section: {asset_type} ---")
+                    self.logger.info(f"--- Analyzing section: {asset_type} ---")
                     
                     # セクション内の各テーブルを処理
                     tables = section.query_selector_all('table.table-bordered')
@@ -205,7 +209,7 @@ class MoneyForwardFetcher(BaseFetcher):
                         # ヘッダーが見つからない場合のフォールバック（預金などは2列目のことが多い）
                         if value_col_idx == -1:
                             value_col_idx = 1
-                            logger.warning(f"  Value column not found in headers, falling back to index {value_col_idx}")
+                            self.logger.warning(f"  Value column not found in headers, falling back to index {value_col_idx}")
 
                         # 2. 各行のデータを取得
                         rows = table.query_selector_all('tr')
@@ -224,7 +228,7 @@ class MoneyForwardFetcher(BaseFetcher):
                                 try:
                                     if amount_text and amount_text.lstrip('-').isdigit():
                                         amount = int(amount_text)
-                                        logger.debug(f"  Found asset: {name} = {amount:,}円 (at col {value_col_idx})")
+                                        self.logger.info(f"  Found asset: {name} = {amount:,}円 (at col {value_col_idx})")
                                         assets.append(Asset(
                                             acquired_date=today,
                                             asset_type=asset_type,
@@ -239,7 +243,7 @@ class MoneyForwardFetcher(BaseFetcher):
                 return assets
 
             except Exception as e:
-                logger.error(f"Failed to fetch assets: {e}")
+                self.logger.error(f"Failed to fetch assets: {e}")
                 browser_context.close()
                 return []
 
@@ -259,7 +263,7 @@ class MoneyForwardFetcher(BaseFetcher):
         """
         PlaywrightのセッションからCookieを取得し、requests形式に変換する
         """
-        logger.info("Extracting session cookies from Playwright...")
+        self.logger.info("Extracting session cookies from Playwright...")
         with sync_playwright() as p:
             browser_context = self._launch_browser(p, headless)
             page = browser_context.pages[0]

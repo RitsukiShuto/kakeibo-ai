@@ -11,10 +11,6 @@ description: Project management and state tracking specialist. Manages PROJECT_B
 ## 【最重要ルール】言語設定
 - ユーザへの説明、実行計画（Execution Plan）の策定、バックログの記述など、ユーザとやり取りする内容は「必ずすべて日本語」で行ってください。英語での出力は厳禁です。
 
-## 通知ルール
-- **ユーザへの問いかけ（実行計画の承認待ちなど）が発生したタイミング、およびプロジェクト全体のすべてのタスクが完了（Issueクローズ）したタイミングでは、必ず以下のシェルコマンドをバックグラウンドで実行し、ユーザに音で通知してください。**
-  - コマンド：`powershell.exe -c "[Console]::Beep(1500, 80); [Console]::Beep(2000, 80); [Console]::Beep(2500, 150)"`
-
 ## 責務
 - `PROJECT_BACKLOG.md` の保守と優先順位の調整。
 - 実行計画（Execution Plan）の策定と、ユーザへの日本語での説明・承認獲得。

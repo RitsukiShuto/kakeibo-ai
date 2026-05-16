@@ -5,7 +5,6 @@ from typing import List
 from dotenv import load_dotenv
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from src.utils.logger import logger
 from src.models import AIAction
 from src import __version__
 
@@ -22,9 +21,9 @@ class SlackNotifier:
             self.dashboard_url = f"http://{self._get_local_ip()}:5173"
 
         if not self.bot_token:
-            logger.warning("SLACK_BOT_TOKEN is not set.")
+            print("Warning: SLACK_BOT_TOKEN is not set.")
         if not self.user_id:
-            logger.warning("SLACK_USER_ID is not set.")
+            print("Warning: SLACK_USER_ID is not set.")
 
     def _get_local_ip(self):
         try:
@@ -87,14 +86,14 @@ class SlackNotifier:
                 blocks=blocks
             )
         except Exception as e:
-            logger.error(f"Failed to send simple notification: {e}")
+            print(f"Failed to send simple notification: {e}")
 
     def send_block_kit(self, title: str, report: str, actions: List[AIAction], score: int, model_name: str = None, total_tokens: int = None):
         """
         Slack Web API を使用して DM を送信する
         """
         if not self.client or not self.user_id:
-            logger.info("Slack notification skipped: Missing token or user ID.")
+            print("Slack notification skipped: Missing token or user ID.")
             return
 
         # スコアに応じた絵文字
@@ -178,11 +177,11 @@ class SlackNotifier:
                 blocks=blocks
             )
             if not response["ok"]:
-                logger.error(f"Error sending DM to Slack: {response['error']}")
+                print(f"Error sending DM to Slack: {response['error']}")
         except SlackApiError as e:
-            logger.error(f"Slack API Error: {e.response['error']}")
+            print(f"Slack API Error: {e.response['error']}")
         except Exception as e:
-            logger.error(f"Failed to send Slack DM: {e}")
+            print(f"Failed to send Slack DM: {e}")
 
     def upload_file(self, file_path: str, title: str):
         """
@@ -192,7 +191,7 @@ class SlackNotifier:
             return
 
         if not os.path.exists(file_path):
-            logger.error(f"Error: File not found for upload: {file_path}")
+            print(f"Error: File not found for upload: {file_path}")
             return
 
         try:
@@ -203,8 +202,8 @@ class SlackNotifier:
                 initial_comment=f"📊 {title}"
             )
             if not response["ok"]:
-                logger.error(f"Error uploading file to Slack: {response['error']}")
+                print(f"Error uploading file to Slack: {response['error']}")
         except SlackApiError as e:
-            logger.error(f"Slack API Error (Upload): {e.response['error']}")
+            print(f"Slack API Error (Upload): {e.response['error']}")
         except Exception as e:
-            logger.error(f"Failed to upload file to Slack: {e}")
+            print(f"Failed to upload file to Slack: {e}")

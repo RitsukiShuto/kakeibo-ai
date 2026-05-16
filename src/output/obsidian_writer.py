@@ -4,17 +4,13 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
 
-from src.utils.logger import logger
-
-load_dotenv(os.path.join(os.getenv("KAKEIBO_LOCAL_DIR", "local"), ".env"))
-
 class ObsidianWriter:
     def __init__(self):
         self.vault_path = os.getenv("OBSIDIAN_VAULT_PATH")
         self.base_report_dir = "Reviews/Kakeibo"
 
         if not self.vault_path:
-            logger.warning("OBSIDIAN_VAULT_PATH is not set. Saving to local 'reports' directory instead.")
+            print("Warning: OBSIDIAN_VAULT_PATH is not set. Saving to local 'reports' directory instead.")
             self.target_root = "reports/Reviews/Kakeibo"
         else:
             self.target_root = os.path.join(self.vault_path, self.base_report_dir)
@@ -37,14 +33,14 @@ class ObsidianWriter:
         try:
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
-            logger.info(f"Report saved to: {filepath}")
+            print(f"Report saved to: {filepath}")
             
             # インデックス（目次）を更新
             self._update_index(year_str, month_str, filename)
             
             return filepath
         except Exception as e:
-            logger.error(f"Failed to save Obsidian report: {e}")
+            print(f"Failed to save Obsidian report: {e}")
             return ""
 
     def _update_index(self, year: str, month: str, filename: str):
@@ -68,6 +64,6 @@ class ObsidianWriter:
             with open(index_path, "a", encoding="utf-8") as f:
                 f.write(new_entry)
             
-            logger.info(f"Index updated: {index_path}")
+            print(f"Index updated: {index_path}")
         except Exception as e:
-            logger.error(f"Failed to update Obsidian index: {e}")
+            print(f"Failed to update Obsidian index: {e}")

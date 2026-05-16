@@ -22,7 +22,6 @@ from src.analyzer.gemini_analyzer import GeminiAnalyzer
 from src.output.slack_notifier import SlackNotifier
 from src.output.obsidian_writer import ObsidianWriter
 from src.output.visualizer import Visualizer
-from src.utils.logger import logger
 
 from dotenv import load_dotenv
 
@@ -98,24 +97,24 @@ def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_f
     try:
         if not skip_fetch:
             if progress_callback: progress_callback("🔄 データ取得中...（少し時間がかかります）")
-            logger.info(f"Fetching transactions from {source}...")
+            print(f"Fetching transactions from {source}...")
             transactions = fetcher.fetch_transactions(headless=headless)
             if transactions:
                 db.save_transactions(transactions)
             
-            logger.info(f"Fetching assets from {source}...")
+            print(f"Fetching assets from {source}...")
             assets = fetcher.fetch_assets(headless=headless)
             if assets:
                 db.save_assets(assets)
             
             # 立替金の自動マッチングを実行
-            logger.info("Auto-matching reimbursements...")
+            print("Auto-matching reimbursements...")
             matched = db.auto_match_reimbursements()
             if matched:
-                logger.info(f"Successfully auto-matched {matched} reimbursements!")
+                print(f"Successfully auto-matched {matched} reimbursements!")
         
         if progress_callback: progress_callback(f"🧠 {timeframe}の家計簿をAIが分析中...💅✨")
-        logger.info(f"Starting AI Analysis ({timeframe})...")
+        print(f"Starting AI Analysis ({timeframe})...")
         analyzer = GeminiAnalyzer()
         
         now = datetime.now()
@@ -164,11 +163,11 @@ def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_f
             visualizer = Visualizer()
             graph_path = visualizer.generate_asset_trend_graph(db_path=db_path)
         except Exception as e:
-            logger.error(f"Graph generation failed: {e}")
+            print(f"Graph generation failed: {e}")
 
         # 1. コンソール出力
         if output_console:
-            logger.info(f"AI Review ({timeframe}) Generated.")
+            print(f"AI Review ({timeframe}) Generated.")
 
         # 2. Obsidian保存
         saved_path = ""
@@ -208,8 +207,9 @@ def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_f
         return ai_response
 
     except Exception as e:
-        logger.error(f"Error in run_review: {e}")
-        logger.exception(e)
+        print(f"Error in run_review: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def main():
@@ -241,7 +241,7 @@ def main():
         schedule = load_config("local/config/schedule.json")
         target_timeframes = get_scheduled_timeframes(schedule)
         if not target_timeframes:
-            logger.info("No task scheduled. Defaulting to weekly for manual run.")
+            print("No task scheduled. Defaulting to weekly for manual run.")
             target_timeframes = ["weekly"]
 
     # fetch-onlyの場合はデータ取得のみ
@@ -261,7 +261,7 @@ def main():
     # 各タイムフレームを実行
     current_skip_fetch = args.skip_fetch
     for i, tf in enumerate(target_timeframes):
-        logger.info(f"\n🚀 Starting Review for timeframe: {tf}")
+        print(f"\n🚀 Starting Review for timeframe: {tf}")
         run_review(
             timeframe=tf,
             source=args.source,

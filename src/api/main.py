@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sqlite3
@@ -7,7 +7,6 @@ import json
 from datetime import datetime
 from src.db.database import Database
 from src.models import Transaction as TransactionModel
-from src.utils.logger import logger
 from dotenv import load_dotenv
 from typing import Optional, List
 from pydantic import BaseModel
@@ -37,7 +36,7 @@ def get_db_path():
         path = os.path.join(ROOT_DIR, path)
     return path
 
-logger.info(f"📡 API starting using database: {get_db_path()}")
+print(f"📡 API starting using database: {get_db_path()}")
 
 def get_config_dir():
     path = os.getenv("KAKEIBO_CONFIG_DIR", os.path.join(LOCAL_DIR, "config"))
@@ -89,22 +88,6 @@ def df_to_json_safe_dict(df):
     df_safe = df.replace([np.inf, -np.inf], np.nan)
     return [{k: (v if pd.notnull(v) else None) for k, v in record.items()} for record in df_safe.to_dict(orient="records")]
 
-class TransactionUpdate(BaseModel):
-    category: Optional[str] = None
-    genre: Optional[str] = None
-    comment: Optional[str] = None
-    is_reimbursement: Optional[int] = None
-    self_amount: Optional[int] = None
-    reimbursement_status: Optional[str] = None
-
-class ChatRequest(BaseModel):
-    message: str
-    history: Optional[List[dict]] = None
-    model: Optional[str] = None
-
-class AnalysisRequest(BaseModel):
-    timeframe: str = "monthly"
-
 @app.get("/api/status")
 async def get_status():
     try:
@@ -131,7 +114,7 @@ async def get_status():
             }
         }
     except Exception as e:
-        logger.error(f"Error in get_status: {e}")
+        print(f"Error in get_status: {e}")
         return {
             "services": {
                 "api": {"status": "error", "detail": str(e)},
@@ -234,148 +217,6 @@ async def update_active_persona(data: dict = Body(...)):
 @app.get("/")
 async def root():
     return {"message": "Kakeibo AI API is running"}
-
-def sync_fetch_data():
-    """
-    バックグラウンドでデータを取得し、DBを更新する。
-    """
-    try:
-        from src.fetcher.moneyforward_fetcher import MoneyForwardFetcher
-        from src.db.database import Database
-        
-        db_path = get_db_path()
-        db = Database(db_path=db_path)
-        
-        # サービスステータスの更新
-        db.update_heartbeat("api")
-        
-        fetcher = MoneyForwardFetcher()
-        
-        # 1. 明細の取得と保存
-        logger.info("📡 Background Fetch: Fetching transactions...")
-        transactions = fetcher.fetch_transactions(headless=True)
-        if transactions:
-            db.save_transactions(transactions)
-            logger.info(f"📡 Background Fetch: Saved {len(transactions)} transactions.")
-            
-        # 2. 資産の取得と保存
-        logger.info("📡 Background Fetch: Fetching assets...")
-        assets = fetcher.fetch_assets(headless=True)
-        if assets:
-            db.save_assets(assets)
-            logger.info(f"📡 Background Fetch: Saved {len(assets)} assets.")
-            
-        # 3. 立替金の自動マッチング（もしあれば）
-        logger.info("📡 Background Fetch: Running auto-match for reimbursements...")
-        matched = db.auto_match_reimbursements()
-        if matched:
-            logger.info(f"📡 Background Fetch: Auto-matched {matched} reimbursements.")
-
-        logger.info("📡 Background Fetch: Completed successfully.")
-        
-    except Exception as e:
-        logger.error(f"❌ Background Fetch Error: {e}")
-        logger.exception(e)
-
-@app.post("/api/fetch")
-async def fetch_data(background_tasks: BackgroundTasks):
-    """
-    MoneyForwardから最新データを取得する。
-    処理に時間がかかるため、バックグラウンドで実行する。
-    """
-    background_tasks.add_task(sync_fetch_data)
-    return {"status": "accepted", "message": "Fetch process started in background"}
-
-def sync_run_analysis(timeframe: str):
-    """
-    バックグラウンドで分析を実行し、結果を保存する。
-    """
-    try:
-        from src.analyzer.gemini_analyzer import KakeiboAnalyzer
-        from src.db.database import Database
-        from src.output.obsidian_writer import ObsidianWriter
-        from src.output.slack_notifier import SlackNotifier
-        from datetime import date, timedelta
-        
-        db_path = get_db_path()
-        db = Database(db_path=db_path)
-        config_dir = get_config_dir()
-        
-        # 1. データの収集
-        end_date = date.today()
-        if timeframe == "daily":
-            start_date = end_date
-        elif timeframe == "weekly":
-            start_date = end_date - timedelta(days=end_date.weekday())
-        elif timeframe == "monthly":
-            start_date = end_date.replace(day=1)
-        else:
-            start_date = end_date.replace(day=1) # Default to monthly
-            
-        logger.info(f"🧠 Analysis: Starting {timeframe} analysis from {start_date} to {end_date}...")
-        
-        transactions = db.get_transactions_range(start_date, end_date)
-        assets_summary = db.get_asset_category_summary()
-        pending_reimbursements = db.get_pending_reimbursements()
-        
-        profile = load_config(os.path.join(config_dir, "profile.json"))
-        budget = load_config(os.path.join(config_dir, "budget.json"))
-        
-        # 2. AI分析の実行
-        analyzer = KakeiboAnalyzer()
-        report = analyzer.analyze_kakeibo(
-            data=transactions,
-            assets_summary=assets_summary,
-            timeframe=timeframe,
-            profile=profile,
-            budget=budget,
-            pending_reimbursements=pending_reimbursements
-        )
-        
-        if not report:
-            logger.error("🧠 Analysis: AI report generation failed.")
-            return
-
-        # 3. 結果の保存
-        # Obsidian保存
-        writer = ObsidianWriter()
-        report_path = writer.write_report(report.obsidian_report)
-        
-        # DB保存
-        db.save_analysis(
-            timeframe=timeframe,
-            summary=report.slack_report[:500],
-            report_path=report_path,
-            score=report.totonoi_score,
-            raw_response=report.model_dump_json(),
-            model_name=report.model_name,
-            prompt_tokens=report.prompt_tokens,
-            response_tokens=report.response_tokens,
-            total_tokens=report.total_tokens
-        )
-        
-        # Slack通知
-        notifier = SlackNotifier()
-        today_str = date.today().strftime("%Y-%m-%d")
-        notifier.send_notification(
-            title=f"{today_str} 家計簿AIレビュー ({timeframe.upper()})",
-            text=report.slack_report
-        )
-        
-        logger.info(f"🧠 Analysis: Completed. Report saved to {report_path}")
-
-    except Exception as e:
-        logger.error(f"❌ Analysis Error: {e}")
-        logger.exception(e)
-
-@app.post("/api/analysis/run")
-async def run_analysis(request: AnalysisRequest, background_tasks: BackgroundTasks):
-    """
-    AIによる分析をオンデマンドで実行する。
-    処理に時間がかかるため、バックグラウンドで実行する。
-    """
-    background_tasks.add_task(sync_run_analysis, request.timeframe)
-    return {"status": "accepted", "message": f"Analysis ({request.timeframe}) started in background"}
 
 @app.get("/api/kpi")
 async def get_kpi(timeframe: str = "monthly"):
@@ -538,6 +379,19 @@ async def get_all_categories():
         if conn:
             conn.close()
 
+class TransactionUpdate(BaseModel):
+    category: Optional[str] = None
+    genre: Optional[str] = None
+    comment: Optional[str] = None
+    is_reimbursement: Optional[int] = None
+    self_amount: Optional[int] = None
+    reimbursement_status: Optional[str] = None
+
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[dict]] = None
+    model: Optional[str] = None
+
 @app.post("/api/chat")
 def chat(request: ChatRequest):
     conn = None
@@ -574,7 +428,7 @@ def chat(request: ChatRequest):
                     mode=row['mode']
                 ))
             except Exception as e:
-                logger.error(f"Skipping transaction in context due to parse error: {e}")
+                print(f"Skipping transaction in context due to parse error: {e}")
         
         # 資産状況
         db_instance = Database(db_path=db_path)
@@ -600,7 +454,8 @@ def chat(request: ChatRequest):
         return {"response": response}
 
     except Exception as e:
-        logger.exception(e)
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
     finally:
         if conn:
@@ -671,23 +526,13 @@ async def get_analysis_content(history_id: int):
             report_path = report_path[2:]
         if not os.path.isabs(report_path):
             report_path = os.path.join(ROOT_DIR, report_path)
-        
-        # セキュリティチェック: ファイルが許可されたディレクトリ内にあるか確認
-        abs_report_path = os.path.abspath(report_path)
-        allowed_paths = [os.path.abspath(ROOT_DIR)]
-        obsidian_vault = os.getenv("OBSIDIAN_VAULT_PATH")
-        if obsidian_vault:
-            allowed_paths.append(os.path.abspath(obsidian_vault))
             
-        is_allowed = any(abs_report_path.startswith(p) for p in allowed_paths)
-        
-        if is_allowed and os.path.exists(abs_report_path):
-            with open(abs_report_path, "r", encoding="utf-8") as f:
+        if os.path.exists(report_path):
+            with open(report_path, "r", encoding="utf-8") as f:
                 content = f.read()
             return {"content": content}
         else:
-            logger.warning(f"Blocked access to file outside allowed paths: {abs_report_path}")
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise HTTPException(status_code=404, detail=f"Report file not found at {report_path}")
     except HTTPException:
         raise
     except Exception as e:
@@ -718,18 +563,18 @@ async def get_pending_reimbursements():
 
 @app.get("/api/life-plan/simulation")
 def get_life_plan_simulation():
-    logger.debug("Entering get_life_plan_simulation")
+    print("DEBUG: Entering get_life_plan_simulation")
     try:
         db_path = get_db_path()
         config_dir = get_config_dir()
         
         # 1. データの取得
-        logger.debug("Fetching assets summary...")
+        print("DEBUG: Fetching assets summary...")
         db_instance = Database(db_path=db_path)
         assets_summary = db_instance.get_asset_category_summary()
         total_assets = sum(a['amount'] for a in assets_summary)
         
-        logger.debug("Loading configs...")
+        print("DEBUG: Loading configs...")
         profile = load_config(os.path.join(config_dir, "profile.json"))
         budget = load_config(os.path.join(config_dir, "budget.json"))
         
@@ -737,11 +582,11 @@ def get_life_plan_simulation():
         life_plan = user_info.get("life_plan", {})
         
         if not life_plan:
-            logger.debug("Life plan settings missing")
+            print("DEBUG: Life plan settings missing")
             raise HTTPException(status_code=400, detail="Life plan settings not found in profile.json")
             
         # 2. シミュレーション実行
-        logger.debug("Running simulation...")
+        print("DEBUG: Running simulation...")
         from src.utils.life_plan_calculator import LifePlanCalculator
         
         monthly_savings = budget.get("monthly", {}).get("savings_goal", 0) + budget.get("monthly", {}).get("investment_goal", 0)
@@ -770,7 +615,7 @@ def get_life_plan_simulation():
             "monthly_savings": monthly_savings
         }
 
-        logger.debug("Successfully generated simulation")
+        print("DEBUG: Successfully generated simulation")
         return {
             "trajectory": trajectory,
             "advice": None, # AIアドバイスは別エンドポイントで取得するように変更
@@ -778,12 +623,13 @@ def get_life_plan_simulation():
         }
 
     except Exception as e:
-        logger.exception(e)
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/life-plan/advice")
 def get_life_plan_advice():
-    logger.debug("Entering get_life_plan_advice")
+    print("DEBUG: Entering get_life_plan_advice")
     try:
         db_path = get_db_path()
         config_dir = get_config_dir()
@@ -819,7 +665,8 @@ def get_life_plan_advice():
         
         return {"advice": advice}
     except Exception as e:
-        logger.exception(e)
+        import traceback
+        traceback.print_exc()
         return {"advice": "アドバイスの生成中にエラーが発生しました。"}
 
 @app.get("/api/assets")

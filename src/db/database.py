@@ -4,7 +4,6 @@ import os
 from datetime import datetime, date
 from typing import List, Optional
 from src.models import Transaction, Asset
-from src.utils.logger import logger
 
 class Database:
     def __init__(self, db_path: str = None):
@@ -462,7 +461,7 @@ class Database:
                     WHERE transaction_id = ?
                 """, (p["transaction_id"],))
                 matched_count += 1
-                logger.debug(f"Auto-matched reimbursement: {p['category']} ({reimbursement_amount}円) matched with income on {income_match['transaction_date']}")
+                print(f"Auto-matched reimbursement: {p['category']} ({reimbursement_amount}円) matched with income on {income_match['transaction_date']}")
 
         conn.commit()
         if self.db_path != ":memory:":
@@ -487,7 +486,7 @@ class Database:
             if self.db_path != ":memory:":
                 conn.close()
         except Exception as e:
-            logger.error(f"Failed to update heartbeat for {service_name}: {e}")
+            print(f"Failed to update heartbeat for {service_name}: {e}")
 
     def get_service_status(self, service_name: str) -> Optional[str]:
         """
@@ -502,5 +501,5 @@ class Database:
                 conn.close()
             return row[0] if row else None
         except Exception as e:
-            logger.error(f"Failed to get service status for {service_name}: {e}")
+            print(f"Failed to get service status for {service_name}: {e}")
             return None
