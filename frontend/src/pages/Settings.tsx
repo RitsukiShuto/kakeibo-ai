@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Target, Wallet, Code, CheckCircle2, ArrowRightLeft, Plus, Trash2, TrendingUp } from 'lucide-react';
+import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Target, Wallet, Code, CheckCircle2, ArrowRightLeft, Plus, Trash2, TrendingUp, Database, RefreshCcw } from 'lucide-react';
 import client from '../api/client';
 import type { AISettings } from '../api/client';
 import TopHeader from '../components/TopHeader';
@@ -12,8 +12,9 @@ const Settings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [activeMode, setActiveMode] = useState<'ui' | 'json'>('ui');
-  const [activeTab, setActiveTab] = useState<'ai' | 'profile' | 'budget' | 'mapping' | 'lifeplan'>('ai');
+  const [activeTab, setActiveTab] = useState<'ai' | 'profile' | 'budget' | 'mapping' | 'lifeplan' | 'data'>('ai');
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, modelId: string | null }>({ isOpen: false, modelId: null });
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
@@ -247,6 +248,20 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleDataSync = async () => {
+    setSyncing(true);
+    setMessage(null);
+    try {
+      await client.post('/api/fetch');
+      setMessage({ text: 'データの同期を開始しました。完了まで数分かかる場合があります。数分後に画面を更新してください。', type: 'success' });
+    } catch (error) {
+      console.error('Failed to start data sync', error);
+      setMessage({ text: 'データの同期開始に失敗しました。', type: 'error' });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) return <div className="page-content">読み込み中...</div>;
 
   return (
@@ -292,6 +307,9 @@ const Settings: React.FC = () => {
             </button>
             <button className={`tab-link ${activeTab === 'lifeplan' ? 'active' : ''}`} onClick={() => setActiveTab('lifeplan')}>
               <TrendingUp size={18} /> ライフプラン設定
+            </button>
+            <button className={`tab-link ${activeTab === 'data' ? 'active' : ''}`} onClick={() => setActiveTab('data')}>
+              <Database size={18} /> データ管理
             </button>
           </div>
         )}
@@ -984,6 +1002,37 @@ const Settings: React.FC = () => {
                 </div>
               </div>
             )}
+            {activeTab === 'data' && (
+              <div className="card">
+                <div className="card-header">
+                  <h3><Database size={20} /> データ管理</h3>
+                </div>
+                <div className="card-body">
+                  <div className="flex flex-col gap-4" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <p className="text-muted">
+                      外部サービス（マネーフォワード等）から最新の明細データを取得し、データベースを更新します。<br/>
+                      この処理はバックグラウンドで実行されます。
+                    </p>
+                    <div>
+                      <button 
+                        className="btn-primary" 
+                        onClick={handleDataSync} 
+                        disabled={syncing}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                      >
+                        <RefreshCcw 
+                          size={18} 
+                          style={{ 
+                            animation: syncing ? 'spin 1s linear infinite' : 'none' 
+                          }} 
+                        />
+                        {syncing ? '同期中...' : '最新データを同期'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="dashboard-grid" style={{ padding: 0 }}>
@@ -1119,6 +1168,9 @@ const Settings: React.FC = () => {
           color: var(--primary);
           border-bottom: 1px solid rgba(59, 130, 246, 0.2);
           padding-bottom: 0.5rem;
+        }
+        @keyframes spin {
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </>

@@ -3,19 +3,16 @@
 ## 概要
 `staging` ブランチへのプッシュをトリガーとして、Raspberry Pi 上のステージング環境へ自動デプロイする GitHub Actions ワークフローを構築する。
 
-## 背景
-現在、`main` ブランチへのデプロイは自動化されているが、ステージング環境へのデプロイは手動で行う必要がある。開発中の機能を本番に近い環境で検証しやすくするため、自動化が必要。
-
 ## 作業内容
-- [ ] `.github/workflows/ci-cd.yml` を編集し、`staging` ブランチ用のジョブを追加する。
-- [ ] `docker-compose.staging.yml` を使用して、既存の `deploy` ジョブと同様に自己ホスト型ランナーで実行する。
-- [ ] ステージング環境特有のディレクトリ構成（`staging/` 配下）を考慮したデプロイスクリプトにする。
-- [ ] **追加要件**: ステージング環境の環境変数（`.env` または Docker env）で、コスト削減のため低コストなモデル（例: `gemini-1.5-flash`）がデフォルトになるよう設定する。
+- [x] `.github/workflows/ci-cd.yml` を編集し、`staging` ブランチ用のジョブを追加した。
+- [x] `docker-compose.staging.yml` を使用して、Raspberry Pi 上の `staging/` ディレクトリへデプロイするフローを確立。
+- [x] ステージング環境の `settings.json` にて、`gemini-1.5-flash` をデフォルトモデルに設定し、コスト削減を実現。
 
 ## 担当エージェント
 - @sre-deploy
 
 ## ステータス
-- [ ] 未着手
-- [ ] 進行中
-- [ ] 完了
+- [x] 完了 (Closed)
+
+## 完了コメント
+`staging` ブランチへの push により、Raspberry Pi 上の `/home/r410/src/kakeibo-ai/staging/` 配下への自動デプロイが正常に動作することを確認しました。また、環境変数および設定ファイルを通じて、低コストモデルの利用設定を完了しました。

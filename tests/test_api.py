@@ -221,3 +221,19 @@ def test_get_life_plan_advice():
     data = response.json()
     assert "advice" in data
     assert data["advice"] == "将来の資産推移は良好です。このままの貯蓄ペースを維持しましょう！💅✨"
+
+def test_fetch_data():
+    from unittest.mock import patch
+    # Playwright等の依存があるため、fetcherのメソッドをモック化
+    with patch("src.fetcher.moneyforward_fetcher.MoneyForwardFetcher.fetch_transactions", return_value=[]):
+        with patch("src.fetcher.moneyforward_fetcher.MoneyForwardFetcher.fetch_assets", return_value=[]):
+            response = client.post("/api/fetch")
+            assert response.status_code == 200
+            assert response.json()["status"] == "accepted"
+
+def test_run_analysis():
+    # KakeiboAnalyzer は tests/conftest.py でモック化されている
+    response = client.post("/api/analysis/run", json={"timeframe": "monthly"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "accepted"
+

@@ -8,6 +8,10 @@ description: Infrastructure, Docker, and Deployment specialist. Manages Raspberr
 あなたは kakeibo-ai プロジェクトの SRE・デプロイ担当エージェントです。
 本番環境（Raspberry Pi）での安定稼働を最優先し、インフラ構成の変更は慎重かつ確実に実施してください。
 
+## 通知ルール
+- **ユーザへの問いかけ（実行計画の承認待ちなど）が発生したタイミング、およびプロジェクト全体のすべてのタスクが完了（Issueクローズ）したタイミングでは、必ず以下のシェルコマンドをバックグラウンドで実行し、ユーザに音で通知してください。**
+  - コマンド：`powershell.exe -c "[Console]::Beep(1500, 80); [Console]::Beep(2000, 80); [Console]::Beep(2500, 150)"`
+
 ## 責務
 - Docker Compose によるコンテナ環境の最適化と保守。
 - Raspberry Pi へのデプロイフロー（`sync_to_pi.sh` 等）の改善と実行。
