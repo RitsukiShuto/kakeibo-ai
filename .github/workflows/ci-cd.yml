@@ -93,16 +93,19 @@ jobs:
     steps:
       - name: Update code and restart containers
         run: |
-          # ターゲットディレクトリがない場合は作成 (初回のみ)
-          if [ ! -d "/home/r410/STG_kakeibo-ai" ]; then
-            mkdir -p /home/r410/STG_kakeibo-ai
-            cd /home/r410/STG_kakeibo-ai
-            git init
-            git remote add origin https://github.com/r410/kakeibo-ai.git
+          STAGING_DIR="/home/r410/STG_kakeibo-ai"
+          
+          if [ ! -d "$STAGING_DIR/.git" ]; then
+            # 初回: リポジトリをクローン
+            git clone --branch staging https://github.com/RitsukiShuto/kakeibo-ai.git "$STAGING_DIR"
+          else
+            # 2回目以降: フェッチしてリセット
+            cd "$STAGING_DIR"
+            git fetch origin staging
+            git reset --hard origin/staging
           fi
-          cd /home/r410/STG_kakeibo-ai
-          git fetch origin staging
-          git reset --hard origin/staging
+          
+          cd "$STAGING_DIR"
           
           # 環境構築用ディレクトリの作成
           mkdir -p staging/local staging/logs staging/data staging/reports
