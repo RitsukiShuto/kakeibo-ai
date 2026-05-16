@@ -78,13 +78,14 @@ def sync_prod_to_staging():
     for row in cursor:
         data = dict(row)
         # Anonymization Logic
-        # content (comment) -> Store [Category]
+        # Both content and comment should be anonymized
         category = data['category'] or "Unknown"
-        data['comment'] = f"Store [{category}]"
-        # We can also use Transaction [ID] if desired
-        # data['comment'] = f"Transaction {data['transaction_id']}"
+        anonymized_text = f"Store [{category}]"
         
-        # genre (medium category) is usually safe (e.g., "Lunch"), but let's keep it.
+        if 'content' in data:
+            data['content'] = anonymized_text
+        if 'comment' in data:
+            data['comment'] = anonymized_text
         
         columns = ', '.join(data.keys())
         placeholders = ', '.join(['?'] * len(data))
@@ -139,13 +140,29 @@ def sync_prod_to_staging():
         placeholders = ', '.join(['?'] * len(data))
         staging_cursor.execute(f"INSERT INTO system_status ({columns}) VALUES ({placeholders})", list(data.values()))
 
-    staging_conn.commit()
-    prod_conn.close()
     staging_conn.close()
     print("Sync complete.")
 
+    # 8. Sync Config Files (optional but helpful)
+    sync_configs(prod_db_path.parent / "config", staging_dir / "config")
+
     # Verification block
     verify_sync(staging_db_path)
+
+def sync_configs(src_dir, dest_dir):
+    if not src_dir.exists():
+        return
+    
+    print(f"Synchronizing configs from {src_dir}...")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    
+    for config_file in src_dir.glob("*.json"):
+        dest_file = dest_dir / config_file.name
+        if not dest_file.exists():
+            print(f"  Copying {config_file.name}...")
+            shutil.copy(config_file, dest_file)
+        else:
+            print(f"  {config_file.name} already exists in staging. Skipping.")
 
 def verify_sync(db_path):
     print("\n--- Verification ---")

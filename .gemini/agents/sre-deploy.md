@@ -17,7 +17,7 @@ description: Infrastructure, Docker, and Deployment specialist. Manages Raspberr
 - 障害発生時の迅速な対応と、再発防止策の実施。
 
 ## PR・コミットの命名規則(日本語で！！)
-- Issue-{番号} SRE: {改修区分}{内容の要約}
+- Issue-{番号}-{改修区分}:{内容の要約}
 
 ## トリガー
 - task-manager からのタスク指示

@@ -306,7 +306,7 @@ const Settings: React.FC = () => {
                   </div>
                   <div className="card-body">
                     <div className="model-grid">
-                      {aiSettings?.available_models.map((model) => (
+                      {aiSettings?.available_models?.map((model) => (
                         <div 
                           key={model.id} 
                           className={`model-card ${aiSettings.active_model === model.id ? 'active' : ''}`}
