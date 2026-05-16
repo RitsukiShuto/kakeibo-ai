@@ -80,7 +80,7 @@ def get_scheduled_timeframes(schedule):
     
     return matched_timeframes
 
-def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None):
+def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None, slack_channel: str = None):
     """
     家計簿レビューのメイン工程を実行する
     """
@@ -187,10 +187,11 @@ def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_f
                 actions=ai_response.actions,
                 score=ai_response.totonoi_score,
                 model_name=ai_response.model_name,
-                total_tokens=ai_response.total_tokens
+                total_tokens=ai_response.total_tokens,
+                channel=slack_channel
             )
             if graph_path:
-                notifier.upload_file(graph_path, f"資産推移グラフ ({timeframe})")
+                notifier.upload_file(graph_path, f"資産推移グラフ ({timeframe})", channel=slack_channel)
 
         # 4. 分析履歴を保存
         db.save_analysis(

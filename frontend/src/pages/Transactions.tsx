@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Save, X, Edit2, ChevronDown, ChevronUp, ArrowUp } from 'lucide-react';
+import { Search, Save, X, Edit2, ChevronDown, ChevronUp, ArrowUp, Trash2, Plus } from 'lucide-react';
 import client from '../api/client';
 import type { Transaction, CategoryMetadata } from '../api/client';
 import TopHeader from '../components/TopHeader';
@@ -17,6 +17,17 @@ const Transactions: React.FC = () => {
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<Transaction>>({});
+  const [isAdding, setIsAdding] = useState(false);
+  const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
+    transaction_date: new Date().toISOString().split('T')[0],
+    category: '',
+    genre: '',
+    amount: 0,
+    comment: '',
+    source: 'manual',
+    mode: 'payment',
+    is_reimbursement: 0
+  });
   
   const [sortConfig, setSortConfig] = useState<{ key: keyof Transaction | null, direction: 'asc' | 'desc' }>({ key: null, direction: 'asc' });
   const [showTopBtn, setShowTopBtn] = useState(false);
@@ -133,11 +144,46 @@ const Transactions: React.FC = () => {
     setEditValues({});
   };
 
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('この明細を削除してもよろしいですか？')) return;
+    try {
+      await client.delete(`/api/transactions/${id}`);
+      setTransactions(prev => prev.filter(t => t.transaction_id !== id));
+    } catch (error) {
+      console.error('Failed to delete transaction', error);
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!newTransaction.category || !newTransaction.amount) {
+      alert('カテゴリと金額を入力してください');
+      return;
+    }
+    try {
+      await client.post('/api/transactions', newTransaction);
+      setIsAdding(false);
+      setNewTransaction({
+        transaction_date: new Date().toISOString().split('T')[0],
+        category: '',
+        genre: '',
+        amount: 0,
+        comment: '',
+        source: 'manual',
+        mode: 'payment',
+        is_reimbursement: 0
+      });
+      fetchTransactions(0, false);
+      setOffset(0);
+    } catch (error) {
+      console.error('Failed to create transaction', error);
+    }
+  };
+
   // ユニークな大項目を取得
   const majorCategories = Array.from(new Set(categories.map(c => c.category))).sort();
   // 選択された大項目に属する中項目を取得
-  const filteredGenres = categories
-    .filter(c => c.category === editValues.category)
+  const getGenres = (category?: string) => categories
+    .filter(c => c.category === category)
     .map(c => c.genre)
     .filter(g => g !== '')
     .sort();
@@ -147,20 +193,75 @@ const Transactions: React.FC = () => {
       <TopHeader title="明細一覧" onRefresh={() => { setOffset(0); fetchTransactions(0, false); }} />
       
       <div className="page-content">
-        <div className="card mb-4">
-          <div className="card-body">
-            <div className="ai-input-group">
-              <Search size={20} className="text-muted" style={{ alignSelf: 'center', marginLeft: '12px' }} />
-              <input 
-                type="text" 
-                className="form-control" 
-                placeholder="明細を検索 (内容、カテゴリ、金額など)..." 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="card" style={{ flex: 1, marginBottom: 0 }}>
+            <div className="card-body">
+              <div className="ai-input-group">
+                <Search size={20} className="text-muted" style={{ alignSelf: 'center', marginLeft: '12px' }} />
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="明細を検索 (内容、カテゴリ、金額など)..." 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
             </div>
           </div>
+          <button className="btn-primary" onClick={() => setIsAdding(!isAdding)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Plus size={20} /> 新規作成
+          </button>
         </div>
+
+        {isAdding && (
+          <div className="card mb-6" style={{ border: '1px solid var(--primary)', background: 'rgba(59, 130, 246, 0.05)' }}>
+            <div className="card-header">
+              <h3>新しい明細の入力</h3>
+            </div>
+            <div className="card-body">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div className="form-group">
+                  <label>日付</label>
+                  <input type="date" className="form-control" value={newTransaction.transaction_date} onChange={e => setNewTransaction({...newTransaction, transaction_date: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label>区分</label>
+                  <select className="form-control" value={newTransaction.mode} onChange={e => setNewTransaction({...newTransaction, mode: e.target.value})}>
+                    <option value="payment">支出</option>
+                    <option value="income">収入</option>
+                    <option value="transfer">振替</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>金額</label>
+                  <input type="number" className="form-control" value={newTransaction.amount || ''} onChange={e => setNewTransaction({...newTransaction, amount: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="form-group">
+                  <label>大項目</label>
+                  <select className="form-control" value={newTransaction.category} onChange={e => setNewTransaction({...newTransaction, category: e.target.value, genre: ''})}>
+                    <option value="">選択してください</option>
+                    {majorCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>中項目</label>
+                  <select className="form-control" value={newTransaction.genre} onChange={e => setNewTransaction({...newTransaction, genre: e.target.value})} disabled={!newTransaction.category}>
+                    <option value="">未分類</option>
+                    {getGenres(newTransaction.category).map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label>内容</label>
+                  <input type="text" className="form-control" value={newTransaction.comment} onChange={e => setNewTransaction({...newTransaction, comment: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', gap: '12px' }}>
+                  <button className="btn-primary" style={{ flex: 1 }} onClick={handleAdd}>追加する</button>
+                  <button className="btn-outline" onClick={() => setIsAdding(false)}>閉じる</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <div className="card-body" style={{ overflowX: 'auto', padding: 0 }}>
@@ -215,8 +316,8 @@ const Transactions: React.FC = () => {
                           disabled={!editValues.category}
                         >
                           <option value="">未分類</option>
-                          {filteredGenres.map(g => <option key={g} value={g}>{g}</option>)}
-                          {!filteredGenres.includes(tx.genre) && tx.genre && <option value={tx.genre}>{tx.genre}</option>}
+                          {getGenres(editValues.category).map(g => <option key={g} value={g}>{g}</option>)}
+                          {!getGenres(editValues.category).includes(tx.genre) && tx.genre && <option value={tx.genre}>{tx.genre}</option>}
                         </select>
                       ) : (
                         <span className="text-muted" style={{ fontSize: '0.9rem' }}>{tx.genre || '-'}</span>
@@ -276,9 +377,14 @@ const Transactions: React.FC = () => {
                           </button>
                         </div>
                       ) : (
-                        <button className="btn-outline btn-small" onClick={() => handleEdit(tx)}>
-                          <Edit2 size={14} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button className="btn-outline btn-small" onClick={() => handleEdit(tx)} title="編集">
+                            <Edit2 size={14} />
+                          </button>
+                          <button className="btn-text btn-small text-danger" onClick={() => handleDelete(tx.transaction_id)} title="削除">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -352,6 +458,12 @@ const Transactions: React.FC = () => {
           font-size: 0.85rem;
           height: auto;
           background: rgba(0,0,0,0.4);
+        }
+        .btn-small {
+          padding: 4px 8px;
+        }
+        .mb-6 {
+          margin-bottom: 1.5rem;
         }
       `}</style>
     </>

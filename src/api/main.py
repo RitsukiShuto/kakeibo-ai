@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sqlite3
@@ -461,6 +461,46 @@ def chat(request: ChatRequest):
         if conn:
             conn.close()
 
+@app.post("/api/transactions")
+async def create_transaction(transaction: TransactionModel):
+    conn = None
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # IDが未指定の場合は生成
+        if not transaction.transaction_id:
+            import uuid
+            transaction.transaction_id = str(uuid.uuid4())
+            
+        query = """
+        INSERT INTO transactions (
+            transaction_id, transaction_date, category, genre, amount, 
+            comment, source, mode, self_amount, is_reimbursement, reimbursement_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        cursor.execute(query, (
+            transaction.transaction_id,
+            transaction.transaction_date.isoformat(),
+            transaction.category,
+            transaction.genre,
+            transaction.amount,
+            transaction.comment,
+            transaction.source,
+            transaction.mode,
+            transaction.self_amount,
+            transaction.is_reimbursement,
+            transaction.reimbursement_status
+        ))
+        conn.commit()
+        return {"status": "success", "transaction_id": transaction.transaction_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
 @app.put("/api/transactions/{transaction_id}")
 async def update_transaction(transaction_id: str, update: TransactionUpdate):
     conn = None
@@ -491,6 +531,130 @@ async def update_transaction(transaction_id: str, update: TransactionUpdate):
     finally:
         if conn:
             conn.close()
+
+@app.delete("/api/transactions/{transaction_id}")
+async def delete_transaction(transaction_id: str):
+    conn = None
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM transactions WHERE transaction_id = ?", (transaction_id,))
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+            
+        conn.commit()
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+@app.post("/api/import/csv")
+async def import_transactions_csv(file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+        
+    try:
+        # 一時ファイルとして保存
+        temp_path = f"data/import/{file.filename}"
+        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+        with open(temp_path, "wb") as buffer:
+            import shutil
+            shutil.copyfileobj(file.file, buffer)
+            
+        # インポート実行 (import_mf_csv のロジックを流用)
+        from tools.import_data.import_mf_csv import _process_single_csv
+        db_path = get_db_path()
+        _process_single_csv(temp_path, db_path)
+        
+        # 処理が終わったら一時ファイルを削除
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+        return {"status": "success", "message": f"Successfully imported {file.filename}"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/settings/env")
+async def get_env_settings():
+    """
+    主要な環境変数を取得（機密情報は一部マスク）
+    """
+    env_keys = [
+        "MF_USER_ID", "MF_PASSWORD", 
+        "SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "SLACK_USER_ID",
+        "GEMINI_API_KEY", "LLM_PROVIDER"
+    ]
+    
+    # .env ファイルを直接読み込む（環境変数だとOSに設定されているものも混ざるため）
+    env_path = os.path.join(ROOT_DIR, LOCAL_DIR, ".env")
+    env_data = {}
+    
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if "=" in line and not line.startswith("#"):
+                    key_val = line.strip().split("=", 1)
+                    if len(key_val) == 2:
+                        key, value = key_val
+                        if key in env_keys:
+                            # 機密情報のマスク
+                            if value and len(value) > 8 and key not in ["LLM_PROVIDER", "SLACK_USER_ID"]:
+                                env_data[key] = value[:4] + "..." + value[-4:]
+                            else:
+                                env_data[key] = value
+    
+    # 存在しないキーを空文字で埋める
+    for k in env_keys:
+        if k not in env_data:
+            env_data[k] = ""
+            
+    return env_data
+
+@app.put("/api/settings/env")
+async def update_env_settings(data: dict = Body(...)):
+    """
+    環境変数を .env に保存
+    """
+    env_path = os.path.join(ROOT_DIR, LOCAL_DIR, ".env")
+    
+    # 現在の全設定を読み込む
+    current_env = {}
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if "=" in line and not line.startswith("#"):
+                    key_val = line.strip().split("=", 1)
+                    if len(key_val) == 2:
+                        k, v = key_val
+                        current_env[k] = v
+    
+    # マスクされた値（...を含む）は更新せず、元の値を維持
+    for key, value in data.items():
+        if "..." in str(value) and key in current_env:
+            continue
+        current_env[key] = value
+        
+    # .env に書き出し
+    try:
+        with open(env_path, "w", encoding="utf-8") as f:
+            for k, v in current_env.items():
+                f.write(f"{k}={v}\n")
+        
+        # 実行中の環境変数も更新（一部のみ反映される可能性があるが）
+        for k, v in current_env.items():
+            os.environ[k] = str(v)
+            
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/analysis-history")
 async def get_analysis_history(timeframe: str = "monthly"):

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Target, Wallet, Code, CheckCircle2, ArrowRightLeft, Plus, Trash2, TrendingUp } from 'lucide-react';
+import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Target, Wallet, Code, CheckCircle2, ArrowRightLeft, Plus, Trash2, TrendingUp, Upload, Server, Eye } from 'lucide-react';
 import client from '../api/client';
 import type { AISettings } from '../api/client';
 import TopHeader from '../components/TopHeader';
@@ -13,11 +13,14 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [activeMode, setActiveMode] = useState<'ui' | 'json'>('ui');
-  const [activeTab, setActiveTab] = useState<'ai' | 'profile' | 'budget' | 'mapping' | 'lifeplan'>('ai');
+  const [activeTab, setActiveTab] = useState<'ai' | 'profile' | 'budget' | 'mapping' | 'lifeplan' | 'import' | 'services'>('ai');
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, modelId: string | null }>({ isOpen: false, modelId: null });
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [hoveredSuggestion, setHoveredSuggestion] = useState<number | null>(null);
+  const [envSettings, setEnvSettings] = useState<any>({});
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
 
   // JSON string states for the 'Advanced' tab
   const [budgetJson, setBudgetJson] = useState('');
@@ -44,11 +47,12 @@ const Settings: React.FC = () => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const [budgetRes, profileRes, aiRes, mappingRes] = await Promise.all([
+      const [budgetRes, profileRes, aiRes, mappingRes, envRes] = await Promise.all([
         client.get('/api/settings/budget'),
         client.get('/api/settings/profile'),
         client.get<AISettings>('/api/settings/ai-models'),
-        client.get('/api/settings/mapping')
+        client.get('/api/settings/mapping'),
+        client.get('/api/settings/env')
       ]);
       
       // 旧形式の budget.json を正規化: monthly.categories → monthly.budget.variable
@@ -73,6 +77,7 @@ const Settings: React.FC = () => {
       setProfile(profileRes.data);
       setAiSettings(aiRes.data);
       setMapping(mappingRes.data);
+      setEnvSettings(envRes.data);
       
       setBudgetJson(JSON.stringify(budgetData, null, 2));
       setProfileJson(JSON.stringify(profileRes.data, null, 2));
@@ -105,7 +110,8 @@ const Settings: React.FC = () => {
       await Promise.all([
         client.put('/api/settings/budget', finalBudget),
         client.put('/api/settings/profile', finalProfile),
-        client.put('/api/settings/mapping', finalMapping)
+        client.put('/api/settings/mapping', finalMapping),
+        client.put('/api/settings/env', envSettings)
       ]);
       
       setBudget(finalBudget);
@@ -119,6 +125,30 @@ const Settings: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleImportCsv = async () => {
+    if (!importFile) return;
+    
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', importFile);
+    
+    try {
+      await client.post('/api/import/csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setMessage({ text: 'CSVのインポートが完了しました', type: 'success' });
+      setImportFile(null);
+    } catch (error: any) {
+      setMessage({ text: `インポートに失敗しました: ${error.message}`, type: 'error' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const updateEnvField = (key: string, value: string) => {
+    setEnvSettings({ ...envSettings, [key]: value });
   };
 
   const handleSuggestMappings = async () => {
@@ -292,6 +322,12 @@ const Settings: React.FC = () => {
             </button>
             <button className={`tab-link ${activeTab === 'lifeplan' ? 'active' : ''}`} onClick={() => setActiveTab('lifeplan')}>
               <TrendingUp size={18} /> ライフプラン設定
+            </button>
+            <button className={`tab-link ${activeTab === 'import' ? 'active' : ''}`} onClick={() => setActiveTab('import')}>
+              <Upload size={18} /> データインポート
+            </button>
+            <button className={`tab-link ${activeTab === 'services' ? 'active' : ''}`} onClick={() => setActiveTab('services')}>
+              <Server size={18} /> 外部サービス連携
             </button>
           </div>
         )}
@@ -980,6 +1016,110 @@ const Settings: React.FC = () => {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'import' && (
+              <div className="card">
+                <div className="card-header">
+                  <h3><Upload size={20} /> データインポート (MoneyForward CSV)</h3>
+                </div>
+                <div className="card-body">
+                  <div className="alert-info mb-6" style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--primary)', fontSize: '0.9rem' }}>
+                    マネーフォワードMEからエクスポートした「入出金詳細.csv」をアップロードして、一括インポートします。
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>CSVファイルを選択</label>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <input 
+                        type="file" 
+                        accept=".csv" 
+                        className="form-control" 
+                        style={{ padding: '8px' }}
+                        onChange={(e) => setImportFile(e.target.files?.[0] || null)} 
+                      />
+                      <button 
+                        className="btn-primary" 
+                        onClick={handleImportCsv} 
+                        disabled={!importFile || importing}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        {importing ? 'インポート中...' : 'インポート開始'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'services' && (
+              <div className="card">
+                <div className="card-header">
+                  <h3><Server size={20} /> 外部サービス連携（初期設定）</h3>
+                </div>
+                <div className="card-body">
+                  <div className="alert-warning mb-6" style={{ background: 'rgba(255, 193, 7, 0.1)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--warning)', fontSize: '0.9rem' }}>
+                    <AlertTriangle size={16} className="inline mr-2" />
+                    ここでの設定はサーバー上の <code>.env</code> ファイルに直接保存されます。変更には十分注意してください。
+                  </div>
+
+                  <div className="dashboard-grid" style={{ padding: 0, gap: '2rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+MoneyForward 連携</h4>
+                      <div className="form-group">
+                        <label>MF ユーザーID (Email)</label>
+                        <input 
+                          type="text" className="form-control" 
+                          value={envSettings.MF_USER_ID || ''} 
+                          onChange={(e) => updateEnvField('MF_USER_ID', e.target.value)} 
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>MF パスワード</label>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            type="password" className="form-control" 
+                            id="mf-password-input"
+                            value={envSettings.MF_PASSWORD || ''} 
+                            onChange={(e) => updateEnvField('MF_PASSWORD', e.target.value)} 
+                          />
+                          <button 
+                            className="btn-icon" 
+                            style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}
+                            onClick={() => {
+                              const el = document.getElementById('mf-password-input') as HTMLInputElement;
+                              el.type = el.type === 'password' ? 'text' : 'password';
+                            }}
+                          >
+                            <Eye size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+AI & 通知設定</h4>
+                      <div className="form-group">
+                        <label>Gemini API Key</label>
+                        <input 
+                          type="text" className="form-control" 
+                          value={envSettings.GEMINI_API_KEY || ''} 
+                          onChange={(e) => updateEnvField('GEMINI_API_KEY', e.target.value)} 
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Slack Bot Token (xoxb-...)</label>
+                        <input 
+                          type="text" className="form-control" 
+                          value={envSettings.SLACK_BOT_TOKEN || ''} 
+                          onChange={(e) => updateEnvField('SLACK_BOT_TOKEN', e.target.value)} 
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
