@@ -54,9 +54,22 @@ cp local/kakeibo.db staging/local/kakeibo_staging.db
 ```
 
 ### C. デプロイ検証
-`main` ブランチにマージする前に、`staging` ブランチ（または PR ブランチ）を STG環境にデプロイして動作を確認する。
+`staging` ブランチにプッシュすると、GitHub Actions により Raspberry Pi の `/home/r410/kakeibo-staging` ディレクトリに自動デプロイされます。
 
-## 6. 今後の課題
-- CI/CD パイプライン（GitHub Actions）への STG デプロイジョブの追加。
+デプロイ後は以下のコマンドで状態を確認できます（Raspberry Pi上）：
+```bash
+cd /home/r410/kakeibo-staging
+docker compose -f docker-compose.staging.yml ps
+docker compose -f docker-compose.staging.yml logs backend --tail 50
+```
+
+## 6. CI/CD 設定の詳細
+`.github/workflows/ci-cd.yml` に `deploy-staging` ジョブが定義されています。
+- トリガー: `staging` ブランチへのプッシュ
+- デプロイ先: `/home/r410/kakeibo-staging`
+- 使用ファイル: `docker-compose.staging.yml`
+- 自動設定: `ACTIVE_MODEL=gemini-1.5-flash` によるコスト最適化
+
+## 7. 今後の課題
 - 自動リグレッションテスト (`tools/run_regression.py`) の STG環境での実行。
 - データの匿名化スクリプトの検討（個人情報保護が必要な場合）。
