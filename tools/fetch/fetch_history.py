@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from playwright.sync_api import sync_playwright
 
 # プロジェクトのルートをパスに追加
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.fetcher.moneyforward_fetcher import MoneyForwardFetcher
 from src.db.database import Database

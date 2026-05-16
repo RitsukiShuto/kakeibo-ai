@@ -71,5 +71,5 @@ docker compose -f docker-compose.staging.yml logs backend --tail 50
 - 自動設定: `ACTIVE_MODEL=gemini-1.5-flash` によるコスト最適化
 
 ## 7. 今後の課題
-- 自動リグレッションテスト (`tools/run_regression.py`) の STG環境での実行。
+- 自動リグレッションテスト (`python tools/cli.py qa regression`) の STG環境での実行。
 - データの匿名化スクリプトの検討（個人情報保護が必要な場合）。

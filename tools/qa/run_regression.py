@@ -41,7 +41,7 @@ def run_command(command, cwd=None, env=None, shell=True):
 def main():
     start_time = time.time()
     results = {}
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     
     print(f"{Colors.HEADER}{Colors.BOLD}🚀 Kakeibo AI Local Full Regression Suite{Colors.ENDC}")
     print(f"Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
