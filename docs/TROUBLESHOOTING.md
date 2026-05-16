@@ -50,7 +50,7 @@ docker compose restart frontend
 ### 3.4. マネーフォワード取得失敗 (Playwright)
 **症状**: `cron` サービスでマネーフォワードの取得が失敗する。
 - **対処**:
-    - セッションが切れている可能性があります。PC側で `tools/setup_mf_session.py` を実行し、新しい `local/mf_session` を Raspberry Pi へ転送してください。
+    - セッションが切れている可能性があります。PC側で `python tools/cli.py fetch setup-session` を実行し、新しい `local/mf_session` を Raspberry Pi へ転送してください。
     - Raspberry Pi がメモリ不足に陥っている可能性があります。スワップ領域を増やすことを検討してください。
 
 ### 3.5. データベースのロック

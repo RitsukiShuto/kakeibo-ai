@@ -45,10 +45,10 @@ PC側でセットアップが完了している場合、以下のスクリプト
 
 ```bash
 # PC(Windows)の場合
-powershell tools/sync_to_pi.ps1
+powershell tools/ops/sync_to_pi.ps1
 
 # PC(Mac/Linux)の場合
-bash tools/sync_to_pi.sh
+bash tools/ops/sync_to_pi.sh
 ```
 
 手動で転送する場合は、`local/` フォルダごと転送してください：

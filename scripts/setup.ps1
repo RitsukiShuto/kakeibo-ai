@@ -61,4 +61,4 @@ Write-Host "`n=== Setup Completed! ===" -ForegroundColor Cyan
 Write-Host "1. Edit 'local/.env' and set GEMINI_API_KEY, etc."
 Write-Host "2. Run 'powershell ./scripts/run.ps1 --no-headless' to login to MoneyForward."
 Write-Host "3. If you have historical CSVs, put them in 'data/import/transactions' and run:"
-Write-Host "   conda run -n $EnvName python tools/import_mf_csv.py [CSV_PATH]" -ForegroundColor Gray
+Write-Host "   conda run -n $EnvName python tools/cli.py import mf-csv [CSV_PATH]" -ForegroundColor Gray
