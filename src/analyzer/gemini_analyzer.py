@@ -292,6 +292,55 @@ class KakeiboAnalyzer:
                 return f.read()
         return ""
 
+    def _calculate_statistics(self, data: List[Transaction], budget: dict = None) -> dict:
+        """
+        明細データから統計情報を算出する
+        """
+        stats = {
+            "total_income": 0,
+            "total_expense": 0,
+            "category_totals": {},
+            "budget_usage": {},
+            "high_spending": []
+        }
+        
+        # カテゴリ別集計
+        for t in data:
+            if t.mode == "income":
+                stats["total_income"] += t.amount
+            elif t.mode == "payment":
+                amount = t.self_amount if t.is_reimbursement and t.self_amount is not None else t.amount
+                stats["total_expense"] += amount
+                
+                cat = t.category
+                stats["category_totals"][cat] = stats["category_totals"].get(cat, 0) + amount
+                
+                # 高額支出（1万円以上）
+                if amount >= 10000:
+                    stats["high_spending"].append({
+                        "date": t.transaction_date,
+                        "category": t.category,
+                        "amount": amount,
+                        "comment": t.comment
+                    })
+
+        # 高額支出を金額順にソート
+        stats["high_spending"].sort(key=lambda x: x["amount"], reverse=True)
+
+        # 予算消化率
+        if budget and "monthly" in budget:
+            monthly_categories = budget["monthly"].get("categories", {})
+            for cat, b_amount in monthly_categories.items():
+                actual = stats["category_totals"].get(cat, 0)
+                usage_rate = (actual / b_amount * 100) if b_amount > 0 else 0
+                stats["budget_usage"][cat] = {
+                    "budget": b_amount,
+                    "actual": actual,
+                    "usage_rate": round(usage_rate, 1)
+                }
+                
+        return stats
+
     def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None) -> str:
         text = f"### 分析期間: {timeframe}\n\n"
         
