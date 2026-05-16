@@ -5,7 +5,7 @@ from playwright.sync_api import sync_playwright
 from dotenv import load_dotenv
 
 # プロジェクトルートをインポートパスに追加
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, ROOT_DIR)
 
 local_dir_name = os.getenv("KAKEIBO_LOCAL_DIR", "local")
@@ -42,5 +42,8 @@ def setup_session():
         print("セッションを保存して終了します。")
         context.close()
 
-if __name__ == "__main__":
+def main():
     setup_session()
+
+if __name__ == "__main__":
+    main()

@@ -5,7 +5,7 @@ from datetime import datetime
 import argparse
 
 # プロジェクトのルートをパスに追加
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.db.database import Database
 from src.models import Transaction
