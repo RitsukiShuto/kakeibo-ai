@@ -33,8 +33,11 @@ def check_advice():
         print(f"FAILED: Advice check failed: {e}")
         return None
 
-if __name__ == "__main__":
+def main():
     print("--- Kakeibo AI Life Plan API Check ---")
     sim_data = check_simulation()
     if sim_data:
         check_advice()
+
+if __name__ == "__main__":
+    main()

@@ -21,7 +21,7 @@
 ### 🛠️ インフラ・自動化
 - **環境構築スクリプト**: Windows/Linux/Raspberry Pi (32/64bit) に対応した `setup.sh`, `setup_raspberry_pi.sh` 等。
 - **CI/CD (`.github/workflows/`)**: GitHub Actionsによる自動テスト(CI)と、ラズパイへの自動デプロイ(CD)。
-- **デバッグツール (`tools/`, `inspect_db.py`)**: Slack単体テストやDB確認用ツール。
+- **デバッグツール (`tools/cli.py`)**: 各種管理、テスト、DB確認用統合CLI。
 
 ---
 

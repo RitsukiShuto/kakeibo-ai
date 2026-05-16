@@ -66,10 +66,10 @@ jobs:
           
           # Systemd services update (API, Slack, Dashboard, Timer)
           # setup_systemd.sh を実行して最新のサービス定義を反映・有効化
-          chmod +x tools/setup_systemd.sh
+          chmod +x tools/ops/setup_systemd.sh
           # パスワード入力なしで実行できるよう、一部の権限は事前にユーザー側で設定されている前提
           # または、sudoers で設定されている前提。ここでは実行を試みる。
-          ./tools/setup_systemd.sh
+          ./tools/ops/setup_systemd.sh
 
       - name: Slack Notification (Success)
         if: success()

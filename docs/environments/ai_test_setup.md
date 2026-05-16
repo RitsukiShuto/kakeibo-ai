@@ -65,7 +65,7 @@ To initialize the AI-Test environment, follow these steps:
 
    ```bash
    export KAKEIBO_LOCAL_DIR=ai_test_local
-   python tools/import_mf_csv.py path/to/test_data.csv
+   python tools/cli.py import mf-csv path/to/test_data.csv
    ```
 
 ## 4. Execution

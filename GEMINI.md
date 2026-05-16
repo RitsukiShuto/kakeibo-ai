@@ -8,7 +8,7 @@
 2. **TDD (Test-Driven Development) の徹底**: すべての実装はテストを先に書く TDD 方式で進めます。バックエンド実装時や検証時には、実装の進捗に合わせて都度テスト設計を見直してください。
 3. **作業フローの遵守**: すべてのエージェントは `.gemini/WORKFLOW.md` に定義された標準作業手順（SOP）に従ってください。
 4. **セキュリティ第一**: バックエンド・フロントエンドの実装完了ごとに、必ず `security-reviewer` による監査を受けてください。
-5. **継続的検証**: 実装（backend/frontend）の後は、必ず `qa-tester` を通じて `run_regression.py` を実行し、品質を担保してください。
+5. **継続的検証**: 実装（backend/frontend）の後は、必ず `qa-tester` を通じて `python tools/cli.py qa regression` を実行し、品質を担保してください。
 6. **環境の分離 (重要)**: **本番環境（Raspberry Pi等）からソースコードをPullしたり、変更を同期したりすることは絶対に禁止です。** 本番環境特有のファイル（`prod_local/`）があるため、開発環境との競合やCIの失敗を招く恐れがあります。開発は必ずローカルの `dev_local/` 環境で完結させ、Git経由でデプロイしてください。
 
 ## 﨟槫柏 テスト戦略 (Quality First)
@@ -20,7 +20,7 @@
 | ティア | レベル | 実行タイミング | 実行内容 | 目的 |
 | :--- | :--- | :--- | :--- | :--- |
 | **Tier 1** | 単体 | 開発中（随時） | 関連する `pytest` | モジュール単位の即時検証 |
-| **Tier 2** | フル | **PR作成/マージ前** | `tools/run_regression.py` | 全体への影響とビルド成否の確認 |
+| **Tier 2** | フル | **PR作成/マージ前** | `python tools/cli.py qa regression` | 全体への影響とビルド成否の確認 |
 | **Tier 3** | CI | プッシュ時 | GitHub Actions | 最小限の型チェックとデプロイ可否判定 |
 
 ### 2. ローカル・フルリグレッションの実行
@@ -28,7 +28,7 @@
 PR を作成する前、および `main` ブランチにマージする前には、必ず以下のコマンドをローカル環境で実行し、すべてのチェックが **PASS** することを確認してください。
 
 ```bash
-python tools/run_regression.py
+python tools/cli.py qa regression
 ```
 
 このスクリプトは以下の項目を自動で検証します。
@@ -49,7 +49,7 @@ python tools/run_regression.py
 2. **`staging` ブランチ**: 準本番環境への反映用。作業ブランチからの PR はまずここへマージします。Raspberry Pi 上のステージング環境で動作確認を行います。
 3. **`main` ブランチ**: 本番環境。`staging` での検証完了後、`staging` から `main` への PR を作成し、マージすることで本番デプロイが実行されます。
 
-PR の説明欄には、必ず **「`tools/run_regression.py` をパスした旨（またはその出力）」** を記載してください。これをパスしていない PR はマージされません。
+PR の説明欄には、必ず **「`python tools/cli.py qa regression` をパスした旨（またはその出力）」** を記載してください。これをパスしていない PR はマージされません。
 
 ---
 
@@ -84,7 +84,7 @@ docker compose logs backend --tail 50
 ### スクリプトの実行方法
 開発や運用のためのスクリプトを実行する際は、プロジェクトのルートディレクトリから以下の形式で実行してください。
 
-- **Python ツール**: `python tools/xxx.py` (例: `python tools/import_mf_csv.py`)
+- **Python ツール (推奨)**: `python tools/cli.py <category> <command>` (例: `python tools/cli.py fetch history`)
 - **シェルスクリプト**: `bash scripts/xxx.sh` (例: `bash scripts/setup.sh`)
 
 ---
