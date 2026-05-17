@@ -342,15 +342,15 @@ const Settings: React.FC = () => {
                   </div>
                   <div className="card-body">
                     <div className="model-grid">
-                      {aiSettings?.available_models.map((model) => (
+                      {aiSettings?.available_models?.map((model) => (
                         <div 
                           key={model.id} 
-                          className={`model-card ${aiSettings.active_model === model.id ? 'active' : ''}`}
+                          className={`model-card ${aiSettings?.active_model === model.id ? 'active' : ''}`}
                           onClick={() => handleModelChange(model.id)}
                         >
                           <div className="model-header">
                             <div className="model-name">{model.name}</div>
-                            {aiSettings.active_model === model.id && <CheckCircle2 size={18} className="text-primary" />}
+                            {aiSettings?.active_model === model.id && <CheckCircle2 size={18} className="text-primary" />}
                           </div>
                           <div className="model-desc">{model.description}</div>
                           <div className="model-id">{model.id}</div>
