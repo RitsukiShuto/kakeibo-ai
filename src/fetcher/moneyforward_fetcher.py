@@ -34,16 +34,8 @@ class MoneyForwardFetcher(BaseFetcher):
                 self.logger.warning("--- SETUP MODE --- Please complete login in the browser.")
                 page.wait_for_url("https://moneyforward.com/", timeout=300000)
             else:
-                self.logger.info("Logging in to MoneyForward...")
-                try:
-                    page.fill('input[name="user[email]"]', self.user_id)
-                    page.click('input[type="submit"]')
-                    page.fill('input[name="user[password]"]', self.password)
-                    page.click('input[type="submit"]')
-                    time.sleep(5)
-                except Exception as e:
-                    self.logger.error(f"Auto login failed: {e}")
-                    return False
+                self.logger.warning("Session is invalid or expired. Auto-login is disabled due to Captcha.")
+                return "NEEDS_SETUP"
 
         self.logger.info("Updating financial data...")
         page.goto("https://moneyforward.com/", wait_until="networkidle")
@@ -84,7 +76,29 @@ class MoneyForwardFetcher(BaseFetcher):
             browser_context = self._launch_browser(p, headless)
             page = browser_context.new_page()
             
-            if not self._login_and_update(page, headless):
+            login_result = self._login_and_update(page, headless)
+            if login_result == "NEEDS_SETUP":
+                browser_context.close()
+                self.logger.info("Relaunching browser in non-headless mode for manual login...")
+                browser_context = self._launch_browser(p, headless=False)
+                page = browser_context.new_page()
+                page.goto("https://moneyforward.com/users/sign_in")
+                self.logger.warning("--- SETUP MODE --- Please complete login in the browser.")
+                try:
+                    page.wait_for_url("https://moneyforward.com/", timeout=300000)
+                    self.logger.info("Manual login successful. Restarting headless fetch...")
+                except Exception as e:
+                    self.logger.error(f"Manual login timed out or failed: {e}")
+                    browser_context.close()
+                    return []
+                browser_context.close()
+                
+                # Restart headless
+                browser_context = self._launch_browser(p, headless)
+                page = browser_context.new_page()
+                login_result = self._login_and_update(page, headless)
+                
+            if not login_result or login_result == "NEEDS_SETUP":
                 browser_context.close()
                 return []
 
@@ -128,7 +142,29 @@ class MoneyForwardFetcher(BaseFetcher):
             with sync_playwright() as p:
                 browser_context = self._launch_browser(p, headless)
                 page = browser_context.new_page()
-                if not self._login_and_update(page, headless):
+                login_result = self._login_and_update(page, headless)
+                if login_result == "NEEDS_SETUP":
+                    browser_context.close()
+                    self.logger.info("Relaunching browser in non-headless mode for manual login...")
+                    browser_context = self._launch_browser(p, headless=False)
+                    page = browser_context.new_page()
+                    page.goto("https://moneyforward.com/users/sign_in")
+                    self.logger.warning("--- SETUP MODE --- Please complete login in the browser.")
+                    try:
+                        page.wait_for_url("https://moneyforward.com/", timeout=300000)
+                        self.logger.info("Manual login successful. Restarting headless fetch...")
+                    except Exception as e:
+                        self.logger.error(f"Manual login timed out or failed: {e}")
+                        browser_context.close()
+                        return []
+                    browser_context.close()
+                    
+                    # Restart headless
+                    browser_context = self._launch_browser(p, headless)
+                    page = browser_context.new_page()
+                    login_result = self._login_and_update(page, headless)
+                    
+                if not login_result or login_result == "NEEDS_SETUP":
                     browser_context.close()
                     return []
                 result = self._download_csv_direct(page, year, month)
@@ -163,7 +199,29 @@ class MoneyForwardFetcher(BaseFetcher):
             browser_context = self._launch_browser(p, headless)
             page = browser_context.new_page()
             
-            if not self._login_and_update(page, headless):
+            login_result = self._login_and_update(page, headless)
+            if login_result == "NEEDS_SETUP":
+                browser_context.close()
+                self.logger.info("Relaunching browser in non-headless mode for manual login...")
+                browser_context = self._launch_browser(p, headless=False)
+                page = browser_context.new_page()
+                page.goto("https://moneyforward.com/users/sign_in")
+                self.logger.warning("--- SETUP MODE --- Please complete login in the browser.")
+                try:
+                    page.wait_for_url("https://moneyforward.com/", timeout=300000)
+                    self.logger.info("Manual login successful. Restarting headless fetch...")
+                except Exception as e:
+                    self.logger.error(f"Manual login timed out or failed: {e}")
+                    browser_context.close()
+                    return []
+                browser_context.close()
+                
+                # Restart headless
+                browser_context = self._launch_browser(p, headless)
+                page = browser_context.new_page()
+                login_result = self._login_and_update(page, headless)
+                
+            if not login_result or login_result == "NEEDS_SETUP":
                 browser_context.close()
                 return []
 
@@ -269,7 +327,29 @@ class MoneyForwardFetcher(BaseFetcher):
             page = browser_context.pages[0]
             
             # ログイン状態を確認
-            if not self._login_and_update(page, headless):
+            login_result = self._login_and_update(page, headless)
+            if login_result == "NEEDS_SETUP":
+                browser_context.close()
+                self.logger.info("Relaunching browser in non-headless mode for manual login...")
+                browser_context = self._launch_browser(p, headless=False)
+                page = browser_context.pages[0]
+                page.goto("https://moneyforward.com/users/sign_in")
+                self.logger.warning("--- SETUP MODE --- Please complete login in the browser.")
+                try:
+                    page.wait_for_url("https://moneyforward.com/", timeout=300000)
+                    self.logger.info("Manual login successful. Restarting headless fetch...")
+                except Exception as e:
+                    self.logger.error(f"Manual login timed out or failed: {e}")
+                    browser_context.close()
+                    return {}
+                browser_context.close()
+                
+                # Restart headless
+                browser_context = self._launch_browser(p, headless)
+                page = browser_context.pages[0]
+                login_result = self._login_and_update(page, headless)
+                
+            if not login_result or login_result == "NEEDS_SETUP":
                 browser_context.close()
                 return {}
 
