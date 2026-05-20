@@ -41,7 +41,8 @@ def test_mf_login_success(mock_playwright, mock_mf_env):
     fetcher = MoneyForwardFetcher()
     _, _, mock_page = setup_mock_playwright(mock_playwright)
     
-    mock_page.url = "https://moneyforward.com/users/sign_in"
+    # Session is valid
+    mock_page.url = "https://moneyforward.com/"
     mock_update_btn = MagicMock()
     mock_update_btn.is_visible.return_value = True
     mock_page.locator.return_value.first = mock_update_btn
@@ -51,14 +52,15 @@ def test_mf_login_success(mock_playwright, mock_mf_env):
     assert result is True
 
 @patch('src.fetcher.moneyforward_fetcher.sync_playwright')
-def test_mf_login_fail(mock_playwright, mock_mf_env):
+def test_mf_needs_setup_when_headless(mock_playwright, mock_mf_env):
     fetcher = MoneyForwardFetcher()
     _, _, mock_page = setup_mock_playwright(mock_playwright)
+    
+    # Session is invalid
     mock_page.url = "https://moneyforward.com/users/sign_in"
-    mock_page.fill.side_effect = Exception("Login Error")
     
     result = fetcher._login_and_update(mock_page, headless=True)
-    assert result is False
+    assert result == "NEEDS_SETUP"
 
 @patch('src.fetcher.moneyforward_fetcher.sync_playwright')
 def test_mf_fetch_transactions(mock_playwright, mock_mf_env):
