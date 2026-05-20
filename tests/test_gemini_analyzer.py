@@ -61,3 +61,50 @@ def test_analyze_kakeibo_failure(mock_provider, mock_env):
     result = analyzer.analyze_kakeibo([], [], "monthly", {"user": {"target": {}}})
 
     assert result is None
+
+def test_daily_prompt_includes_date_info(mock_provider, mock_env):
+    """daily timeframe が集計日・残り日数・固定費情報を含むことをテスト"""
+    mock_provider.get_model_name.return_value = "gemini-2.0-flash"
+    mock_provider.generate_content.return_value = '''{
+        "slack_report": "テスト詳細レポート",
+        "obsidian_report": "# テストレポート",
+        "actions": [],
+        "asset_breakdown": [],
+        "budget_status": [],
+        "totonoi_score": 80,
+        "savings_potential": 0
+    }'''
+
+    analyzer = KakeiboAnalyzer()
+
+    # daily 用の budget: fixed と variable を定義
+    budget = {
+        "monthly": {
+            "budget": {
+                "fixed": {"家賃": 80000, "光熱費": 10000, "通信費": 5000},
+                "variable": {"食費": 30000, "交際費": 10000}
+            }
+        }
+    }
+    profile = {"user": {"target": {}}}
+
+    with patch('src.analyzer.gemini_analyzer.datetime') as mock_datetime:
+        # 日付を固定（5月15日）
+        from datetime import datetime as real_datetime
+        mock_datetime.now.return_value = real_datetime(2024, 5, 15)
+        mock_datetime.side_effect = lambda *args, **kw: real_datetime(*args, **kw)
+
+        result = analyzer.analyze_kakeibo([], [], "daily", profile, budget)
+
+    assert result is not None
+    # generate_content が呼ばれたか確認
+    mock_provider.generate_content.assert_called_once()
+    
+    # 呼び出し引数を取得して、daily 専用情報が含まれているか確認
+    call_args = mock_provider.generate_content.call_args
+    user_prompt = call_args.kwargs.get('user_prompt', '')
+    
+    assert "集計基準日" in user_prompt
+    assert "今月の残り日数" in user_prompt
+    assert "固定費合計" in user_prompt
+    assert "95,000" in user_prompt  # 80000+10000+5000 = 95000
