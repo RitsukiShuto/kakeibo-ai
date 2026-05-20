@@ -327,7 +327,7 @@ const Settings: React.FC = () => {
               <Upload size={18} /> データインポート
             </button>
             <button className={`tab-link ${activeTab === 'services' ? 'active' : ''}`} onClick={() => setActiveTab('services')}>
-              <Server size={18} /> API & 通知設定
+              <Server size={18} /> 外部サービス連携
             </button>
           </div>
         )}
@@ -1057,7 +1057,7 @@ const Settings: React.FC = () => {
             {activeTab === 'services' && (
               <div className="card">
                 <div className="card-header">
-                  <h3><Server size={20} /> API & 通知設定</h3>
+                  <h3><Server size={20} /> 外部サービス連携（初期設定）</h3>
                 </div>
                 <div className="card-body">
                   <div className="alert-warning mb-6" style={{ background: 'rgba(255, 193, 7, 0.1)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--warning)', fontSize: '0.9rem' }}>
@@ -1065,7 +1065,41 @@ const Settings: React.FC = () => {
                     ここでの設定はサーバー上の <code>.env</code> ファイルに直接保存されます。変更には十分注意してください。
                   </div>
 
-                  <div className="dashboard-grid" style={{ padding: 0, gap: '2rem', gridTemplateColumns: '1fr' }}>
+                  <div className="dashboard-grid" style={{ padding: 0, gap: '2rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                      <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+MoneyForward 連携</h4>
+                      <div className="form-group">
+                        <label>MF ユーザーID (Email)</label>
+                        <input 
+                          type="text" className="form-control" 
+                          value={envSettings.MF_USER_ID || ''} 
+                          onChange={(e) => updateEnvField('MF_USER_ID', e.target.value)} 
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>MF パスワード</label>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            type="password" className="form-control" 
+                            id="mf-password-input"
+                            value={envSettings.MF_PASSWORD || ''} 
+                            onChange={(e) => updateEnvField('MF_PASSWORD', e.target.value)} 
+                          />
+                          <button 
+                            className="btn-icon" 
+                            style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}
+                            onClick={() => {
+                              const el = document.getElementById('mf-password-input') as HTMLInputElement;
+                              el.type = el.type === 'password' ? 'text' : 'password';
+                            }}
+                          >
+                            <Eye size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                       <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
 AI & 通知設定</h4>
