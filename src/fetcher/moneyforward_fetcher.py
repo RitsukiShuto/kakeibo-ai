@@ -145,6 +145,13 @@ class MoneyForwardFetcher(BaseFetcher):
                 login_result = self._login_and_update(page, headless)
                 if login_result == "NEEDS_SETUP":
                     browser_context.close()
+                    # Docker環境などでGUIがない場合は、headless=Falseを実行せずにエラーを返す
+                    if not os.environ.get("DISPLAY"):
+                        self.logger.error(
+                            "MF session is expired and GUI environment is not available. "
+                            "To update the session, run the session update script on the host OS with VNC/Desktop access."
+                        )
+                        return []
                     self.logger.info("Relaunching browser in non-headless mode for manual login...")
                     browser_context = self._launch_browser(p, headless=False)
                     page = browser_context.new_page()
@@ -202,6 +209,13 @@ class MoneyForwardFetcher(BaseFetcher):
             login_result = self._login_and_update(page, headless)
             if login_result == "NEEDS_SETUP":
                 browser_context.close()
+                # Docker環境などでGUIがない場合は、headless=Falseを実行せずにエラーを返す
+                if not os.environ.get("DISPLAY"):
+                    self.logger.error(
+                        "MF session is expired and GUI environment is not available. "
+                        "To update the session, run the session update script on the host OS with VNC/Desktop access."
+                    )
+                    return []
                 self.logger.info("Relaunching browser in non-headless mode for manual login...")
                 browser_context = self._launch_browser(p, headless=False)
                 page = browser_context.new_page()
@@ -306,6 +320,19 @@ class MoneyForwardFetcher(BaseFetcher):
                 return []
 
     def _launch_browser(self, p, headless: bool):
+        # Docker環境などでheadless=Falseを実行するとクラッシュするため、
+        # GUI環境（DISPLAY）の有無をチェックする
+        if not headless and not os.environ.get("DISPLAY"):
+            self.logger.error(
+                "Cannot launch headed browser: DISPLAY environment variable is not set. "
+                "This usually means running in a Docker container without X11 forwarding. "
+                "To update the MF session, run the session update script on the host OS with VNC/Desktop access."
+            )
+            raise RuntimeError(
+                "GUI環境が見つかりません。Dockerコンテナ内でheadless=Falseを実行することはできません。"
+                "セッションを更新する場合は、ホストOSでVNC経由でセッション更新スクリプトを実行してください。"
+            )
+        
         browser_context = p.chromium.launch_persistent_context(
             self.user_data_dir,
             headless=headless,
@@ -330,6 +357,13 @@ class MoneyForwardFetcher(BaseFetcher):
             login_result = self._login_and_update(page, headless)
             if login_result == "NEEDS_SETUP":
                 browser_context.close()
+                # Docker環境などでGUIがない場合は、headless=Falseを実行せずにエラーを返す
+                if not os.environ.get("DISPLAY"):
+                    self.logger.error(
+                        "MF session is expired and GUI environment is not available. "
+                        "To update the session, run the session update script on the host OS with VNC/Desktop access."
+                    )
+                    return {}
                 self.logger.info("Relaunching browser in non-headless mode for manual login...")
                 browser_context = self._launch_browser(p, headless=False)
                 page = browser_context.pages[0]
