@@ -267,7 +267,25 @@ def test_env_settings():
     assert "LLM_PROVIDER" in data
 
 def test_csv_import_format_check():
-    # Invalid file type
-    files = {'file': ('test.txt', b'hello', 'text/plain')}
+    # Invalid file type (non-CSV)
+    # FastAPI expects list of tuples for multiple files with the same field name
+    files = [('files', ('test.txt', b'hello', 'text/plain'))]
     response = client.post("/api/import/csv", files=files)
-    assert response.status_code == 400
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "partial_success"
+    assert any("test.txt" in d.get("file", "") and d.get("status") == "skipped" for d in data.get("details", []))
+
+def test_csv_import_multiple_files():
+    # Test multiple CSV files upload
+    csv_content1 = "日付,金額,大項目,中項目,内容,計算対象\n2024/01/01,-1000,食費,外食,ランチ,1"
+    csv_content2 = "日付,金額,大項目,中項目,内容,計算対象\n2024/01/02,-2000,交通費,電車,通勤,1"
+    files = [
+        ('files', ('test1.csv', csv_content1.encode('cp932'), 'text/csv')),
+        ('files', ('test2.csv', csv_content2.encode('cp932'), 'text/csv'))
+    ]
+    response = client.post("/api/import/csv", files=files)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_files"] == 2
+    assert data["total_imported"] >= 2
