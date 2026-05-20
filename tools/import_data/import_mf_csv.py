@@ -31,7 +31,7 @@ def import_csv(path: str, db_path: str):
     else:
         _process_single_csv(path, db_path)
 
-def _process_single_csv(file_path: str, db_path: str):
+def _process_single_csv(file_path: str, db_path: str) -> int:
     print(f"Reading CSV: {file_path}")
     try:
         # マネーフォワードのCSVは通常 cp932 (Shift-JIS)
@@ -43,7 +43,7 @@ def _process_single_csv(file_path: str, db_path: str):
             df = pd.read_csv(file_path, encoding="utf-8")
         except Exception as e2:
             print(f"Failed to read CSV: {e2}")
-            return
+            return 0
 
     def find_col(possible_names):
         for col in df.columns:
@@ -64,7 +64,7 @@ def _process_single_csv(file_path: str, db_path: str):
     missing = [k for k, v in required.items() if v is None]
     if missing:
         print(f"Error: Required columns missing: {missing}")
-        return
+        return 0
 
     db = Database(db_path=db_path)
     transactions = []
@@ -104,8 +104,10 @@ def _process_single_csv(file_path: str, db_path: str):
         print(f"Saving {len(transactions)} transactions to database...")
         db.save_transactions(transactions)
         print("Import successful!")
+        return len(transactions)
     else:
         print("No valid transactions found.")
+        return 0
 
 if __name__ == "__main__":
     local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")

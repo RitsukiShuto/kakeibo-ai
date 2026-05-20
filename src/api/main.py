@@ -555,32 +555,45 @@ async def delete_transaction(transaction_id: str):
             conn.close()
 
 @app.post("/api/import/csv")
-async def import_transactions_csv(file: UploadFile = File(...)):
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="Only CSV files are supported")
-        
-    try:
-        # 一時ファイルとして保存
-        temp_path = f"data/import/{file.filename}"
-        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
-        with open(temp_path, "wb") as buffer:
-            import shutil
-            shutil.copyfileobj(file.file, buffer)
+async def import_transactions_csv(files: list[UploadFile] = File(...)):
+    results = []
+    total_imported = 0
+    errors = []
+    
+    from tools.import_data.import_mf_csv import _process_single_csv
+    db_path = get_db_path()
+    
+    for file in files:
+        if not file.filename.endswith('.csv'):
+            errors.append({"file": file.filename, "status": "skipped", "reason": "Not a CSV file"})
+            continue
             
-        # インポート実行 (import_mf_csv のロジックを流用)
-        from tools.import_data.import_mf_csv import _process_single_csv
-        db_path = get_db_path()
-        _process_single_csv(temp_path, db_path)
-        
-        # 処理が終わったら一時ファイルを削除
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        try:
+            temp_path = f"data/import/{file.filename}"
+            os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+            with open(temp_path, "wb") as buffer:
+                import shutil
+                shutil.copyfileobj(file.file, buffer)
+                
+            # インポート実行
+            imported_count = _process_single_csv(temp_path, db_path)
+            total_imported += imported_count
+            results.append({"file": file.filename, "status": "success", "imported": imported_count})
             
-        return {"status": "success", "message": f"Successfully imported {file.filename}"}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+            # 処理が終わったら一時ファイルを削除
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            errors.append({"file": file.filename, "status": "error", "reason": str(e)})
+            
+    return {
+        "status": "success" if not errors else "partial_success",
+        "total_files": len(files),
+        "total_imported": total_imported,
+        "details": results + errors
+    }
 
 @app.get("/api/settings/env")
 async def get_env_settings():
