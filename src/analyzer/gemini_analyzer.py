@@ -337,6 +337,26 @@ class KakeiboAnalyzer:
     def _create_user_input_text(self, data: List[Transaction], assets_summary: List[dict], timeframe: str, budget: dict = None, previous_summary: Optional[str] = None, actual_monthly_income: int = 0, comparison_data: dict = None, pending_reimbursements: List[Transaction] = None, stats: dict = None) -> str:
         text = f"### 分析期間: {timeframe}\n\n"
         
+        # daily 専用の追加情報
+        if timeframe == "daily":
+            from datetime import datetime
+            now = datetime.now()
+            import calendar
+            days_in_month = calendar.monthrange(now.year, now.month)[1]
+            remaining_days = days_in_month - now.day
+            
+            # 固定費合計の計算
+            fixed_expense_total = 0
+            if budget and "monthly" in budget:
+                fixed_categories = budget["monthly"].get("budget", {}).get("fixed", {})
+                fixed_expense_total = sum(fixed_categories.values()) if fixed_categories else 0
+            
+            text += "#### 📅 日次分析専用情報\n"
+            text += f"- 集計基準日: {now.strftime('%Y年%m月%d日')}\n"
+            text += f"- 今月の残り日数: {remaining_days}日（月末まで）\n"
+            text += f"- 今月の固定費合計（日割り計算から除外する額）: {fixed_expense_total:,}円\n"
+            text += f"- 今月の総日数: {days_in_month}日\n\n"
+        
         if previous_summary:
             text += f"#### 0. 前回の分析サマリー\n{previous_summary}\n\n"
 
