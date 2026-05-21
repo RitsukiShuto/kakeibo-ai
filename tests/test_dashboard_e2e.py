@@ -5,6 +5,8 @@ import pytest
 from playwright.sync_api import sync_playwright
 from datetime import date
 
+DASHBOARD_URL = os.getenv("DASHBOARD_URL", "http://localhost:5173")
+
 # テスト用DBの設定
 DB_PATH = os.getenv("KAKEIBO_DB_PATH", "local/test_dashboard.db")
 
@@ -98,7 +100,7 @@ def test_dashboard_e2e():
         try:
             print("Accessing Dashboard...")
             # React Frontend (Vite)
-            page.goto("http://localhost:5173", wait_until="networkidle", timeout=30000)
+            page.goto(DASHBOARD_URL, wait_until="networkidle", timeout=30000)
             
             # サイドバーの確認
             page.wait_for_selector("text=ダッシュボード", timeout=15000)
