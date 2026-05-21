@@ -7,7 +7,10 @@ from .ollama import OllamaProvider
 class LLMFactory:
     @staticmethod
     def create_provider() -> BaseLLMProvider:
-        provider_type = os.getenv("LLM_PROVIDER", "gemini").lower()
+        provider_type = os.getenv("LLM_PROVIDER", "gemini")
+        if not provider_type:
+            provider_type = "gemini"
+        provider_type = provider_type.lower()
         
         # モデル名の取得 (設定ファイル優先)
         settings_path = "local/config/settings.json"
