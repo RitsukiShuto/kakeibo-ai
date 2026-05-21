@@ -198,8 +198,16 @@ class SlackNotifier:
             return
 
         try:
+            actual_channel = target_channel
+            if target_channel.startswith("U"):
+                try:
+                    dm_response = self.client.conversations_open(users=[target_channel])
+                    actual_channel = dm_response["channel"]["id"]
+                except Exception as e:
+                    print(f"Failed to open DM with user {target_channel}: {e}")
+
             response = self.client.files_upload_v2(
-                channel=target_channel,
+                channel=actual_channel,
                 file=file_path,
                 title=title,
                 initial_comment=f"📊 {title}"

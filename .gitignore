@@ -60,3 +60,8 @@ dashboard_review.md
 issue_body.md
 staging/
 backend_log.txt
+
+# --- Generated / Dev Artifacts ---
+.omo/
+infra/docker/run_cron.sh
+infra/docker/crontab_dev

@@ -9,7 +9,7 @@ class Transaction(BaseModel):
     transaction_id: Optional[str] = Field(None, description="明細の一意識別子（MFやZaimのIDなど）")
     transaction_date: date_type = Field(..., description="決済日")
     category: str = Field(..., description="大項目（食費、住居費など）")
-    genre: str = Field("", description="中項目（外食、家賃など）")
+    genre: Optional[str] = Field("", description="中項目（外食、家賃など）")
     amount: int = Field(..., description="金額")
     comment: str = Field("", description="備考・内容")
     source: str = Field(..., description="データ元")

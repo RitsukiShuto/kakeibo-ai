@@ -1,49 +1,60 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: kakeibo-ollama
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: kakeibo-api-dev
+    network_mode: "host"
+    command: python src/api/main.py
     volumes:
       - .:/app
       - ./dev_local:/app/local
-    ports:
-      - "8000:8000"
     environment:
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_BASE_URL=http://127.0.0.1:11434
       - KAKEIBO_DB_PATH=local/kakeibo.db
-    depends_on:
-      - ollama
+      - KAKEIBO_LOCAL_DIR=dev_local
+
+  slack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kakeibo-slack-dev
+    network_mode: "host"
+    command: python src/output/slack_server.py
+    volumes:
+      - .:/app
+      - ./dev_local:/app/local
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=http://127.0.0.1:11434
+      - KAKEIBO_DB_PATH=local/kakeibo.db
+      - KAKEIBO_LOCAL_DIR=dev_local
+
+  cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kakeibo-cron-dev
+    network_mode: "host"
+    entrypoint: /bin/bash /app/infra/docker/entrypoint-cron.sh
+    volumes:
+      - .:/app
+      - ./dev_local:/app/local
+      - ./logs:/app/logs
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=http://127.0.0.1:11434
+      - KAKEIBO_DB_PATH=local/kakeibo.db
+      - KAKEIBO_LOCAL_DIR=dev_local
+      - IS_DEV_ENV=true
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: kakeibo-frontend-dev
-    ports:
-      - "5173:80"
-    depends_on:
-      - backend
+    network_mode: "host"
 
 volumes:
   ollama_data:
