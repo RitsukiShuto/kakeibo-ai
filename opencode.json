@@ -1,54 +1,47 @@
 {
-  "$schema": "https://opencode.ai/config.json",
-  "model": "ollama/qwen3.6",
-  "small_model": "ollama/qwen3.6",
-  "default_agent": "task-manager",
-  "instructions": ["AGENTS.md"],
-  "agent": {
-    "task-manager": {
-      "description": "Project management and state tracking specialist. Manages PROJECT_BACKLOG.md, defines execution steps, and monitors overall progress.",
-      "mode": "primary",
-      "model": "ollama/qwen3.6"
+    "$schema": "https://opencode.ai/config.json",
+    "provider": {
+        "google": {
+            "whitelist": [
+                "gemini-3.1-pro-preview",
+                "gemini-3.5-flash"
+            ],
+            "models": {
+                "gemini-3.1-pro-preview": {
+                    "options": {
+                        "thinkingConfig": {
+                            "thinkingLevel": "high",
+                            "includeThoughts": true
+                        }
+                    }
+                }
+            }
+        },
+        "ollama": {
+            "npm": "@ai-sdk/openai-compatible",
+            "name": "Ollama (local)",
+            "options": {
+                "baseURL": "http://localhost:11434/v1"
+            },
+            "models": {
+                "qwen3.6:latest": {
+                    "name": "qwen3.6:latest(Local)",
+                    "tools": true
+                },
+                "qwen2.5-coder:14b": {
+                    "name": "qwen2.5-coder:14b",
+                    "tools": true
+                }
+            }
+        }
     },
-    "agent-manager": {
-      "description": "Multi-agent orchestrator and context dispatcher. Monitors agent lifecycles, dispatches tasks, and resolves inter-agent context conflicts.",
-      "mode": "subagent",
-      "model": "ollama/qwen3.6"
-    },
-    "backend-engineer": {
-      "description": "Python, FastAPI, SQLAlchemy, and AI API integration specialist. Handles core business logic, database migrations, and analysis pipelines.",
-      "mode": "subagent",
-      "model": "ollama/qwen3.6"
-    },
-    "frontend-engineer": {
-      "description": "React, TypeScript, and CSS specialist. Focuses on building modern, responsive, and intuitive UI/UX for the kakeibo-ai dashboard.",
-      "mode": "subagent",
-      "model": "ollama/qwen3.6"
-    },
-    "data-analyst": {
-      "description": "Financial data analytics and prompt optimization specialist. Analyzes user spending trends and validates analysis pipelines.",
-      "mode": "subagent",
-      "model": "ollama/qwen3.6"
-    },
-    "security-reviewer": {
-      "description": "Security and safety audit specialist. Reviews backend and frontend implementations for vulnerabilities, data leakage, and compliance with best practices.",
-      "mode": "subagent",
-      "model": "ollama/qwen3.6"
-    },
-    "qa-tester": {
-      "description": "Quality assurance and testing automation specialist. Manages pytest, Playwright, and regression execution to ensure zero regressions.",
-      "mode": "subagent",
-      "model": "ollama/qwen3.6"
-    },
-    "sre-deploy": {
-      "description": "Infrastructure, Docker, and Deployment specialist. Manages Raspberry Pi environment, systemd services, and CI/CD pipelines.",
-      "mode": "subagent",
-      "model": "ollama/qwen3.6"
-    },
-    "issue-proposer": {
-      "description": "Project roadmap and feature proposal specialist. Analyzes backlog, user needs, and code health to suggest impactful improvements.",
-      "mode": "subagent",
-      "model": "ollama/qwen3.6"
-    }
-  }
+    "model": "google/gemini-3.1-pro-preview",
+    "small_model": "google/gemini-3.5-flash",
+    "default_agent": "task-manager",
+    "instructions": [
+        "AGENTS.md"
+    ],
+    "plugin": [
+        "opencode-gemini-auth@latest"
+    ]
 }
