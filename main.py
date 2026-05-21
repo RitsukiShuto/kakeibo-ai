@@ -242,8 +242,9 @@ def main():
         schedule = load_config("local/config/schedule.json")
         target_timeframes = get_scheduled_timeframes(schedule)
         if not target_timeframes:
-            print("No task scheduled. Defaulting to weekly for manual run.")
-            target_timeframes = ["weekly"]
+            default_tf = os.getenv("DEFAULT_TIMEFRAME", "weekly")
+            print(f"No task scheduled. Defaulting to {default_tf} for manual run.")
+            target_timeframes = [default_tf]
 
     # fetch-onlyの場合はデータ取得のみ
     if args.fetch_only:
@@ -262,7 +263,7 @@ def main():
     # 各タイムフレームを実行
     current_skip_fetch = args.skip_fetch
     for i, tf in enumerate(target_timeframes):
-        print(f"\n🚀 Starting Review for timeframe: {tf}")
+        print(f"\\n🚀 Starting Review for timeframe: {tf}")
         run_review(
             timeframe=tf,
             source=args.source,
@@ -274,8 +275,7 @@ def main():
             output_console=args.console
         )
         # 2回目以降は、fetchをスキップするように設定（初回で取得済みの前提）
-        if not args.skip_fetch:
-            current_skip_fetch = True
+        current_skip_fetch = True
 
 if __name__ == "__main__":
     main()

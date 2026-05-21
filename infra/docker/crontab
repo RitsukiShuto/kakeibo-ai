@@ -1,4 +1,4 @@
 # kakeibo-ai crontab
 # 毎日 23:50 に自動レビューを実行
-50 23 * * * cd /app && /usr/bin/python main.py >> /app/logs/cron_execution.log 2>&1
+50 23 * * * /app/infra/docker/run_cron.sh
 # 空行が必要

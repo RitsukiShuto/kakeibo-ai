@@ -268,14 +268,24 @@ class KakeiboAnalyzer:
             for t in recent_transactions[:10]:
                 system_prompt += f"- {t.transaction_date}: {t.category}({t.genre}) {t.amount}円 {t.comment}\n"
 
+        original_model = None
+        if model_override:
+            original_model = self.provider.model_name
+            self.provider.model_name = model_override
+
         try:
-            return self.provider.chat(
+            result = self.provider.chat(
                 system_prompt=system_prompt,
                 history=history or [],
                 message=message,
                 temperature=0.7
             )
+            if original_model:
+                self.provider.model_name = original_model
+            return result
         except Exception as e:
+            if original_model:
+                self.provider.model_name = original_model
             print(f"Chat error: {e}")
             return "ごめん、ちょっと調子が悪いみたい。後でもう一度話しかけてね！"
 
@@ -349,7 +359,16 @@ class KakeiboAnalyzer:
             fixed_expense_total = 0
             if budget and "monthly" in budget:
                 fixed_categories = budget["monthly"].get("budget", {}).get("fixed", {})
-                fixed_expense_total = sum(fixed_categories.values()) if fixed_categories else 0
+                if fixed_categories:
+                    def recursive_sum(d):
+                        total = 0
+                        for v in d.values():
+                            if isinstance(v, dict):
+                                total += recursive_sum(v)
+                            elif isinstance(v, (int, float)):
+                                total += v
+                        return total
+                    fixed_expense_total = recursive_sum(fixed_categories)
             
             text += "#### 📅 日次分析専用情報\n"
             text += f"- 集計基準日: {now.strftime('%Y年%m月%d日')}\n"

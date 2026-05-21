@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import threading
 from datetime import datetime
 
@@ -42,7 +43,7 @@ app = App(token=SLACK_BOT_TOKEN or "xoxb-dummy", token_verification_enabled=Fals
 # スラッシュコマンドの実装
 # ------------------------------------------------------------------------------
 
-@app.command("/kakeibo-review")
+@app.command(re.compile(r"^/(dev-)?kakeibo-review$"))
 def handle_review_command(ack, command, respond):
     """家計簿の分析を実行します。[分析モード] [データ取得]"""
     ack()
@@ -51,13 +52,13 @@ def handle_review_command(ack, command, respond):
     args = raw_text.split()
     handle_review_logic(respond, args, user_id=user_id)
 
-@app.command("/kakeibo-help")
+@app.command(re.compile(r"^/(dev-)?kakeibo-help$"))
 def handle_help_command(ack, command, respond):
     """ヘルプを参照します"""
     ack()
     handle_help(respond)
 
-@app.command("/kakeibo-model")
+@app.command(re.compile(r"^/(dev-)?kakeibo-model$"))
 def handle_model_command(ack, command, respond):
     """分析に使用するモデルを変更します"""
     ack()
@@ -65,19 +66,19 @@ def handle_model_command(ack, command, respond):
     args = raw_text.split()
     handle_model_logic(respond, args)
 
-@app.command("/kakeibo-check")
+@app.command(re.compile(r"^/(dev-)?kakeibo-check$"))
 def handle_check_command(ack, command, respond):
     """今月の残予算と進捗率を即座に表示します"""
     ack()
     handle_check(respond)
 
-@app.command("/kakeibo-stats-ai")
+@app.command(re.compile(r"^/(dev-)?kakeibo-stats-ai$"))
 def handle_stats_ai_command(ack, command, respond):
     """今月の合計トークン使用量を表示します"""
     ack()
     handle_stats_ai(respond)
 
-@app.command("/kakeibo-last")
+@app.command(re.compile(r"^/(dev-)?kakeibo-last$"))
 def handle_last_command(ack, command, respond):
     """最新の分析レポートを再表示します"""
     ack()
