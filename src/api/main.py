@@ -1050,6 +1050,38 @@ def parse_reimbursement(text: str = Body(..., embed=True), total_amount: int = B
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/settings/cron")
+async def get_cron_settings():
+    """定期実行設定を取得"""
+    config_dir = get_config_dir()
+    settings_path = os.path.join(config_dir, "settings.json")
+    if os.path.exists(settings_path):
+        with open(settings_path, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+        return settings.get("cron", {"enabled": True, "time": "23:50", "timeframe": "weekly"})
+    return {"enabled": True, "time": "23:50", "timeframe": "weekly"}
+
+@app.put("/api/settings/cron")
+async def update_cron_settings(data: dict = Body(...)):
+    """定期実行設定を更新"""
+    config_dir = get_config_dir()
+    settings_path = os.path.join(config_dir, "settings.json")
+    try:
+        settings = {}
+        if os.path.exists(settings_path):
+            with open(settings_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+        settings["cron"] = {
+            "enabled": data.get("enabled", True),
+            "time": data.get("time", "23:50"),
+            "timeframe": data.get("timeframe", "weekly")
+        }
+        with open(settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2, ensure_ascii=False)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

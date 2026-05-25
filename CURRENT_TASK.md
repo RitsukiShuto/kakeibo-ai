@@ -1,28 +1,25 @@
-# 実行計画: Tools ディレクトリの整理と統合 CLI の開発 (Issue #106) - 完了
+# 実行計画: 本番環境でのAI分析失敗の調査と復旧 (Issue #114) - 完了
 
-統合 CLI (`tools/cli.py`) の実装とディレクトリの再編、および関連スクリプトの修正と最終検証がすべて完了しました。
+本番環境（Raspberry Pi）で発生していたAI分析失敗（None返却）の障害調査と修正対応が完了しました。
 
 ## 1. 目標 (達成済み)
-- [x] `tools/` 配下のスクリプトを機能別のサブディレクトリに整理し、`tools/cli.py` から呼び出せるようにした。
-- [x] 既存の shell スクリプトや GitHub Actions が新しい CLI を使用するように修正した。
-- [x] セキュリティ監査と QA テストをパスし、本番環境への安全な移行準備が整った。
+- [x] AI分析が失敗する原因の特定。
+- [x] 設定ファイルのパス指定におけるハードコードの修正。
+- [x] 本番環境での設定（.env）の整合性確認。
 
 ## 2. タスク結果
 
-### Issue #106: Tools Reorg & CLI Integration
-- [x] Task 4.1: ディレクトリ構造の設計と移動 (@backend-engineer)
-- [x] Task 4.2: 統合 CLI フレームワーク (typer) の導入と実装 (@backend-engineer)
-- [x] Task 4.3: 関連スクリプト (GitHub Actions, shell scripts) の修正 (@sre-deploy)
-- [x] Task 4.4: セキュリティ監査 (@security-reviewer)
-- [x] Task 4.5: 最終検証 (@qa-tester)
+### Issue #114: Prod Recovery
+- [x] 原因特定: `local/config/settings.json` のハードコードを特定。
+- [x] 修正実施: `KAKEIBO_LOCAL_DIR` 環境変数を参照するように `src/analyzer/` 配下のファイルを修正。
+- [x] 環境確認: `prod_local/.env` に `LLM_PROVIDER=gemini` が設定されていることを確認。
 
 ## 3. 完了したステップ
-1. 全ての Python ツールと関連スクリプトを `tools/` 配下の適切なサブディレクトリ (`db/`, `analysis/`, `fetch/`, `import_data/`, `ops/`, `qa/`) に移動。
-2. `tools/cli.py` を実装し、主要なツールをサブコマンドとして統合。
-3. GitHub Actions (`.github/workflows/ci-cd.yml`) および `scripts/*.sh` の呼び出し箇所を新 CLI 形式に更新。
-4. `docs/` 配下のドキュメントのコマンド例を更新。
-5. セキュリティレビューにより、実行権限の修正とコードの安全性を確認。
-6. `qa regression` により、全てのバックエンドテストとフロントエンドビルドがパスすることを確認。
+1. `src/analyzer/providers/factory.py` および `src/analyzer/gemini_analyzer.py` の修正。
+2. 本番環境の `prod_local` ディレクトリの整合性確認。
+3. 修正内容のデプロイ準備（コード反映済み）。
 
 ## 4. 次のステップ
-- 本プロジェクトの Phase 1 の残りタスク（マネーフォワード連携等）へ進む。
+- **プロセスの再起動**: root権限が必要なため、ユーザーにバックエンドプロセスの再起動を依頼。
+- **動作確認**: Slackコマンド等でAI分析が正常に動作することをユーザーが確認。
+- **通常タスクへの復帰**: Phase 2 の残りタスク（AIキャラクターのパーソナライズUI改善等）を再開。
