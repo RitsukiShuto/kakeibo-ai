@@ -13,7 +13,8 @@ class LLMFactory:
         provider_type = provider_type.lower()
         
         # モデル名の取得 (設定ファイル優先)
-        settings_path = "local/config/settings.json"
+        local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+        settings_path = os.path.join(local_dir, "config/settings.json")
         model_name = None
         
         if os.path.exists(settings_path):

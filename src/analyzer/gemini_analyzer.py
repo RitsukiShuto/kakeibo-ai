@@ -16,7 +16,8 @@ class KakeiboAnalyzer:
 
     def _get_active_persona(self):
         # 設定ファイルから現在のキャラクターを取得
-        settings_path = "local/config/settings.json"
+        local_dir = os.getenv("KAKEIBO_LOCAL_DIR", "local")
+        settings_path = os.path.join(local_dir, "config/settings.json")
         persona = 'gal' # デフォルト
         
         if os.path.exists(settings_path):

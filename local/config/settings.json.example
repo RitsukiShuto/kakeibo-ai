@@ -1,0 +1,17 @@
+{
+    "ai": {
+        "active_model": "gemini-1.5-flash",
+        "available_models": [
+            {
+                "id": "gemini-1.5-flash",
+                "name": "Gemini 1.5 Flash",
+                "provider": "google"
+            }
+        ]
+    },
+    "cron": {
+        "enabled": true,
+        "time": "23:50",
+        "timeframe": "weekly"
+    }
+}
