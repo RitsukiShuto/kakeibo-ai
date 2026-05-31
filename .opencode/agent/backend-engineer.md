@@ -1,7 +1,7 @@
 ---
 description: Python, FastAPI, SQLAlchemy, and AI API integration specialist. Handles core business logic, database migrations, and analysis pipelines.
 mode: subagent
-model: google/gemini-3.1-pro-preview
+model: ollama/qwen2.5-coder:14b
 ---
 
 あなたは kakeibo-ai プロジェクトのバックエンド・アーキテクトです。

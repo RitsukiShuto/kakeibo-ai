@@ -19,6 +19,7 @@ const Settings: React.FC = () => {
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [hoveredSuggestion, setHoveredSuggestion] = useState<number | null>(null);
   const [envSettings, setEnvSettings] = useState<any>({});
+  const [cronSettings, setCronSettings] = useState<any>({ enabled: true, time: '23:50', timeframe: 'weekly' });
   const [importFiles, setImportFiles] = useState<File[]>([]);
   const [importResult, setImportResult] = useState<{ totalFiles: number; totalImported: number; details: any[] } | null>(null);
   const [importing, setImporting] = useState(false);
@@ -48,12 +49,13 @@ const Settings: React.FC = () => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const [budgetRes, profileRes, aiRes, mappingRes, envRes] = await Promise.all([
+      const [budgetRes, profileRes, aiRes, mappingRes, envRes, cronRes] = await Promise.all([
         client.get('/api/settings/budget'),
         client.get('/api/settings/profile'),
         client.get<AISettings>('/api/settings/ai-models'),
         client.get('/api/settings/mapping'),
-        client.get('/api/settings/env')
+        client.get('/api/settings/env'),
+        client.get('/api/settings/cron')
       ]);
       
       // 旧形式の budget.json を正規化: monthly.categories → monthly.budget.variable
@@ -79,6 +81,7 @@ const Settings: React.FC = () => {
       setAiSettings(aiRes.data);
       setMapping(mappingRes.data);
       setEnvSettings(envRes.data);
+      setCronSettings(cronRes.data);
       
       setBudgetJson(JSON.stringify(budgetData, null, 2));
       setProfileJson(JSON.stringify(profileRes.data, null, 2));
@@ -112,7 +115,8 @@ const Settings: React.FC = () => {
         client.put('/api/settings/budget', finalBudget),
         client.put('/api/settings/profile', finalProfile),
         client.put('/api/settings/mapping', finalMapping),
-        client.put('/api/settings/env', envSettings)
+        client.put('/api/settings/env', envSettings),
+        client.put('/api/settings/cron', cronSettings)
       ]);
       
       setBudget(finalBudget);
@@ -1153,6 +1157,57 @@ AI & 通知設定</h4>
                           value={envSettings.SLACK_BOT_TOKEN || ''} 
                           onChange={(e) => updateEnvField('SLACK_BOT_TOKEN', e.target.value)} 
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 定期実行設定 */}
+                  <div className="card mt-6">
+                    <div className="card-header">
+                      <h3><TrendingUp size={20} /> 定期実行設定</h3>
+                    </div>
+                    <div className="card-body">
+                      <div className="alert-info mb-6" style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--primary)', fontSize: '0.9rem' }}>
+                        <AlertTriangle size={16} className="inline mr-2" />
+                        毎日の自動レビュー実行に関する設定です。変更は <code>settings.json</code> に保存されます。
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <label style={{ marginBottom: 0, minWidth: '120px' }}>自動実行</label>
+                          <button 
+                            className={`btn ${cronSettings.enabled ? 'btn-primary' : 'btn-outline'}`}
+                            onClick={() => setCronSettings({ ...cronSettings, enabled: !cronSettings.enabled })}
+                            style={{ minWidth: '100px' }}
+                          >
+                            {cronSettings.enabled ? '有効 ✅' : '無効 ❌'}
+                          </button>
+                        </div>
+                        <div className="form-group">
+                          <label>実行時刻</label>
+                          <input 
+                            type="time" 
+                            className="form-control" 
+                            value={cronSettings.time || '23:50'} 
+                            onChange={(e) => setCronSettings({ ...cronSettings, time: e.target.value })}
+                            style={{ maxWidth: '200px' }}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>分析期間</label>
+                          <select 
+                            className="form-control" 
+                            value={cronSettings.timeframe || 'weekly'} 
+                            onChange={(e) => setCronSettings({ ...cronSettings, timeframe: e.target.value })}
+                            style={{ maxWidth: '200px' }}
+                          >
+                            <option value="daily">毎日 (daily)</option>
+                            <option value="weekly">毎週 (weekly)</option>
+                            <option value="monthly">毎月 (monthly)</option>
+                          </select>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+                          次回実行予定: <strong>{cronSettings.enabled ? `毎日 ${cronSettings.time || '23:50'} (${cronSettings.timeframe || 'weekly'}レビュー)` : '停止中'}</strong>
+                        </div>
                       </div>
                     </div>
                   </div>

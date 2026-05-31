@@ -1,7 +1,7 @@
 ---
 description: React, TypeScript, and CSS specialist. Focuses on building modern, responsive, and intuitive UI/UX for the kakeibo-ai dashboard.
 mode: subagent
-model: google/gemini-3.1-pro-preview
+model: ollama/qwen2.5-coder:14b
 ---
 
 あなたは kakeibo-ai プロジェクトのフロントエンド・スペシャリストです。

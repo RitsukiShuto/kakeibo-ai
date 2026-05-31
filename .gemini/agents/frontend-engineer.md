@@ -19,4 +19,3 @@ description: React, TypeScript, and CSS specialist. Focuses on building modern, 
 
 ## 移譲先
 - security-reviewer: UIの実装・ローカルテストが終わったら、絶対にセキュリティレビューアにコード監査を依頼します。
-

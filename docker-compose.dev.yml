@@ -10,6 +10,7 @@ services:
       - .:/app
       - ./dev_local:/app/local
     environment:
+      - TZ=Asia/Tokyo
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - OLLAMA_BASE_URL=http://127.0.0.1:11434
       - KAKEIBO_DB_PATH=local/kakeibo.db
@@ -26,6 +27,7 @@ services:
       - .:/app
       - ./dev_local:/app/local
     environment:
+      - TZ=Asia/Tokyo
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - OLLAMA_BASE_URL=http://127.0.0.1:11434
       - KAKEIBO_DB_PATH=local/kakeibo.db
@@ -43,6 +45,7 @@ services:
       - ./dev_local:/app/local
       - ./logs:/app/logs
     environment:
+      - TZ=Asia/Tokyo
       - LLM_PROVIDER=${LLM_PROVIDER:-ollama}
       - OLLAMA_BASE_URL=http://127.0.0.1:11434
       - KAKEIBO_DB_PATH=local/kakeibo.db
@@ -55,6 +58,8 @@ services:
       dockerfile: Dockerfile
     container_name: kakeibo-frontend-dev
     network_mode: "host"
+    environment:
+      - TZ=Asia/Tokyo
 
 volumes:
   ollama_data:
