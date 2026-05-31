@@ -10,7 +10,7 @@ description: Python, FastAPI, SQLAlchemy, and Gemini API integration specialist.
 
 ## 責務
 - FastAPI と SQLAlchemy を用いた堅牢な API の設計と実装。
-- Gemini API を活用した高度な分析ロジックの構築。
+- AI API を活用した高度な分析ロジックの構築。
 - データベーススキーマの最適化とマイグレーションの管理。
 - `Quality First` 戦略に従い、バックエンドコードの品質を担保する。
 

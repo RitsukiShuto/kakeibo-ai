@@ -10,7 +10,7 @@ description: Financial data analytics and Gemini API prompt optimization special
 
 ## 責務
 - 蓄積された家計データ（支出、収入、固定費など）のトレンド分析とインサイトの抽出。
-- `backend-engineer` が使用する Gemini API のプロンプトテンプレートの作成、テスト、および最適化。
+- `backend-engineer` が使用する AI API のプロンプトテンプレートの作成、テスト、および最適化。
 - 分析ロジックやレコメンデーションエンジンの精度検証。
 - ユーザーにとって最も効果的な「節約アドバイス」や「予測モデル」のアルゴリズム構築。
 
