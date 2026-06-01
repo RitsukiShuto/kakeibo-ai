@@ -35,11 +35,11 @@ if os.path.exists(settings_path):
     except (json.JSONDecodeError, IOError) as e:
         print(f'Failed to read settings.json: {e}', flush=True)
 
-if enabled and ':' in time_str:
-    parts = time_str.split(':')
+if enabled and ":" in time_str:
+    parts = time_str.split(":")
     hour = parts[0].zfill(2)
     minute = parts[1].zfill(2)
-    cron_line = f'{minute} {hour} * * * cd /app && /usr/bin/python main.py --timeframe {timeframe} >> {log_path} 2>&1'
+    cron_line = f"{minute} {hour} * * * /app/infra/docker/run_cron.sh"
 else:
     # 無効時は空のcrontab（何も実行しない）
     cron_line = '# kakeibo-ai cron is disabled'

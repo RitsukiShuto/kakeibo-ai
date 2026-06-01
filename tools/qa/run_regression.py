@@ -53,7 +53,15 @@ def main():
     env["KAKEIBO_CONFIG_DIR"] = "tests/config"
     results["Backend Tests"] = run_command(f"{sys.executable} -m pytest tests/ --ignore=tests/test_dashboard_e2e.py", cwd=project_root, env=env)
 
-    # 2. フロントエンドビルドチェック
+    # 2. フロントエンド単体テスト (Vitest)
+    print_step("Frontend Unit Tests (Vitest)")
+    frontend_dir = os.path.join(project_root, "frontend")
+    if os.path.exists(frontend_dir):
+        results["Frontend Unit Tests"] = run_command("npm test -- --run", cwd=frontend_dir)
+    else:
+        print(f"{Colors.WARNING}Frontend directory not found, skipping unit tests.{Colors.ENDC}")
+
+    # 3. フロントエンドビルドチェック
     print_step("Frontend Build & Type Check (npm run build)")
     frontend_dir = os.path.join(project_root, "frontend")
     if os.path.exists(frontend_dir):

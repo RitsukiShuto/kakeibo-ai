@@ -48,20 +48,21 @@ def load_config(file_path):
             return json.load(f)
     return {}
 
-def get_scheduled_timeframes(schedule):
+def get_scheduled_timeframes(schedule, today=None):
     """
     スケジュール設定に基づき、今日実行すべきタイムフレームのリストを返す
-    優先度順に並べる（dailyを最初にするか最後にするかは検討の余地があるが、
+    優先度順に並める（dailyを最初にするか最後にするかは検討の余地があるが、
     まずは全て実行されることを保証する）
     """
-    today = datetime.now()
+    if today is None:
+        today = datetime.now()
     weekday = today.strftime("%A") # Monday, Tuesday, ...
     day = today.day
     month = today.month
 
     reports = schedule.get("reports", {})
     matched_timeframes = []
-    
+
     # daily を最初に追加（毎日実行されるべきもの）
     if reports.get("daily", {}).get("enabled"):
         matched_timeframes.append("daily")
@@ -77,8 +78,9 @@ def get_scheduled_timeframes(schedule):
 
     if reports.get("yearly", {}).get("enabled") and month == reports["yearly"].get("month") and day == 1:
         matched_timeframes.append("yearly")
-    
+
     return matched_timeframes
+
 
 def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_fetch: bool = False, db_path: str = "local/kakeibo.db", output_slack: bool = True, output_obsidian: bool = True, output_console: bool = True, progress_callback=None, slack_channel: str = None):
     """
