@@ -88,7 +88,7 @@ def test_daily_prompt_includes_date_info(mock_provider, mock_env):
     }
     profile = {"user": {"target": {}}}
 
-    with patch('src.analyzer.gemini_analyzer.datetime') as mock_datetime:
+    with patch('src.analyzer.review_analyzer.datetime') as mock_datetime:
         # 日付を固定（5月15日）
         from datetime import datetime as real_datetime
         mock_datetime.now.return_value = real_datetime(2024, 5, 15)

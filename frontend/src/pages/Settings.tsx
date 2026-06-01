@@ -1,14 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Target, Wallet, Code, CheckCircle2, ArrowRightLeft, Plus, Trash2, TrendingUp, Upload, Server, Eye } from 'lucide-react';
+import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Wallet, Code, ArrowRightLeft, TrendingUp, Upload, Server } from 'lucide-react';
 import client from '../api/client';
-import type { AISettings } from '../api/client';
+import type { AISettings as AISettingsType } from '../api/client';
 import TopHeader from '../components/TopHeader';
+
+// Sub-components
+import AISettings from '../components/settings/AISettings';
+import ProfileSettings from '../components/settings/ProfileSettings';
+import BudgetSettings from '../components/settings/BudgetSettings';
+import MappingSettings from '../components/settings/MappingSettings';
+import LifePlanSettings from '../components/settings/LifePlanSettings';
+import ImportSettings from '../components/settings/ImportSettings';
+import ServiceSettings from '../components/settings/ServiceSettings';
 
 const Settings: React.FC = () => {
   const [budget, setBudget] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [mapping, setMapping] = useState<any>(null);
-  const [aiSettings, setAiSettings] = useState<AISettings | null>(null);
+  const [aiSettings, setAiSettings] = useState<AISettingsType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -52,13 +61,12 @@ const Settings: React.FC = () => {
       const [budgetRes, profileRes, aiRes, mappingRes, envRes, cronRes] = await Promise.all([
         client.get('/api/settings/budget'),
         client.get('/api/settings/profile'),
-        client.get<AISettings>('/api/settings/ai-models'),
+        client.get<AISettingsType>('/api/settings/ai-models'),
         client.get('/api/settings/mapping'),
         client.get('/api/settings/env'),
         client.get('/api/settings/cron')
       ]);
       
-      // 旧形式の budget.json を正規化: monthly.categories → monthly.budget.variable
       let budgetData = budgetRes.data;
       if (budgetData?.monthly && !budgetData.monthly.budget) {
         const oldCategories = budgetData.monthly.categories || {};
@@ -134,12 +142,10 @@ const Settings: React.FC = () => {
 
   const handleImportCsv = async () => {
     if (importFiles.length === 0) return;
-    
     setImporting(true);
     setImportResult(null);
     const formData = new FormData();
     importFiles.forEach(file => formData.append('files', file));
-    
     try {
       const res = await client.post('/api/import/csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -148,7 +154,6 @@ const Settings: React.FC = () => {
       setImportResult({ totalFiles: data.total_files, totalImported: data.total_imported, details: data.details });
       setMessage({ text: `${data.total_files}ファイル中、${data.total_imported}件の取引をインポートしました`, type: 'success' });
       setImportFiles([]);
-      // Reset file input
       const fileInput = document.getElementById('csv-file-input') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
     } catch (error: any) {
@@ -183,7 +188,6 @@ const Settings: React.FC = () => {
       if (!newMapping.category_mappings) newMapping.category_mappings = {};
       newMapping.category_mappings[s.raw_category] = s.suggested_category;
     }
-    
     if (s.suggested_genre && s.suggested_genre !== s.raw_genre) {
       if (!newMapping.genre_mappings) newMapping.genre_mappings = {};
       if (s.suggested_category) {
@@ -192,7 +196,6 @@ const Settings: React.FC = () => {
         newMapping.genre_mappings[s.raw_genre] = s.suggested_genre;
       }
     }
-    
     setMapping(newMapping);
     setMappingJson(JSON.stringify(newMapping, null, 2));
     setAiSuggestions(prev => prev.filter(item => item !== s));
@@ -206,7 +209,6 @@ const Settings: React.FC = () => {
   const confirmModelChange = async () => {
     const modelId = confirmModal.modelId;
     if (!modelId) return;
-    
     setConfirmModal({ isOpen: false, modelId: null });
     setSaving(true);
     try {
@@ -262,18 +264,15 @@ const Settings: React.FC = () => {
   };
 
   const handleAddCategory = (section: string) => {
-    const name = window.prompt('新しい項目の名前（例: 食費、通信費）を入力してください');
+    const name = window.prompt('新しい項目の名前を入力してください');
     if (!name || name.trim() === '') return;
-    
     const newBudget = { ...budget };
     if (!newBudget.monthly.budget) newBudget.monthly.budget = { fixed: {}, variable: {} };
     if (!newBudget.monthly.budget[section]) newBudget.monthly.budget[section] = {};
-    
     if (newBudget.monthly.budget[section][name] !== undefined) {
       alert('その項目は既に存在します');
       return;
     }
-    
     newBudget.monthly.budget[section][name] = 0;
     setBudget(newBudget);
     setBudgetJson(JSON.stringify(newBudget, null, 2));
@@ -346,873 +345,40 @@ const Settings: React.FC = () => {
         {activeMode === 'ui' ? (
           <div className="settings-content">
             {activeTab === 'ai' && (
-              <div className="flex flex-col gap-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div className="card">
-                  <div className="card-header">
-                    <h3><Bot size={20} /> AI モデルの選択</h3>
-                  </div>
-                  <div className="card-body">
-                    <div className="model-grid">
-                      {aiSettings?.available_models?.map((model) => (
-                        <div 
-                          key={model.id} 
-                          className={`model-card ${aiSettings?.active_model === model.id ? 'active' : ''}`}
-                          onClick={() => handleModelChange(model.id)}
-                        >
-                          <div className="model-header">
-                            <div className="model-name">{model.name}</div>
-                            {aiSettings?.active_model === model.id && <CheckCircle2 size={18} className="text-primary" />}
-                          </div>
-                          <div className="model-desc">{model.description}</div>
-                          <div className="model-id">{model.id}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div className="card-header">
-                    <h3><User size={20} /> AI キャラクター（人格）の選択</h3>
-                  </div>
-                  <div className="card-body">
-                    <div className="model-grid">
-                      {aiSettings?.available_personas?.map((persona) => (
-                        <div 
-                          key={persona.id} 
-                          className={`model-card ${aiSettings.active_persona === persona.id ? 'active' : ''}`}
-                          onClick={() => handlePersonaChange(persona.id)}
-                          style={{ borderColor: aiSettings.active_persona === persona.id ? 'var(--success)' : '' }}
-                        >
-                          <div className="model-header">
-                            <div className="model-name" style={{ color: aiSettings.active_persona === persona.id ? 'var(--success)' : '' }}>
-                              {persona.name}
-                            </div>
-                            {aiSettings.active_persona === persona.id && <CheckCircle2 size={18} className="text-success" />}
-                          </div>
-                          <div className="model-desc">{persona.description}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <AISettings aiSettings={aiSettings} handleModelChange={handleModelChange} handlePersonaChange={handlePersonaChange} />
             )}
-
             {activeTab === 'profile' && (
-              <div className="dashboard-grid" style={{ padding: 0 }}>
-                <div className="card section-budget">
-                  <div className="card-header">
-                    <h3><User size={20} /> 基本情報</h3>
-                  </div>
-                  <div className="card-body">
-                    <div className="form-group">
-                      <label>お名前（または呼称）</label>
-                      <input 
-                        type="text" className="form-control" 
-                        value={profile?.user?.name || ''} 
-                        onChange={(e) => updateProfileField('user.name', e.target.value)} 
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>職業</label>
-                      <input 
-                        type="text" className="form-control" 
-                        value={profile?.user?.occupation || ''} 
-                        onChange={(e) => updateProfileField('user.occupation', e.target.value)} 
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>趣味 (カンマ区切り)</label>
-                      <input 
-                        type="text" className="form-control" 
-                        value={Array.isArray(profile?.user?.hobbies) ? profile.user.hobbies.join(', ') : (profile?.user?.hobbies || '')} 
-                        onChange={(e) => {
-                          const arr = e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean);
-                          updateProfileField('user.hobbies', arr);
-                        }} 
-                      />
-                    </div>
-                    
-                    <div className="form-group mt-4">
-                      <label style={{ fontSize: '1.05rem', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '12px' }}>
-                        投資方針 (Investment Policy)
-                      </label>
-                      
-                      <div className="policy-editor-container" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                        {(() => {
-                          const renderPolicyEditor = (obj: any, path: string = 'user.investment_policy') => {
-                            if (typeof obj !== 'object' || obj === null) {
-                              return (
-                                <input 
-                                  type="text" 
-                                  className="form-control" 
-                                  style={{ background: 'rgba(0,0,0,0.3)' }}
-                                  value={obj || ''} 
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    const num = Number(val);
-                                    updateProfileField(path, val === '' ? '' : (!isNaN(num) ? num : val));
-                                  }}
-                                />
-                              );
-                            }
-                            
-                            return (
-                              <div style={{ marginLeft: path === 'user.investment_policy' ? 0 : '16px', borderLeft: path === 'user.investment_policy' ? 'none' : '2px solid rgba(59, 130, 246, 0.3)', paddingLeft: path === 'user.investment_policy' ? 0 : '16px', marginTop: path === 'user.investment_policy' ? 0 : '8px' }}>
-                                {Object.entries(obj).map(([key, val]) => (
-                                  <div key={key} className="form-group mb-3">
-                                    <label style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      {typeof val === 'object' && val !== null ? <Wallet size={14} className="text-primary" /> : null}
-                                      {key}
-                                    </label>
-                                    {renderPolicyEditor(val, `${path}.${key}`)}
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          };
-                          
-                          return renderPolicyEditor(profile?.user?.investment_policy || {});
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card section-ai-review">
-                  <div className="card-header">
-                    <h3><Target size={20} /> 目標設定</h3>
-                  </div>
-                  <div className="card-body">
-                    <div className="form-group">
-                      <label>目標日付</label>
-                      <input 
-                        type="date" className="form-control" 
-                        value={profile?.user?.target?.date || ''} 
-                        onChange={(e) => updateProfileField('user.target.date', e.target.value)} 
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>達成したいこと</label>
-                      <textarea 
-                        className="form-control" style={{ height: '150px' }}
-                        value={profile?.user?.target?.description || ''} 
-                        onChange={(e) => updateProfileField('user.target.description', e.target.value)} 
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ProfileSettings profile={profile} updateProfileField={updateProfileField} />
             )}
-
-            {activeTab === 'budget' && (() => {
-              const incomeAmount = budget?.monthly?.income || 0;
-              let totalBudgetAmount = 0;
-              totalBudgetAmount += budget?.monthly?.savings_goal || 0;
-              totalBudgetAmount += budget?.monthly?.investment_goal || 0;
-              
-              const calcSection = (sectionData: any) => {
-                if (!sectionData) return;
-                Object.values(sectionData).forEach((val: any) => {
-                  if (typeof val === 'number') totalBudgetAmount += val;
-                  else if (typeof val === 'object' && val !== null) {
-                    Object.values(val).forEach((v: any) => {
-                      if (typeof v === 'number') totalBudgetAmount += v;
-                    });
-                  }
-                });
-              };
-              calcSection(budget?.monthly?.budget?.fixed);
-              calcSection(budget?.monthly?.budget?.variable);
-              
-              const isOverBudget = incomeAmount > 0 && totalBudgetAmount > incomeAmount;
-
-              const surplus = incomeAmount - totalBudgetAmount;
-
-              return (
-                <div className="flex flex-col gap-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {isOverBudget && (
-                    <div className="review-summary" style={{ borderLeftColor: 'var(--danger)', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--text-main)' }}>
-                      <AlertTriangle size={18} className="text-danger inline mr-2" style={{ verticalAlign: 'text-bottom' }} />
-                      <span className="font-bold">警告: </span>
-                      予算・目標の合計（{totalBudgetAmount.toLocaleString()}円）が、月間総収入（{incomeAmount.toLocaleString()}円）を上回っています。このままでは赤字になる可能性があります。
-                    </div>
-                  )}
-
-                <div className="card">
-                  <div className="card-header">
-                    <h3><Wallet size={20} /> 全体目標</h3>
-                  </div>
-                  <div className="card-body">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-                      <div className="form-group mb-0">
-                        <label>月間総収入</label>
-                        <input 
-                          type="number" className="form-control" 
-                          value={budget?.monthly?.income || 0} 
-                          onChange={(e) => updateBudgetField('monthly.income', parseInt(e.target.value))} 
-                        />
-                      </div>
-                      <div className="form-group mb-0">
-                        <label>貯蓄目標額</label>
-                        <input 
-                          type="number" className="form-control" 
-                          value={budget?.monthly?.savings_goal || 0} 
-                          onChange={(e) => updateBudgetField('monthly.savings_goal', parseInt(e.target.value))} 
-                        />
-                      </div>
-                      <div className="form-group mb-0">
-                        <label>投資目標額</label>
-                        <input 
-                          type="number" className="form-control" 
-                          value={budget?.monthly?.investment_goal || 0} 
-                          onChange={(e) => updateBudgetField('monthly.investment_goal', parseInt(e.target.value))} 
-                        />
-                      </div>
-                      <div className="form-group mb-0" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: `1px solid ${surplus >= 0 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}` }}>
-                        <label style={{ color: surplus >= 0 ? 'var(--success)' : 'var(--danger)' }}>割り振り可能な余剰資金</label>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: surplus >= 0 ? 'var(--success)' : 'var(--danger)', marginTop: 'auto' }}>
-                          {surplus >= 0 ? '+' : ''}{surplus.toLocaleString()} 円
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {['fixed', 'variable'].map((section) => (
-                  <div key={section} className="card">
-                    <div className="card-header">
-                      <h3><SettingsIcon size={20} /> カテゴリ別予算 ({section === 'fixed' ? '固定費' : '変動費'})</h3>
-                    </div>
-                    <div className="card-body">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
-                        {Object.entries(budget?.monthly?.budget?.[section] || {}).map(([category, subcategories]: [string, any]) => (
-                          <div key={category} className="budget-category-box" style={{ position: 'relative' }}>
-                            <button 
-                              onClick={() => handleDeleteCategory(section, category)}
-                              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1 }}
-                              title="この項目を削除"
-                            >×</button>
-                            <div className="budget-category-title" style={{ paddingRight: '24px' }}>{category}</div>
-                            {typeof subcategories === 'object' ? (
-                              Object.entries(subcategories).map(([sub, amount]: [string, any]) => (
-                                <div key={sub} className="form-group mb-2">
-                                  <label style={{ fontSize: '0.75rem' }}>{sub}</label>
-                                  <input 
-                                    type="number" className="form-control form-control-sm" 
-                                    value={amount} 
-                                    onChange={(e) => {
-                                      const newBudget = { ...budget };
-                                      newBudget.monthly.budget[section][category][sub] = parseInt(e.target.value) || 0;
-                                      setBudget(newBudget);
-                                      setBudgetJson(JSON.stringify(newBudget, null, 2));
-                                    }} 
-                                  />
-                                </div>
-                              ))
-                            ) : (
-                              <div className="form-group">
-                                <input 
-                                  type="number" className="form-control form-control-sm" 
-                                  value={subcategories} 
-                                  onChange={(e) => {
-                                    const newBudget = { ...budget };
-                                    newBudget.monthly.budget[section][category] = parseInt(e.target.value) || 0;
-                                    setBudget(newBudget);
-                                    setBudgetJson(JSON.stringify(newBudget, null, 2));
-                                  }} 
-                                />
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        
-                        <div 
-                          className="budget-category-box" 
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', cursor: 'pointer', background: 'transparent', opacity: 0.7, minHeight: '120px' }}
-                          onClick={() => handleAddCategory(section)}
-                        >
-                          <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '1.1rem' }}>+ 新規項目を追加</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              );
-            })()}
-
+            {activeTab === 'budget' && (
+              <BudgetSettings 
+                budget={budget} updateBudgetField={updateBudgetField} 
+                handleAddCategory={handleAddCategory} handleDeleteCategory={handleDeleteCategory} 
+                setBudget={setBudget} setBudgetJson={setBudgetJson}
+              />
+            )}
             {activeTab === 'mapping' && (
-              <div className="flex flex-col gap-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div className="card" style={{ border: '1px solid var(--primary)', background: 'rgba(59, 130, 246, 0.05)' }}>
-                  <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ color: 'var(--primary)' }}><Bot size={20} /> AI マッピング提案</h3>
-                    <button 
-                      className="btn-primary" 
-                      onClick={handleSuggestMappings} 
-                      disabled={suggesting}
-                      style={{ padding: '4px 12px', fontSize: '0.85rem' }}
-                    >
-                      {suggesting ? '考え中...' : 'AIにマッピングを相談する'}
-                    </button>
-                  </div>
-                  <div className="card-body">
-                    <p className="text-muted mb-4" style={{ fontSize: '0.85rem' }}>
-                      DB内の未分類項目をスキャンし、予算設定に基づいた最適なマッピングをAIが提案します。
-                    </p>
-                    {aiSuggestions.length > 0 ? (
-                      <div className="flex flex-col gap-3">
-                        {aiSuggestions.map((s, idx) => (
-                          <div 
-                            key={idx} 
-                            className="suggestion-item" 
-                            style={{ position: 'relative', background: 'var(--bg-color)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                            onMouseEnter={() => setHoveredSuggestion(idx)}
-                            onMouseLeave={() => setHoveredSuggestion(null)}
-                          >
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                {s.raw_category} {s.raw_genre ? `> ${s.raw_genre}` : ''}
-                              </div>
-                              <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <ArrowRightLeft size={14} className="text-primary" />
-                                {s.suggested_category} {s.suggested_genre ? `> ${s.suggested_genre}` : ''}
-                              </div>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--success)', marginTop: '4px' }}>
-                                理由: {s.reason}
-                              </div>
-                            </div>
-                            <button className="btn-outline" onClick={() => applySuggestion(s)} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
-                              採用
-                            </button>
-
-                            {hoveredSuggestion === idx && s.examples && s.examples.length > 0 && (
-                              <div className="card glass" style={{ 
-                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, 
-                                marginTop: '4px', padding: '12px', fontSize: '0.75rem', 
-                                background: 'var(--card-bg)', border: '1px solid var(--primary)' 
-                              }}>
-                                <div style={{ fontWeight: 'bold', marginBottom: '8px', color: 'var(--primary)' }}>該当する直近の明細:</div>
-                                {s.examples.map((ex: any, eidx: number) => (
-                                  <div key={eidx} style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
-                                    <span style={{ color: 'var(--text-muted)' }}>{ex.transaction_date}</span>
-                                    <span style={{ flex: 1 }}>{ex.comment}</span>
-                                    <span style={{ fontWeight: 'bold' }}>{ex.amount.toLocaleString()}円</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : !suggesting && (
-                      <div className="text-center py-4 text-muted" style={{ fontSize: '0.85rem' }}>
-                        「相談する」ボタンを押すと、新しい提案が表示されます。
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div className="card-header">
-                    <h3><ArrowRightLeft size={20} /> 大項目の変換ルール (Category Mapping)</h3>
-                  </div>
-                  <div className="card-body">
-                    <p className="text-muted mb-4" style={{ fontSize: '0.85rem' }}>
-                      MoneyForwardやZaimの「大項目」を、独自のカテゴリ名に変換します。
-                    </p>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>元のカテゴリ名 (Raw)</th>
-                          <th style={{ width: '40px' }}></th>
-                          <th>変換後のカテゴリ名 (Mapped)</th>
-                          <th style={{ width: '60px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(mapping?.category_mappings || {}).map(([raw, mapped]) => (
-                          <tr key={raw}>
-                            <td>{raw}</td>
-                            <td style={{ textAlign: 'center' }}>→</td>
-                            <td>
-                              <input 
-                                type="text" className="form-control form-control-sm" 
-                                value={mapped as string} 
-                                onChange={(e) => {
-                                  const newMapping = { ...mapping };
-                                  newMapping.category_mappings[raw] = e.target.value;
-                                  setMapping(newMapping);
-                                  setMappingJson(JSON.stringify(newMapping, null, 2));
-                                }}
-                              />
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <button 
-                                className="btn-icon text-danger" 
-                                onClick={() => {
-                                  const newMapping = { ...mapping };
-                                  delete newMapping.category_mappings[raw];
-                                  setMapping(newMapping);
-                                  setMappingJson(JSON.stringify(newMapping, null, 2));
-                                }}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        <tr>
-                          <td>
-                            <input type="text" id="new-cat-raw" className="form-control form-control-sm" placeholder="未分類" />
-                          </td>
-                          <td style={{ textAlign: 'center' }}>→</td>
-                          <td>
-                            <input type="text" id="new-cat-mapped" className="form-control form-control-sm" placeholder="その他" />
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button 
-                              className="btn-icon text-primary"
-                              onClick={() => {
-                                const raw = (document.getElementById('new-cat-raw') as HTMLInputElement).value;
-                                const mapped = (document.getElementById('new-cat-mapped') as HTMLInputElement).value;
-                                if (raw && mapped) {
-                                  const newMapping = { ...mapping };
-                                  if (!newMapping.category_mappings) newMapping.category_mappings = {};
-                                  newMapping.category_mappings[raw] = mapped;
-                                  setMapping(newMapping);
-                                  setMappingJson(JSON.stringify(newMapping, null, 2));
-                                  (document.getElementById('new-cat-raw') as HTMLInputElement).value = '';
-                                  (document.getElementById('new-cat-mapped') as HTMLInputElement).value = '';
-                                }
-                              }}
-                            >
-                              <Plus size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div className="card-header">
-                    <h3><ArrowRightLeft size={20} /> 中項目の変換・上書きルール (Genre Mapping)</h3>
-                  </div>
-                  <div className="card-body">
-                    <p className="text-muted mb-4" style={{ fontSize: '0.85rem' }}>
-                      「中項目」の名前に基づいて、中項目名のみ、または大項目も含めて変換します。<br/>
-                      例: 「コンビニ」という中項目を「日用品」という中項目に変更する、など。
-                    </p>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>元の中項目名 (Raw)</th>
-                          <th style={{ width: '40px' }}></th>
-                          <th>変換後のカテゴリ/中項目</th>
-                          <th style={{ width: '60px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(mapping?.genre_mappings || {}).map(([raw, rule]: [string, any]) => (
-                          <tr key={raw}>
-                            <td>{raw}</td>
-                            <td style={{ textAlign: 'center' }}>→</td>
-                            <td>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <div style={{ flex: 1 }}>
-                                  <label style={{ fontSize: '0.7rem' }}>大項目(任意)</label>
-                                  <input 
-                                    type="text" className="form-control form-control-sm" 
-                                    placeholder="大項目"
-                                    value={typeof rule === 'object' ? rule.category : ''} 
-                                    onChange={(e) => {
-                                      const newMapping = { ...mapping };
-                                      if (typeof rule !== 'object') {
-                                        newMapping.genre_mappings[raw] = { category: e.target.value, genre: rule };
-                                      } else {
-                                        newMapping.genre_mappings[raw].category = e.target.value;
-                                      }
-                                      setMapping(newMapping);
-                                      setMappingJson(JSON.stringify(newMapping, null, 2));
-                                    }}
-                                  />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                  <label style={{ fontSize: '0.7rem' }}>中項目</label>
-                                  <input 
-                                    type="text" className="form-control form-control-sm" 
-                                    placeholder="中項目"
-                                    value={typeof rule === 'object' ? rule.genre : rule} 
-                                    onChange={(e) => {
-                                      const newMapping = { ...mapping };
-                                      if (typeof rule !== 'object') {
-                                        newMapping.genre_mappings[raw] = e.target.value;
-                                      } else {
-                                        newMapping.genre_mappings[raw].genre = e.target.value;
-                                      }
-                                      setMapping(newMapping);
-                                      setMappingJson(JSON.stringify(newMapping, null, 2));
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ textAlign: 'center', verticalAlign: 'bottom' }}>
-                              <button 
-                                className="btn-icon text-danger" 
-                                onClick={() => {
-                                  const newMapping = { ...mapping };
-                                  delete newMapping.genre_mappings[raw];
-                                  setMapping(newMapping);
-                                  setMappingJson(JSON.stringify(newMapping, null, 2));
-                                }}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        <tr>
-                          <td>
-                            <input type="text" id="new-gen-raw" className="form-control form-control-sm" placeholder="ランチ" />
-                          </td>
-                          <td style={{ textAlign: 'center' }}>→</td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <input type="text" id="new-gen-cat" className="form-control form-control-sm" placeholder="食費(任意)" />
-                              <input type="text" id="new-gen-gen" className="form-control form-control-sm" placeholder="昼食" />
-                            </div>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button 
-                              className="btn-icon text-primary"
-                              onClick={() => {
-                                const raw = (document.getElementById('new-gen-raw') as HTMLInputElement).value;
-                                const cat = (document.getElementById('new-gen-cat') as HTMLInputElement).value;
-                                const gen = (document.getElementById('new-gen-gen') as HTMLInputElement).value;
-                                if (raw && gen) {
-                                  const newMapping = { ...mapping };
-                                  if (!newMapping.genre_mappings) newMapping.genre_mappings = {};
-                                  if (cat) {
-                                    newMapping.genre_mappings[raw] = { category: cat, genre: gen };
-                                  } else {
-                                    newMapping.genre_mappings[raw] = gen;
-                                  }
-                                  setMapping(newMapping);
-                                  setMappingJson(JSON.stringify(newMapping, null, 2));
-                                  (document.getElementById('new-gen-raw') as HTMLInputElement).value = '';
-                                  (document.getElementById('new-gen-cat') as HTMLInputElement).value = '';
-                                  (document.getElementById('new-gen-gen') as HTMLInputElement).value = '';
-                                }
-                              }}
-                            >
-                              <Plus size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+              <MappingSettings 
+                mapping={mapping} handleSuggestMappings={handleSuggestMappings} suggesting={suggesting} 
+                aiSuggestions={aiSuggestions} applySuggestion={applySuggestion} 
+                hoveredSuggestion={hoveredSuggestion} setHoveredSuggestion={setHoveredSuggestion}
+                setMapping={setMapping} setMappingJson={setMappingJson}
+              />
             )}
             {activeTab === 'lifeplan' && (
-              <div className="flex flex-col gap-6" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div className="card">
-                  <div className="card-header">
-                    <h3><TrendingUp size={20} /> 基本シミュレーション設定</h3>
-                  </div>
-                  <div className="card-body">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
-                      <div className="form-group">
-                        <label>現在の年齢</label>
-                        <input 
-                          type="number" className="form-control" 
-                          value={profile?.user?.life_plan?.current_age || 30} 
-                          onChange={(e) => updateProfileField('user.life_plan.current_age', parseInt(e.target.value))} 
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>引退予定年齢</label>
-                        <input 
-                          type="number" className="form-control" 
-                          value={profile?.user?.life_plan?.retirement_age || 65} 
-                          onChange={(e) => updateProfileField('user.life_plan.retirement_age', parseInt(e.target.value))} 
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>想定運用利回り (%)</label>
-                        <input 
-                          type="number" step="0.1" className="form-control" 
-                          value={profile?.user?.life_plan?.annual_return_rate || 3.0} 
-                          onChange={(e) => updateProfileField('user.life_plan.annual_return_rate', parseFloat(e.target.value))} 
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>想定インフレ率 (%)</label>
-                        <input 
-                          type="number" step="0.1" className="form-control" 
-                          value={profile?.user?.life_plan?.annual_inflation_rate || 1.0} 
-                          onChange={(e) => updateProfileField('user.life_plan.annual_inflation_rate', parseFloat(e.target.value))} 
-                        />
-                      </div>
-                      <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                        <label>引退後の希望月間生活費 (円)</label>
-                        <input 
-                          type="number" className="form-control" 
-                          value={profile?.user?.life_plan?.monthly_living_expenses_post_retirement || 200000} 
-                          onChange={(e) => updateProfileField('user.life_plan.monthly_living_expenses_post_retirement', parseInt(e.target.value))} 
-                        />
-                        <p className="text-xs text-muted mt-1">※この金額はインフレ率に応じて将来的にスライド計算されます。</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3><Wallet size={20} /> ライフイベント（大型支出）</h3>
-                    <button 
-                      className="btn-outline" 
-                      style={{ padding: '4px 12px', fontSize: '0.85rem' }}
-                      onClick={() => {
-                        const name = window.prompt('イベント名（例: 住宅購入、世界一周）');
-                        const age = window.prompt('発生時の年齢（半角数字）');
-                        const amount = window.prompt('予定支出額（半角数字）');
-                        if (name && age && amount) {
-                          const newEvents = [...(profile?.user?.life_plan?.events || []), { name, age: parseInt(age), amount: parseInt(amount) }];
-                          updateProfileField('user.life_plan.events', newEvents);
-                        }
-                      }}
-                    >
-                      <Plus size={16} style={{ marginRight: '4px' }} /> イベント追加
-                    </button>
-                  </div>
-                  <div className="card-body">
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>年齢</th>
-                          <th>イベント名</th>
-                          <th>支出額</th>
-                          <th style={{ width: '50px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(profile?.user?.life_plan?.events || []).map((event: any, idx: number) => (
-                          <tr key={idx}>
-                            <td>{event.age}歳</td>
-                            <td>{event.name}</td>
-                            <td className="text-danger">-{event.amount.toLocaleString()}円</td>
-                            <td>
-                              <button 
-                                className="btn-icon text-danger"
-                                onClick={() => {
-                                  const newEvents = profile.user.life_plan.events.filter((_: any, i: number) => i !== idx);
-                                  updateProfileField('user.life_plan.events', newEvents);
-                                }}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        {(!profile?.user?.life_plan?.events || profile.user.life_plan.events.length === 0) && (
-                          <tr>
-                            <td colSpan={4} className="text-center py-4 text-muted">設定されたイベントはありません</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+              <LifePlanSettings profile={profile} updateProfileField={updateProfileField} />
             )}
             {activeTab === 'import' && (
-              <div className="card">
-                <div className="card-header">
-                  <h3><Upload size={20} /> データインポート (MoneyForward CSV)</h3>
-                </div>
-                <div className="card-body">
-                  <div className="alert-info mb-6" style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--primary)', fontSize: '0.9rem' }}>
-                    マネーフォワードMEからエクスポートした「入出金詳細.csv」をアップロードして、一括インポートします。<br/>
-                    <strong>複数のファイルをまとめて選択できます。</strong>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>CSVファイルを選択（複数可）</label>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <input 
-                        id="csv-file-input"
-                        type="file" 
-                        accept=".csv" 
-                        multiple
-                        className="form-control" 
-                        style={{ padding: '8px' }}
-                        onChange={(e) => setImportFiles(Array.from(e.target.files || []))} 
-                      />
-                      <button 
-                        className="btn-primary" 
-                        onClick={handleImportCsv} 
-                        disabled={importFiles.length === 0 || importing}
-                        style={{ whiteSpace: 'nowrap' }}
-                      >
-                        {importing ? 'インポート中...' : `インポート開始 (${importFiles.length}ファイル)`}
-                      </button>
-                    </div>
-                    {importFiles.length > 0 && (
-                      <div className="mt-2" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        選択中: {importFiles.map(f => f.name).join(', ')}
-                      </div>
-                    )}
-                  </div>
-
-                  {importResult && (
-                    <div className="mt-4" style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #10b981' }}>
-                      <strong>✅ インポート結果</strong>
-                      <ul style={{ margin: '8px 0 0 20px', fontSize: '0.9rem' }}>
-                        <li>処理ファイル数: {importResult.totalFiles}件</li>
-                        <li>インポート件数: {importResult.totalImported}件</li>
-                      </ul>
-                      <details style={{ marginTop: '8px', fontSize: '0.85rem' }}>
-                        <summary>詳細を見る</summary>
-                        <ul style={{ marginTop: '4px', marginLeft: '20px' }}>
-                          {importResult.details.map((d: any, i: number) => (
-                            <li key={i} style={{ color: d.status === 'success' ? '#10b981' : '#ef4444' }}>
-                              {d.file}: {d.status === 'success' ? `${d.imported}件` : d.reason}
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <ImportSettings 
+                importFiles={importFiles} setImportFiles={setImportFiles} 
+                handleImportCsv={handleImportCsv} importing={importing} importResult={importResult} 
+              />
             )}
-
             {activeTab === 'services' && (
-              <div className="card">
-                <div className="card-header">
-                  <h3><Server size={20} /> 外部サービス連携（初期設定）</h3>
-                </div>
-                <div className="card-body">
-                  <div className="alert-warning mb-6" style={{ background: 'rgba(255, 193, 7, 0.1)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--warning)', fontSize: '0.9rem' }}>
-                    <AlertTriangle size={16} className="inline mr-2" />
-                    ここでの設定はサーバー上の <code>.env</code> ファイルに直接保存されます。変更には十分注意してください。
-                  </div>
-
-                  <div className="dashboard-grid" style={{ padding: 0, gap: '2rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                      <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-MoneyForward 連携</h4>
-                      <div className="form-group">
-                        <label>MF ユーザーID (Email)</label>
-                        <input 
-                          type="text" className="form-control" 
-                          value={envSettings.MF_USER_ID || ''} 
-                          onChange={(e) => updateEnvField('MF_USER_ID', e.target.value)} 
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>MF パスワード</label>
-                        <div style={{ position: 'relative' }}>
-                          <input 
-                            type="password" className="form-control" 
-                            id="mf-password-input"
-                            value={envSettings.MF_PASSWORD || ''} 
-                            onChange={(e) => updateEnvField('MF_PASSWORD', e.target.value)} 
-                          />
-                          <button 
-                            className="btn-icon" 
-                            style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}
-                            onClick={() => {
-                              const el = document.getElementById('mf-password-input') as HTMLInputElement;
-                              el.type = el.type === 'password' ? 'text' : 'password';
-                            }}
-                          >
-                            <Eye size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                      <h4 style={{ color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-AI & 通知設定</h4>
-                      <div className="form-group">
-                        <label>Gemini API Key</label>
-                        <input 
-                          type="text" className="form-control" 
-                          value={envSettings.GEMINI_API_KEY || ''} 
-                          onChange={(e) => updateEnvField('GEMINI_API_KEY', e.target.value)} 
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Slack Bot Token (xoxb-...)</label>
-                        <input 
-                          type="text" className="form-control" 
-                          value={envSettings.SLACK_BOT_TOKEN || ''} 
-                          onChange={(e) => updateEnvField('SLACK_BOT_TOKEN', e.target.value)} 
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 定期実行設定 */}
-                  <div className="card mt-6">
-                    <div className="card-header">
-                      <h3><TrendingUp size={20} /> 定期実行設定</h3>
-                    </div>
-                    <div className="card-body">
-                      <div className="alert-info mb-6" style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--primary)', fontSize: '0.9rem' }}>
-                        <AlertTriangle size={16} className="inline mr-2" />
-                        毎日の自動レビュー実行に関する設定です。変更は <code>settings.json</code> に保存されます。
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <label style={{ marginBottom: 0, minWidth: '120px' }}>自動実行</label>
-                          <button 
-                            className={`btn ${cronSettings.enabled ? 'btn-primary' : 'btn-outline'}`}
-                            onClick={() => setCronSettings({ ...cronSettings, enabled: !cronSettings.enabled })}
-                            style={{ minWidth: '100px' }}
-                          >
-                            {cronSettings.enabled ? '有効 ✅' : '無効 ❌'}
-                          </button>
-                        </div>
-                        <div className="form-group">
-                          <label>実行時刻</label>
-                          <input 
-                            type="time" 
-                            className="form-control" 
-                            value={cronSettings.time || '23:50'} 
-                            onChange={(e) => setCronSettings({ ...cronSettings, time: e.target.value })}
-                            style={{ maxWidth: '200px' }}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label>分析期間</label>
-                          <select 
-                            className="form-control" 
-                            value={cronSettings.timeframe || 'weekly'} 
-                            onChange={(e) => setCronSettings({ ...cronSettings, timeframe: e.target.value })}
-                            style={{ maxWidth: '200px' }}
-                          >
-                            <option value="daily">毎日 (daily)</option>
-                            <option value="weekly">毎週 (weekly)</option>
-                            <option value="monthly">毎月 (monthly)</option>
-                          </select>
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-                          次回実行予定: <strong>{cronSettings.enabled ? `毎日 ${cronSettings.time || '23:50'} (${cronSettings.timeframe || 'weekly'}レビュー)` : '停止中'}</strong>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ServiceSettings 
+                envSettings={envSettings} updateEnvField={updateEnvField} 
+                cronSettings={cronSettings} setCronSettings={setCronSettings} 
+              />
             )}
           </div>
         ) : (
