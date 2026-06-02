@@ -17,28 +17,31 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ label, actual, budget, paceLi
   const isOverPace = paceLimit !== undefined && actual > paceLimit;
 
   return (
-    <div className="progress-item mb-10">
-      <div className="flex justify-between items-baseline mb-3">
-        <span className="font-bold text-lg">{label}</span>
-        <span className="text-sm font-medium text-slate-500">
-          <b className="text-slate-900">¥{actual.toLocaleString()}</b>
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-between items-end">
+        <span className="font-bold text-sm text-slate-200">{label}</span>
+        <div className="text-right">
+          <span className="text-sm font-black text-slate-100">¥{actual.toLocaleString()}</span>
+          <span className="text-[10px] font-bold text-slate-500 ml-1">/ ¥{budget.toLocaleString()}</span>
           {showDiff && paceLimit !== undefined && (
-            <span className={diff <= 0 ? 'text-emerald-500 ml-2' : 'text-rose-500 ml-2'}>
-              ({diff > 0 ? '+' : ''}¥{Math.abs(diff).toLocaleString()})
-            </span>
+            <div className={`text-[10px] font-black tracking-tight ${diff <= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {diff > 0 ? '+' : '-'}¥{Math.abs(diff).toLocaleString()}
+            </div>
           )}
-          {" / ¥"}{budget.toLocaleString()}
-        </span>
+        </div>
       </div>
-      <div className="h-2.5 bg-slate-100 rounded-full relative">
+      <div className="relative h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
         <div 
-          className={`progress-bar h-full rounded-full transition-all duration-500 ${isOverPace ? 'bg-amber-500' : 'bg-indigo-600'}`} 
+          className={`progress-bar h-full rounded-full transition-all duration-700 ease-out ${
+            isOverPace ? 'bg-amber-500 warning' : 'bg-indigo-500'
+          }`} 
           style={{ width: `${percentage}%` }}
         />
         {pacePercentage !== null && (
           <div 
-            className="pace-marker absolute top-[-5px] w-0.5 h-5 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" 
+            className="pace-marker absolute top-0 w-0.5 h-full bg-amber-500 z-10 shadow-[0_0_8px_rgba(245,158,11,0.6)]" 
             style={{ left: `${pacePercentage}%` }}
+            title="Pace Limit"
           />
         )}
       </div>

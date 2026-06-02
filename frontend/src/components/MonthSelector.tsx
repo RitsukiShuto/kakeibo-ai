@@ -19,12 +19,22 @@ const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, onChange })
   };
 
   return (
-    <div className="flex items-center gap-3 bg-indigo-50 px-4 py-2 rounded-full">
-      <button onClick={handlePrev} className="text-indigo-600 font-bold hover:opacity-70">◀</button>
-      <span className="text-indigo-600 font-bold text-sm min-w-[90px] text-center">
+    <div className="flex items-center gap-3 bg-[rgba(0,0,0,0.2)] border border-[var(--border)] px-4 py-1.5 rounded-xl shadow-sm">
+      <button 
+        onClick={handlePrev} 
+        className="text-[var(--primary-light)] font-bold hover:text-[var(--primary)] transition-colors p-1"
+      >
+        ◀
+      </button>
+      <span className="text-[var(--text-main)] font-bold text-sm min-w-[100px] text-center">
         {year}年 {month}月
       </span>
-      <button onClick={handleNext} className="text-indigo-600 font-bold hover:opacity-70">▶</button>
+      <button 
+        onClick={handleNext} 
+        className="text-[var(--primary-light)] font-bold hover:text-[var(--primary)] transition-colors p-1"
+      >
+        ▶
+      </button>
     </div>
   );
 };

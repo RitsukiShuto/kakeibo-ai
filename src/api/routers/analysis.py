@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Body
 import os
 import sqlite3
 import pandas as pd
+from datetime import datetime, timedelta
 from typing import Optional, List
 from pydantic import BaseModel
 from src.models import Transaction as TransactionModel
@@ -9,64 +10,6 @@ from src.db.database import Database
 from src.api.utils import get_db_path, get_config_dir, load_config, df_to_json_safe_dict, ROOT_DIR
 
 router = APIRouter(prefix="/api", tags=["analysis"])
-
-class ChatRequest(BaseModel):
-    message: str
-    history: Optional[List[dict]] = None
-    model: Optional[str] = None
-
-@router.post("/chat")
-def chat(request: ChatRequest):
-    conn = None
-    try:
-        db_path = get_db_path()
-        config_dir = get_config_dir()
-        conn = sqlite3.connect(db_path)
-        query_tx = "SELECT * FROM transactions ORDER BY transaction_date DESC LIMIT 10"
-        df_tx = pd.read_sql_query(query_tx, conn)
-        from datetime import date
-        recent_transactions = []
-        for _, row in df_tx.iterrows():
-            try:
-                d_str = str(row['transaction_date'])
-                if '/' in d_str:
-                    from datetime import datetime
-                    d = datetime.strptime(d_str, "%Y/%m/%d").date()
-                else:
-                    d = date.fromisoformat(d_str)
-                recent_transactions.append(TransactionModel(
-                    transaction_id=row['transaction_id'],
-                    transaction_date=d,
-                    category=row['category'],
-                    genre=row['genre'] if 'genre' in row and pd.notnull(row['genre']) else "",
-                    amount=row['amount'],
-                    comment=row['comment'] if pd.notnull(row['comment']) else "",
-                    source=row['source'],
-                    mode=row['mode']
-                ))
-            except Exception as e:
-                print(f"Skipping transaction in context due to parse error: {e}")
-        db_instance = Database(db_path=db_path)
-        asset_summary = db_instance.get_asset_category_summary()
-        profile = load_config(os.path.join(config_dir, "profile.json"))
-        budget = load_config(os.path.join(config_dir, "budget.json"))
-        from src.analyzer.gemini_analyzer import KakeiboAnalyzer
-        analyzer = KakeiboAnalyzer()
-        response = analyzer.chat(
-            message=request.message,
-            history=request.history,
-            profile=profile,
-            budget=budget,
-            assets_summary=asset_summary,
-            recent_transactions=recent_transactions,
-            model_override=request.model
-        )
-        return {"response": response}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
-    finally:
-        if conn:
-            conn.close()
 
 @router.get("/analysis-history")
 async def get_analysis_history(timeframe: str = "monthly"):
@@ -113,78 +56,71 @@ async def get_analysis_content(history_id: int):
         if conn:
             conn.close()
 
-@router.get("/life-plan/simulation")
-def get_life_plan_simulation():
+@router.get("/analysis-history/latest-summary")
+async def get_latest_summary():
+    conn = None
     try:
         db_path = get_db_path()
-        config_dir = get_config_dir()
-        db_instance = Database(db_path=db_path)
-        assets_summary = db_instance.get_asset_category_summary()
-        total_assets = sum(a['amount'] for a in assets_summary)
-        profile = load_config(os.path.join(config_dir, "profile.json"))
-        budget = load_config(os.path.join(config_dir, "budget.json"))
-        user_info = profile.get("user", {})
-        life_plan = user_info.get("life_plan", {})
-        if not life_plan:
-            raise HTTPException(status_code=400, detail="Life plan settings not found in profile.json")
-        from src.utils.life_plan_calculator import LifePlanCalculator
-        monthly_savings = budget.get("monthly", {}).get("savings_goal", 0) + budget.get("monthly", {}).get("investment_goal", 0)
-        calculator = LifePlanCalculator(
-            current_assets=total_assets,
-            monthly_savings=monthly_savings,
-            current_age=life_plan.get("current_age", 30),
-            retirement_age=life_plan.get("retirement_age", 65),
-            annual_return_rate=life_plan.get("annual_return_rate", 3.0),
-            annual_inflation_rate=life_plan.get("annual_inflation_rate", 1.0),
-            monthly_expenses_post_retirement=life_plan.get("monthly_living_expenses_post_retirement", 200000),
-            events=life_plan.get("events", [])
-        )
-        trajectory = calculator.simulate(end_age=100)
-        full_settings = {
-            "current_age": life_plan.get("current_age", 30),
-            "retirement_age": life_plan.get("retirement_age", 65),
-            "annual_return_rate": life_plan.get("annual_return_rate", 3.0),
-            "annual_inflation_rate": life_plan.get("annual_inflation_rate", 1.0),
-            "monthly_living_expenses_post_retirement": life_plan.get("monthly_living_expenses_post_retirement", 200000),
-            "events": life_plan.get("events", []),
-            "monthly_savings": monthly_savings
-        }
-        return {
-            "trajectory": trajectory,
-            "advice": None,
-            "settings": full_settings
-        }
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT summary FROM analysis_history ORDER BY created_at DESC LIMIT 1")
+        row = cursor.fetchone()
+        if not row:
+            return {"summary": "まだ分析データがありません。"}
+        return {"summary": row[0]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
 
-@router.get("/life-plan/advice")
-def get_life_plan_advice():
+@router.get("/analysis-history/form")
+async def get_weekly_form():
+    """
+    直近4週間の予算達成状況（勝敗データ）を取得。
+    W: 実績 <= 予算, L: 実績 > 予算
+    """
+    conn = None
     try:
+        from src.api.utils import load_budget, get_budget_category_totals
+        
         db_path = get_db_path()
         config_dir = get_config_dir()
-        db_instance = Database(db_path=db_path)
-        assets_summary = db_instance.get_asset_category_summary()
-        total_assets = sum(a['amount'] for a in assets_summary)
-        profile = load_config(os.path.join(config_dir, "profile.json"))
-        budget = load_config(os.path.join(config_dir, "budget.json"))
-        user_info = profile.get("user", {})
-        life_plan = user_info.get("life_plan", {})
-        from src.utils.life_plan_calculator import LifePlanCalculator
-        monthly_savings = budget.get("monthly", {}).get("savings_goal", 0) + budget.get("monthly", {}).get("investment_goal", 0)
-        calculator = LifePlanCalculator(
-            current_assets=total_assets,
-            monthly_savings=monthly_savings,
-            current_age=life_plan.get("current_age", 30),
-            retirement_age=life_plan.get("retirement_age", 65),
-            annual_return_rate=life_plan.get("annual_return_rate", 3.0),
-            annual_inflation_rate=life_plan.get("annual_inflation_rate", 1.0),
-            monthly_expenses_post_retirement=life_plan.get("monthly_living_expenses_post_retirement", 200000),
-            events=life_plan.get("events", [])
-        )
-        trajectory = calculator.simulate(end_age=100)
-        from src.analyzer.gemini_analyzer import KakeiboAnalyzer
-        analyzer = KakeiboAnalyzer()
-        advice = analyzer.analyze_life_plan(trajectory, profile, budget)
-        return {"advice": advice}
+        budget = load_budget(config_dir)
+        budget_categories = get_budget_category_totals(budget)
+        total_monthly_budget = sum(budget_categories.values()) if budget_categories else 0
+        weekly_budget = (total_monthly_budget * 12) / 52
+        
+        conn = sqlite3.connect(db_path)
+        now = datetime.now()
+        results = []
+        
+        # 直近4週間（今週を含む）
+        for i in range(3, -1, -1):
+            start_date = now - timedelta(days=now.weekday() + 7 * i)
+            end_date = start_date + timedelta(days=6)
+            
+            query = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date BETWEEN ? AND ? AND mode='payment'"
+            actual = pd.read_sql_query(query, conn, params=(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))['total'].iloc[0]
+            actual = int(actual) if pd.notnull(actual) else 0
+            
+            if i == 0:
+                # 今週は進行中なので Pace Limit で判定
+                days_elapsed = (now - start_date).days + 1
+                current_pace_budget = (weekly_budget / 7) * days_elapsed
+                if actual <= current_pace_budget:
+                    results.append("W")
+                else:
+                    results.append("L")
+            else:
+                if actual <= weekly_budget:
+                    results.append("W")
+                else:
+                    results.append("L")
+                    
+        return results
     except Exception as e:
-        return {"advice": "アドバイスの生成中にエラーが発生しました。"}
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()

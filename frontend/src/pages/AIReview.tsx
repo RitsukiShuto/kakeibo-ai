@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, FileText, Info, AlertTriangle, AlertCircle, CheckCircle, Bot } from 'lucide-react';
+import { Info, AlertTriangle, AlertCircle, CheckCircle, Bot, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import client from '../api/client';
 import type { AnalysisHistory } from '../api/client';
-import TopHeader from '../components/TopHeader';
 
 const AIReview: React.FC = () => {
   const [history, setHistory] = useState<AnalysisHistory[]>([]);
@@ -53,159 +52,196 @@ const AIReview: React.FC = () => {
   }, [selectedId]);
 
   const selectedReview = history.find(h => h.id === selectedId);
+  const pastReviews = history.filter(h => h.id !== selectedId);
 
   return (
-    <>
-      <TopHeader 
-        title="AI 分析レポート" 
-        onRefresh={fetchHistory} 
-        timeframes={['daily', 'weekly', 'monthly']}
-        activeTimeframe={timeframe}
-        onTimeframeChange={setTimeframe}
-      />
-      
-      <div className="dashboard-grid">
-        {/* History List */}
-        <div className="card section-splitter">
-          <div className="card-header">
-            <h3><Calendar size={20} /> {timeframe === 'daily' ? '日次' : timeframe === 'weekly' ? '週次' : '月次'}分析履歴</h3>
-          </div>
-          <div className="card-body" style={{ padding: 0 }}>
-            {loading ? (
-              <div className="p-4 text-center">読み込み中...</div>
-            ) : history.length > 0 ? (
-              <ul className="history-list">
-                {history.map((h) => (
-                  <li 
-                    key={h.id} 
-                    className={selectedId === h.id ? 'active' : ''} 
-                    onClick={() => setSelectedId(h.id)}
-                    style={selectedId === h.id ? { backgroundColor: 'var(--bg-color)', borderLeft: '4px solid var(--primary)' } : {}}
-                  >
-                    <div className="flex justify-between items-center" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div className="font-bold" style={{ fontWeight: 'bold' }}>{h.created_at.split(' ')[0]}</div>
-                        <div className="text-muted text-sm" style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{h.timeframe}</div>
-                      </div>
-                      <div className="badge score-good">Score: {h.score}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="p-8 text-center text-muted">この期間のレポート履歴はありません。</div>
-            )}
-          </div>
+    <div className="max-w-[1100px] mx-auto px-8 py-12 min-h-screen text-slate-100">
+      <header className="flex justify-between items-center mb-16 pb-6 border-b border-slate-800">
+        <div className="text-2xl font-black tracking-tighter text-indigo-400">AI Review</div>
+        <div className="flex bg-slate-900 border border-slate-800 rounded-full p-1">
+          {['daily', 'weekly', 'monthly'].map((tf) => (
+            <button 
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase transition-colors ${timeframe === tf ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              {tf}
+            </button>
+          ))}
         </div>
+      </header>
 
-        {/* Report Detail */}
-        <div className="card section-assets">
-          <div className="card-header">
-            <h3><FileText size={20} /> レポート詳細</h3>
-          </div>
-          <div className="card-body">
-            {selectedReview ? (
-              <div className="review-full-text">
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
-                  <div className="badge score-good">Score: {selectedReview.score}</div>
-                  {selectedReview.total_tokens && (
-                    <div className="badge" style={{ backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                      <Bot size={14} className="inline mr-1" />
-                      {selectedReview.model_name || 'AI Model'} ({selectedReview.total_tokens.toLocaleString()} tokens)
+      {loading && !selectedReview ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+        </div>
+      ) : history.length === 0 ? (
+        <div className="text-center p-12 text-slate-500 font-medium bg-slate-900/30 rounded-3xl border border-slate-800">
+          この期間のレポート履歴はありません。
+        </div>
+      ) : (
+        <>
+          {/* Main Selected Report */}
+          {selectedReview && (
+            <section className="mb-20">
+              <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-500 uppercase tracking-widest">
+                Selected Analysis
+                <div className="flex-1 h-px bg-slate-800"></div>
+              </h2>
+              
+              <div className="bg-slate-900/50 rounded-3xl p-8 border border-slate-800">
+                <div className="flex justify-between items-start mb-8 pb-8 border-b border-slate-800/50">
+                  <div>
+                    <div className="text-sm font-bold text-slate-500 mb-2 uppercase tracking-widest">{selectedReview.timeframe} Report</div>
+                    <div className="text-3xl font-black text-slate-100">{selectedReview.created_at.split(' ')[0]}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-4 py-2 rounded-xl text-lg font-black tracking-wider">
+                      SCORE: {selectedReview.score}
                     </div>
-                  )}
+                    {selectedReview.total_tokens && (
+                      <div className="text-xs text-slate-500 flex items-center gap-1">
+                        <Bot size={12} /> {selectedReview.model_name || 'AI'} ({selectedReview.total_tokens.toLocaleString()} tk)
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <h4 className="mb-2">要約</h4>
-                <div className="review-summary mb-4">
-                  {selectedReview.summary}
+
+                <div className="mb-10">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Summary</h3>
+                  <p className="text-xl font-bold leading-relaxed text-slate-300">
+                    {selectedReview.summary}
+                  </p>
                 </div>
-                <h4 className="mb-2">詳細レポート</h4>
-                <div className="markdown-content" style={{ color: 'var(--text-main)', padding: '20px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      blockquote(props: any) {
-                        const { node, children } = props;
-                        
-                        try {
-                          const pNode = node.children?.find((n: any) => n.type === 'element' && n.tagName === 'p');
-                          if (pNode && pNode.children && pNode.children.length > 0) {
-                            const textNode = pNode.children[0];
-                            if (textNode.type === 'text' && textNode.value.startsWith('[!')) {
-                              const match = textNode.value.match(/^\[!(\w+)\](?:[ \t]*(.*))?/);
-                              if (match) {
-                                const type = match[1].toUpperCase();
-                                const titleText = match[2] || type.charAt(0) + type.slice(1).toLowerCase();
-                                
-                                let Icon = Info;
-                                let colorVar = 'var(--primary)';
-                                let bgColor = 'rgba(59, 130, 246, 0.1)';
-                                
-                                if (type === 'WARNING' || type === 'CAUTION') {
-                                  Icon = AlertTriangle; colorVar = 'var(--warning)'; bgColor = 'rgba(245, 158, 11, 0.1)';
-                                } else if (type === 'DANGER' || type === 'ERROR') {
-                                  Icon = AlertCircle; colorVar = 'var(--danger)'; bgColor = 'rgba(239, 68, 68, 0.1)';
-                                } else if (type === 'SUCCESS' || type === 'TIP' || type === 'DONE') {
-                                  Icon = CheckCircle; colorVar = 'var(--success)'; bgColor = 'rgba(16, 185, 129, 0.1)';
-                                }
-                      
-                                const lines = textNode.value.split('\n');
-                                lines.shift(); 
-                                const newText = lines.join('\n');
-                                
-                                const modifiedChildren = React.Children.map(children, (child, index) => {
-                                  if (index === 0 && React.isValidElement(child)) {
-                                     const childProps = child.props as any;
-                                     const newPChildren = React.Children.map(childProps.children, (pChild, pIndex) => {
-                                       if (pIndex === 0 && typeof pChild === 'string') {
-                                          return newText;
-                                       }
-                                       return pChild;
-                                     });
-                                     return React.cloneElement(child, {}, newPChildren);
+
+                <div>
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Detail</h3>
+                  <div className="prose prose-invert prose-slate max-w-none 
+                    prose-headings:text-indigo-400 prose-headings:font-black 
+                    prose-p:text-slate-300 prose-p:leading-relaxed 
+                    prose-a:text-indigo-400 hover:prose-a:text-indigo-300 
+                    prose-strong:text-slate-200 prose-strong:font-black 
+                    prose-ul:text-slate-300 prose-ol:text-slate-300
+                    prose-blockquote:border-l-indigo-500 prose-blockquote:bg-indigo-500/5 prose-blockquote:py-1 prose-blockquote:px-4 prose-blockquote:rounded-r-lg prose-blockquote:not-italic prose-blockquote:text-slate-300"
+                  >
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        blockquote(props: any) {
+                          const { node, children } = props;
+                          try {
+                            const pNode = node.children?.find((n: any) => n.type === 'element' && n.tagName === 'p');
+                            if (pNode && pNode.children && pNode.children.length > 0) {
+                              const textNode = pNode.children[0];
+                              if (textNode.type === 'text' && textNode.value.startsWith('[!')) {
+                                const match = textNode.value.match(/^\[!(\w+)\](?:[ \t]*(.*))?/);
+                                if (match) {
+                                  const type = match[1].toUpperCase();
+                                  const titleText = match[2] || type.charAt(0) + type.slice(1).toLowerCase();
+                                  
+                                  let Icon = Info;
+                                  let colorClass = 'text-indigo-400';
+                                  let bgClass = 'bg-indigo-500/10 border-l-indigo-500';
+                                  
+                                  if (type === 'WARNING' || type === 'CAUTION') {
+                                    Icon = AlertTriangle; colorClass = 'text-amber-400'; bgClass = 'bg-amber-500/10 border-l-amber-500';
+                                  } else if (type === 'DANGER' || type === 'ERROR') {
+                                    Icon = AlertCircle; colorClass = 'text-rose-400'; bgClass = 'bg-rose-500/10 border-l-rose-500';
+                                  } else if (type === 'SUCCESS' || type === 'TIP' || type === 'DONE') {
+                                    Icon = CheckCircle; colorClass = 'text-emerald-400'; bgClass = 'bg-emerald-500/10 border-l-emerald-500';
                                   }
-                                  return child;
-                                });
-                      
-                                return (
-                                  <div style={{
-                                    borderLeft: `4px solid ${colorVar}`,
-                                    backgroundColor: bgColor,
-                                    padding: '12px 16px',
-                                    margin: '16px 0',
-                                    borderRadius: '0 8px 8px 0'
-                                  }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: colorVar, fontWeight: 'bold', marginBottom: '8px', fontSize: '0.95rem' }}>
-                                      <Icon size={18} />
-                                      <span>{titleText}</span>
+                        
+                                  const lines = textNode.value.split('\n');
+                                  lines.shift(); 
+                                  const newText = lines.join('\n');
+                                  
+                                  const modifiedChildren = React.Children.map(children, (child, index) => {
+                                    if (index === 0 && React.isValidElement(child)) {
+                                       const childProps = child.props as any;
+                                       const newPChildren = React.Children.map(childProps.children, (pChild, pIndex) => {
+                                         if (pIndex === 0 && typeof pChild === 'string') {
+                                            return newText;
+                                         }
+                                         return pChild;
+                                       });
+                                       return React.cloneElement(child, {}, newPChildren);
+                                    }
+                                    return child;
+                                  });
+                        
+                                  return (
+                                    <div className={`my-6 pl-4 py-3 pr-4 border-l-4 rounded-r-xl ${bgClass}`}>
+                                      <div className={`flex items-center gap-2 font-bold mb-2 ${colorClass}`}>
+                                        <Icon size={18} />
+                                        <span>{titleText}</span>
+                                      </div>
+                                      <div className="text-slate-300 opacity-90 m-0">
+                                        {modifiedChildren}
+                                      </div>
                                     </div>
-                                    <div style={{ margin: 0, opacity: 0.9 }}>
-                                      {modifiedChildren}
-                                    </div>
-                                  </div>
-                                );
+                                  );
+                                }
                               }
                             }
-                          }
-                        } catch (e) {
-                          // Fallback to normal rendering on error
+                          } catch (e) {}
+                          
+                          return <blockquote {...props} />;
                         }
-                        
-                        return <blockquote style={{ borderLeft: '4px solid var(--border)', paddingLeft: '16px', color: 'var(--text-muted)', margin: '16px 0' }} {...props} />;
-                      }
-                    }}
-                  >
-                    {reportContent}
-                  </ReactMarkdown>
+                      }}
+                    >
+                      {reportContent}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
-            ) : (
-              <div className="text-muted">レポートを選択してください。</div>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
+            </section>
+          )}
+
+          {/* Past Reports Grid */}
+          {pastReviews.length > 0 && (
+            <section className="mb-20">
+              <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-500 uppercase tracking-widest">
+                Past Reviews
+                <div className="flex-1 h-px bg-slate-800"></div>
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pastReviews.map((h) => (
+                  <div 
+                    key={h.id}
+                    onClick={() => {
+                      setSelectedId(h.id);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="bg-slate-900/30 border border-slate-800 rounded-2xl p-6 cursor-pointer hover:bg-slate-800/50 hover:border-slate-700 transition-all group flex flex-col h-full"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{h.timeframe}</div>
+                        <div className="text-lg font-black text-slate-200 group-hover:text-indigo-400 transition-colors">{h.created_at.split(' ')[0]}</div>
+                      </div>
+                      <div className="bg-slate-800/50 text-slate-300 px-3 py-1 rounded-lg text-sm font-bold border border-slate-700">
+                        {h.score}
+                      </div>
+                    </div>
+                    
+                    <div className="text-sm text-slate-400 line-clamp-3 mb-6 flex-1">
+                      {h.summary}
+                    </div>
+                    
+                    <div className="flex justify-end mt-auto">
+                      <div className="text-indigo-400 text-sm font-bold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        詳細を見る <ChevronRight size={16} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+    </div>
   );
 };
 

@@ -19,13 +19,13 @@ describe('ProgressBar', () => {
   it('shows over-pace color when actual > paceLimit', () => {
     const { container } = render(<ProgressBar label="Food" actual={16000} budget={30000} paceLimit={15000} />);
     const progressBar = container.querySelector('.progress-bar');
-    expect(progressBar).toHaveClass('bg-amber-500');
+    expect(progressBar).toHaveClass('warning');
   });
 
   it('shows normal color when actual <= paceLimit', () => {
     const { container } = render(<ProgressBar label="Food" actual={14000} budget={30000} paceLimit={15000} />);
     const progressBar = container.querySelector('.progress-bar');
-    expect(progressBar).toHaveClass('bg-indigo-600');
+    expect(progressBar).not.toHaveClass('warning');
   });
 
   it('handles zero budget correctly', () => {
@@ -36,8 +36,8 @@ describe('ProgressBar', () => {
 
   it('renders pace marker and difference when provided', () => {
     render(<ProgressBar label="Food" actual={18000} budget={30000} paceLimit={15000} showDiff={true} />);
-    // Note: The code produces (+¥3,000) for excess
-    expect(screen.getByText('(+¥3,000)')).toBeInTheDocument(); 
+    // Note: The code produces +¥3,000 for excess
+    expect(screen.getByText('+¥3,000')).toBeInTheDocument(); 
     const marker = document.querySelector('.pace-marker');
     expect(marker).toBeInTheDocument();
   });

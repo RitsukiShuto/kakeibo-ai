@@ -40,6 +40,27 @@ export interface BudgetActual {
   category: string;
   budget: number;
   actual: number;
+  pace_limit?: number;
+}
+
+export interface SankeyNode {
+  id: number;
+  name: string;
+}
+
+export interface SankeyLink {
+  source: number;
+  target: number;
+  value: number;
+}
+
+export interface SankeyData {
+  nodes: SankeyNode[];
+  links: SankeyLink[];
+}
+
+export interface LatestSummary {
+  summary: string;
 }
 
 export interface AssetTrend {

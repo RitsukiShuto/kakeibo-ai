@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 import os
 import sqlite3
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from src.db.database import Database
 from src.api.utils import get_db_path, get_config_dir, load_budget, get_budget_category_totals
 
@@ -54,7 +54,6 @@ async def get_kpi(timeframe: str = "monthly"):
         if timeframe == "daily":
             date_pattern = now.strftime("%Y-%m-%d")
         elif timeframe == "weekly":
-            from datetime import timedelta
             monday = now - timedelta(days=now.weekday())
             date_pattern = None
         else:
@@ -63,7 +62,6 @@ async def get_kpi(timeframe: str = "monthly"):
         conn = sqlite3.connect(db_path)
         
         if timeframe == "weekly":
-            from datetime import timedelta
             monday = now - timedelta(days=now.weekday())
             query_total = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date BETWEEN ? AND ? AND mode='payment'"
             actual_total = pd.read_sql_query(query_total, conn, params=(monday.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")))['total'].iloc[0]
@@ -91,7 +89,7 @@ async def get_kpi(timeframe: str = "monthly"):
             conn.close()
 
 @router.get("/budget-actual")
-async def get_budget_actual():
+async def get_budget_actual(timeframe: str = "monthly"):
     conn = None
     try:
         db_path = get_db_path()
@@ -101,21 +99,147 @@ async def get_budget_actual():
         if not budget_categories:
             return []
             
-        current_month = datetime.now().strftime("%Y-%m")
+        now = datetime.now()
+        
+        # timeframeに応じた期間と予算倍率の設定
+        if timeframe == "weekly":
+            start_date = now - timedelta(days=now.weekday()) # Monday
+            end_date = start_date + timedelta(days=6)
+            days_in_period = 7
+            days_elapsed = (now - start_date).days + 1
+            multiplier = 7 / 30.44 # 平均的な月の日数で按分
+        elif timeframe == "quarterly":
+            quarter = (now.month - 1) // 3 + 1
+            start_date = datetime(now.year, 3 * quarter - 2, 1)
+            if quarter == 4:
+                end_date = datetime(now.year, 12, 31)
+            else:
+                end_date = datetime(now.year, 3 * quarter + 1, 1) - timedelta(days=1)
+            days_in_period = (end_date - start_date).days + 1
+            days_elapsed = (now - start_date).days + 1
+            multiplier = 3.0
+        elif timeframe == "yearly":
+            start_date = datetime(now.year, 1, 1)
+            end_date = datetime(now.year, 12, 31)
+            days_in_period = 365 if now.year % 4 != 0 else 366
+            days_elapsed = (now - start_date).days + 1
+            multiplier = 12.0
+        else: # monthly
+            start_date = datetime(now.year, now.month, 1)
+            if now.month == 12:
+                end_date = datetime(now.year, 12, 31)
+            else:
+                end_date = datetime(now.year, now.month + 1, 1) - timedelta(days=1)
+            days_in_period = (end_date - start_date).days + 1
+            days_elapsed = now.day
+            multiplier = 1.0
+
         conn = sqlite3.connect(db_path)
-        query = "SELECT category, SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual FROM transactions WHERE transaction_date LIKE ? AND mode='payment' GROUP BY category"
-        df_actual = pd.read_sql_query(query, conn, params=(f"{current_month}%",))
+        query = "SELECT category, SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual FROM transactions WHERE transaction_date BETWEEN ? AND ? AND mode='payment' GROUP BY category"
+        df_actual = pd.read_sql_query(query, conn, params=(start_date.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")))
         
         result = []
         for cat, b_amt in budget_categories.items():
             actual_row = df_actual[df_actual['category'] == cat]
             a_amt = int(actual_row['actual'].iloc[0]) if not actual_row.empty else 0
+            
+            # 期間に応じた予算額の計算
+            adjusted_budget = int(b_amt * multiplier)
+            # Pace Limit (理想的な進捗ライン) の計算
+            pace_limit = int((adjusted_budget / days_in_period) * days_elapsed)
+            
             result.append({
                 "category": cat,
-                "budget": b_amt,
-                "actual": a_amt
+                "budget": adjusted_budget,
+                "actual": a_amt,
+                "pace_limit": pace_limit
             })
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+@router.get("/stats/flow")
+async def get_stats_flow():
+    """
+    Sankey Diagram用の多階層フローデータを生成。
+    収入源 → 総収入 → カテゴリ(固定/変動) → 詳細カテゴリ
+    """
+    conn = None
+    try:
+        db_path = get_db_path()
+        config_dir = get_config_dir()
+        budget = load_budget(config_dir)
+        
+        current_month = datetime.now().strftime("%Y-%m")
+        conn = sqlite3.connect(db_path)
+        
+        # 1. 収入源の取得
+        query_income = "SELECT source, SUM(amount) as amount FROM transactions WHERE transaction_date LIKE ? AND mode='income' GROUP BY source"
+        df_income = pd.read_sql_query(query_income, conn, params=(f"{current_month}%",))
+        
+        # 2. 支出カテゴリ（実績）の取得
+        query_expense = "SELECT category, SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as amount FROM transactions WHERE transaction_date LIKE ? AND mode='payment' GROUP BY category"
+        df_expense = pd.read_sql_query(query_expense, conn, params=(f"{current_month}%",))
+        
+        # Nodes と Links の構築
+        nodes = []
+        links = []
+        node_map = {}
+
+        def add_node(name):
+            if name not in node_map:
+                node_map[name] = len(nodes)
+                nodes.append({"id": node_map[name], "name": name})
+            return node_map[name]
+
+        total_income_node = add_node("総収入")
+        fixed_node = add_node("固定費")
+        variable_node = add_node("変動費")
+
+        # 収入源 → 総収入
+        total_income_val = 0
+        for _, row in df_income.iterrows():
+            src_node = add_node(row['source'])
+            links.append({"source": src_node, "target": total_income_node, "value": int(row['amount'])})
+            total_income_val += int(row['amount'])
+
+        # 予算設定から固定/変動の分類を取得
+        monthly_budget = budget.get("monthly", {}).get("budget", {}) if budget else {}
+        fixed_cats = monthly_budget.get("fixed", {}).keys()
+        variable_cats = monthly_budget.get("variable", {}).keys()
+
+        total_fixed = 0
+        total_variable = 0
+        
+        for _, row in df_expense.iterrows():
+            cat = row['category']
+            amt = int(row['amount'])
+            cat_node = add_node(cat)
+            
+            if cat in fixed_cats:
+                links.append({"source": fixed_node, "target": cat_node, "value": amt})
+                total_fixed += amt
+            else:
+                links.append({"source": variable_node, "target": cat_node, "value": amt})
+                total_variable += amt
+
+        # 総収入 → 固定費/変動費
+        if total_fixed > 0:
+            links.append({"source": total_income_node, "target": fixed_node, "value": total_fixed})
+        if total_variable > 0:
+            links.append({"source": total_income_node, "target": variable_node, "value": total_variable})
+
+        # 余剰（貯蓄）
+        savings = total_income_val - (total_fixed + total_variable)
+        if savings > 0:
+            savings_node = add_node("貯蓄")
+            links.append({"source": total_income_node, "target": savings_node, "value": savings})
+
+        return {"nodes": nodes, "links": links}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
