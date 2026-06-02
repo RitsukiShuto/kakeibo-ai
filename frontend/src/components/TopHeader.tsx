@@ -27,7 +27,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({
 
   return (
     <header className="top-header">
-      <div className="flex items-center gap-8">
+      <div className="flex items-center gap-4 sm:gap-8 flex-wrap">
         <h1 className="page-title">{title}</h1>
         
         {timeframes.length > 0 && (

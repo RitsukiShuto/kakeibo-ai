@@ -9,9 +9,9 @@ interface StatProps {
 
 export const StatItem: React.FC<StatProps> = ({ label, value, subValue, colorClass }) => (
   <div className="flex flex-col">
-    <span className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] font-bold mb-3">{label}</span>
-    <span className={`text-4xl font-black tracking-tighter leading-none ${colorClass || 'text-[var(--text-main)]'}`}>{value}</span>
-    {subValue && <span className="text-xs font-semibold text-[var(--text-muted)] mt-3">{subValue}</span>}
+    <span className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-bold mb-3">{label}</span>
+    <span className={`text-3xl sm:text-4xl font-black tracking-tighter leading-tight ${colorClass || 'text-[var(--text-main)]'}`}>{value}</span>
+    {subValue && <span className="text-xs font-semibold text-[var(--text-muted)] mt-2 opacity-80">{subValue}</span>}
   </div>
 );
 

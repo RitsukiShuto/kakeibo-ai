@@ -93,7 +93,7 @@ const Dashboard: React.FC = () => {
       />
 
       <div className="dashboard-grid">
-        <div className="col-span-12 flex justify-end">
+        <div className="col-span-12 flex justify-center md:justify-end mb-2">
           <MonthSelector currentMonth={currentMonth} onChange={setCurrentMonth} />
         </div>
 
@@ -123,7 +123,7 @@ const Dashboard: React.FC = () => {
             />
           </div>
           <div className="card kpi-card">
-            <div className="kpi-title">資産構成</div>
+            <span className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-bold mb-3">資産構成</span>
             <div className="w-full h-[100px] mt-2">
               <AssetPieChart data={assetTrend} />
             </div>
@@ -136,7 +136,7 @@ const Dashboard: React.FC = () => {
             <h3><Wallet size={20} /> 予算管理</h3>
           </div>
           <div className="card-body">
-            <div className="mb-6">
+            <div className="mb-8">
               <BudgetForm history={weeklyForm} />
             </div>
             <BudgetPacemaker 
@@ -177,7 +177,7 @@ const Dashboard: React.FC = () => {
             <h3><TrendingUp size={20} /> 資産推移 / キャッシュフロー</h3>
           </div>
           <div className="card-body">
-            <div className="w-full h-[400px]">
+            <div className="w-full h-[300px] sm:h-[400px]">
               <SankeyChart data={sankeyData} />
             </div>
           </div>
