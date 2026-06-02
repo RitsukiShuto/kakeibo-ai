@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExternalLink, Bot, Wallet, TrendingUp, Handshake, List } from 'lucide-react';
+import { ExternalLink, Wallet, Handshake, List } from 'lucide-react';
 import client from '../api/client';
 import type { KPI, BudgetActual, AssetTrend, SankeyData, LatestSummary, Transaction } from '../api/client';
 import AssetPieChart from '../components/AssetPieChart';
@@ -151,35 +151,22 @@ const Dashboard: React.FC = () => {
 
           {/* AI Analysis Report */}
           <section className="col-span-12 lg:col-span-6 mb-24">
-            <div className="flex items-center gap-3 mb-8">
-              <Bot className="text-indigo-400" size={24} />
-              <h3 className="text-xl font-bold">AI 分析レポート</h3>
-              <span className="ml-auto text-xs font-bold px-3 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full">
-                スコア: 85/100
-              </span>
+            <div className="mb-6">
+              <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">AI Insights</h3>
+              <div className="h-px bg-slate-800 mt-2"></div>
             </div>
             <div>
-              <div className="mb-8">
-                <p className="text-lg leading-relaxed text-slate-300 font-medium">
-                  {latestSummary || "まだ分析データがありません。"}
-                </p>
-              </div>
-              <div className="flex gap-4">
-                <button 
-                  className="px-6 py-2 border border-slate-700 hover:border-indigo-500 hover:text-indigo-500 rounded-lg transition-all text-sm font-bold flex items-center gap-2"
-                  onClick={() => navigate('/ai-review')}
-                >
-                  詳細レポートを読む <ExternalLink size={14} />
-                </button>
-              </div>
+              <p className="text-lg italic text-slate-300 leading-relaxed">
+                {latestSummary || "まだ分析データがありません。"}
+              </p>
             </div>
           </section>
 
           {/* Asset Trend / Cash Flow */}
           <section className="col-span-12 mb-24">
-            <div className="flex items-center gap-3 mb-8">
-              <TrendingUp className="text-indigo-500" size={24} />
-              <h3 className="text-xl font-bold">資産推移 / キャッシュフロー</h3>
+            <div className="mb-6">
+              <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">Cash Flow</h3>
+              <div className="h-px bg-slate-800 mt-2"></div>
             </div>
             <div className="w-full h-[450px]">
               <SankeyChart data={sankeyData} />
