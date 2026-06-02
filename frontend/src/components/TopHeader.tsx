@@ -27,11 +27,11 @@ const TopHeader: React.FC<TopHeaderProps> = ({
 
   return (
     <header className="top-header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-        <h1 className="page-title" style={{ margin: 0 }}>{title}</h1>
+      <div className="flex items-center gap-8">
+        <h1 className="page-title">{title}</h1>
         
         {timeframes.length > 0 && (
-          <div className="timeframe-tabs" style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="timeframe-tabs">
             {timeframes.map((tf) => (
               <button
                 key={tf}
@@ -49,11 +49,8 @@ const TopHeader: React.FC<TopHeaderProps> = ({
         <button className="btn-refresh" onClick={onRefresh} disabled={loading}>
           <RefreshCcw 
             size={16} 
-            style={{ 
-              marginRight: '8px', 
-              verticalAlign: 'middle',
-              animation: loading ? 'spin 1s linear infinite' : 'none' 
-            }} 
+            className={loading ? 'animate-spin' : ''}
+            style={{ marginRight: '8px' }}
           />
           <span>更新</span>
         </button>
@@ -61,12 +58,6 @@ const TopHeader: React.FC<TopHeaderProps> = ({
           <User size={24} />
         </div>
       </div>
-      
-      <style>{`
-        @keyframes spin {
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </header>
   );
 };

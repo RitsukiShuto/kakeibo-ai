@@ -3,18 +3,18 @@
 @tailwind utilities;
 
 :root {
-    /* Premium Dark Theme Tokens */
-    --bg-color: #0b0f19; /* Deep dark blue */
-    --bg-gradient: radial-gradient(circle at top right, #111827, #0b0f19);
+    /* Vibrant Minimalist Dark Theme Tokens */
+    --bg-color: #0f172a; /* Slate-900/950 area */
+    --bg-gradient: radial-gradient(circle at top right, #1e293b, #0f172a);
     
-    --sidebar-bg: rgba(15, 23, 42, 0.7);
+    --sidebar-bg: #1e293b;
     --sidebar-text: #94a3b8;
-    --sidebar-hover: rgba(255, 255, 255, 0.05);
+    --sidebar-hover: #334155;
     
-    --card-bg: rgba(30, 41, 59, 0.6);
-    --card-border: rgba(255, 255, 255, 0.08);
+    --card-bg: #1e293b;
+    --card-border: rgba(255, 255, 255, 0.05);
     
-    --text-main: #f8fafc;
+    --text-main: #f1f5f9;
     --text-muted: #94a3b8;
     
     --primary: #3b82f6;
@@ -25,11 +25,11 @@
     --warning: #f59e0b;
     --danger: #ef4444;
     
-    --border: rgba(255, 255, 255, 0.1);
-    --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    --glow: 0 0 20px rgba(59, 130, 246, 0.15);
+    --border: #334155;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
+    --glow: 0 0 15px rgba(59, 130, 246, 0.1);
     
-    --radius: 16px;
+    --radius: 12px;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'Fira Code', monospace;
 }
@@ -89,7 +89,7 @@ body {
     align-items: center;
 }
 
-.sidebar-header i {
+.sidebar-header i, .sidebar-header svg {
     color: var(--primary-light);
     margin-right: 12px;
     filter: drop-shadow(0 0 8px rgba(59,130,246,0.5));
