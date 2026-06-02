@@ -10,3 +10,8 @@ Test tool: pytest (backend), npm run build (frontend verification)
 | 003 | Operations: Budget Pacemaker & Weekly Form |
 | 004 | Recent Transactions & Reimbursements   |
 | 005 | Final Alignment & Responsive Polish    |
+
+## Fixes
+| ID  | Title                                  |
+|-----|----------------------------------------|
+| 001 | Align Frontend Tests                   |
