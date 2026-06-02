@@ -5,7 +5,6 @@ import client from '../api/client';
 import type { KPI, BudgetActual, AssetTrend, SankeyData, LatestSummary, Transaction } from '../api/client';
 import AssetPieChart from '../components/AssetPieChart';
 import MonthSelector from '../components/MonthSelector';
-import { StatItem } from '../components/StatGroup';
 import SankeyChart from '../components/SankeyChart';
 import BudgetPacemaker from '../components/BudgetPacemaker';
 import BudgetForm from '../components/BudgetForm';
@@ -92,170 +91,181 @@ const Dashboard: React.FC = () => {
         loading={loading}
       />
 
-      <div className="dashboard-grid">
-        <div className="col-span-12 flex justify-center md:justify-end mb-2">
+      <div className="max-w-[1400px] mx-auto px-6 py-12 text-slate-100">
+        <div className="flex justify-between items-end mb-16">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-400">Overview</h2>
           <MonthSelector currentMonth={currentMonth} onChange={setCurrentMonth} />
         </div>
 
-        {/* KPI Cards */}
-        <div className="kpi-cards">
-          <div className="card kpi-card">
-            <StatItem 
-              label="合計支出" 
-              value={`¥${kpi?.actual.toLocaleString() ?? 0}`} 
-              subValue={`予算: ¥${kpi?.budget.toLocaleString() ?? 0}`} 
-              colorClass="text-[var(--primary-light)]" 
-            />
-          </div>
-          <div className="card kpi-card">
-            <StatItem 
-              label="1日平均" 
-              value={`¥${Math.round((kpi?.actual ?? 0) / Math.max(1, new Date().getDate())).toLocaleString()}`} 
-              subValue="当月実績から算出" 
-            />
-          </div>
-          <div className="card kpi-card">
-            <StatItem 
-              label="家計スコア" 
-              value="85/100" 
-              subValue="AIによる総合評価" 
-              colorClass="text-[var(--success)]" 
-            />
-          </div>
-          <div className="card kpi-card">
-            <span className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-bold mb-3">資産構成</span>
-            <div className="w-full h-[100px] mt-2">
-              <AssetPieChart data={assetTrend} />
+        {/* Overview Section */}
+        <section className="grid grid-cols-12 gap-12 items-center mb-24">
+          <div className="col-span-12 lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="flex flex-col">
+              <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Total Expense</span>
+              <span className="text-7xl font-black text-indigo-500 tracking-tighter">
+                ¥{kpi?.actual.toLocaleString() ?? 0}
+              </span>
+              <span className="text-sm text-slate-500 font-bold mt-2">Budget: ¥{kpi?.budget.toLocaleString() ?? 0}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Daily Average</span>
+              <span className="text-6xl font-black text-slate-100 tracking-tighter">
+                ¥{Math.round((kpi?.actual ?? 0) / Math.max(1, new Date().getDate())).toLocaleString()}
+              </span>
+              <span className="text-sm text-slate-500 font-bold mt-2">Current Month</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Kakeibo Score</span>
+              <span className="text-7xl font-black text-emerald-500 tracking-tighter">
+                85
+              </span>
+              <span className="text-sm text-slate-500 font-bold mt-2">Out of 100</span>
             </div>
           </div>
-        </div>
-
-        {/* Budget vs Actual */}
-        <section className="card section-budget">
-          <div className="card-header">
-            <h3><Wallet size={20} /> 予算管理</h3>
-          </div>
-          <div className="card-body">
-            <div className="mb-8">
-              <BudgetForm history={weeklyForm} />
-            </div>
-            <BudgetPacemaker 
-              timeframe={timeframe} 
-              onTimeframeChange={setTimeframe} 
-              variableExpenses={variableExpenses} 
-              fixedExpenses={fixedExpenses} 
-            />
+          <div className="col-span-12 lg:col-span-4 h-[240px]">
+            <AssetPieChart data={assetTrend} />
           </div>
         </section>
 
-        {/* AI Analysis Report */}
-        <section className="card section-ai-review">
-          <div className="card-header">
-            <h3><Bot size={20} /> AI 分析レポート</h3>
-            <span className="badge score-good">スコア: 85/100</span>
-          </div>
-          <div className="card-body">
-            <div className="review-summary">
-              <p className="font-bold leading-relaxed text-[var(--text-main)]">
-                {latestSummary || "まだ分析データがありません。"}
-              </p>
-            </div>
-            <div className="review-actions mt-6">
-              <button 
-                className="btn-outline btn-small flex items-center gap-2"
-                onClick={() => navigate('/ai-review')}
-              >
-                詳細レポートを読む <ExternalLink size={14} />
-              </button>
-            </div>
-          </div>
-        </section>
+        <hr className="border-slate-800 mb-24" />
 
-        {/* Asset Trend / Cash Flow */}
-        <section className="card section-assets">
-          <div className="card-header">
-            <h3><TrendingUp size={20} /> 資産推移 / キャッシュフロー</h3>
-          </div>
-          <div className="card-body">
-            <div className="w-full h-[300px] sm:h-[400px]">
+        <div className="grid grid-cols-12 gap-16">
+          {/* Budget vs Actual */}
+          <section className="col-span-12 lg:col-span-6 mb-24">
+            <div className="flex items-center gap-3 mb-8">
+              <Wallet className="text-amber-500" size={24} />
+              <h3 className="text-xl font-bold">予算管理</h3>
+            </div>
+            <div>
+              <div className="mb-12">
+                <BudgetForm history={weeklyForm} />
+              </div>
+              <BudgetPacemaker 
+                timeframe={timeframe} 
+                onTimeframeChange={setTimeframe} 
+                variableExpenses={variableExpenses} 
+                fixedExpenses={fixedExpenses} 
+              />
+            </div>
+          </section>
+
+          {/* AI Analysis Report */}
+          <section className="col-span-12 lg:col-span-6 mb-24">
+            <div className="flex items-center gap-3 mb-8">
+              <Bot className="text-indigo-400" size={24} />
+              <h3 className="text-xl font-bold">AI 分析レポート</h3>
+              <span className="ml-auto text-xs font-bold px-3 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full">
+                スコア: 85/100
+              </span>
+            </div>
+            <div>
+              <div className="mb-8">
+                <p className="text-lg leading-relaxed text-slate-300 font-medium">
+                  {latestSummary || "まだ分析データがありません。"}
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <button 
+                  className="px-6 py-2 border border-slate-700 hover:border-indigo-500 hover:text-indigo-500 rounded-lg transition-all text-sm font-bold flex items-center gap-2"
+                  onClick={() => navigate('/ai-review')}
+                >
+                  詳細レポートを読む <ExternalLink size={14} />
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Asset Trend / Cash Flow */}
+          <section className="col-span-12 mb-24">
+            <div className="flex items-center gap-3 mb-8">
+              <TrendingUp className="text-indigo-500" size={24} />
+              <h3 className="text-xl font-bold">資産推移 / キャッシュフロー</h3>
+            </div>
+            <div className="w-full h-[450px]">
               <SankeyChart data={sankeyData} />
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* AI Expense Splitter */}
-        <section className="card section-splitter">
-          <div className="card-header">
-            <h3><Handshake size={20} /> AI 立替・精算</h3>
-          </div>
-          <div className="card-body">
-            <div className="flex justify-between items-end mb-6">
-              <div className="text-sm font-bold text-[var(--text-muted)]">精算待ち合計</div>
-              <div className="text-2xl font-black text-[var(--warning)]">¥{pendingTotal.toLocaleString()}</div>
+          {/* AI Expense Splitter */}
+          <section className="col-span-12 lg:col-span-5 mb-24">
+            <div className="flex items-center gap-3 mb-8">
+              <Handshake className="text-indigo-400" size={24} />
+              <h3 className="text-xl font-bold">AI 立替・精算</h3>
             </div>
-            <ul className="pending-list">
-              {pendingReimbursements.slice(0, 5).map((item, idx) => (
-                <li key={idx}>
-                  <div className="pending-info">
-                    <span className="date">{item.transaction_date?.slice(5) || '00-00'}</span>
-                    <span className="desc">{item.comment || item.category}</span>
-                  </div>
-                  <div className="pending-amount">¥{(item.pending_amount || 0).toLocaleString()}</div>
-                </li>
-              ))}
-              {pendingReimbursements.length === 0 && (
-                <li className="text-[var(--text-muted)] text-sm font-medium text-center py-8">
-                  精算待ちの項目はありません
-                </li>
-              )}
-            </ul>
-            <div className="mt-8">
+            <div>
+              <div className="flex justify-between items-end mb-8">
+                <div className="text-sm font-bold text-slate-500 uppercase tracking-wider">精算待ち合計</div>
+                <div className="text-4xl font-black text-amber-500">¥{pendingTotal.toLocaleString()}</div>
+              </div>
+              <ul className="divide-y divide-slate-800">
+                {pendingReimbursements.slice(0, 5).map((item, idx) => (
+                  <li key={idx} className="flex items-center justify-between py-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-mono text-slate-500">{item.transaction_date?.slice(5) || '00-00'}</span>
+                      <span className="font-bold text-slate-200">{item.comment || item.category}</span>
+                    </div>
+                    <div className="text-xl font-bold text-amber-500 font-mono">¥{(item.pending_amount || 0).toLocaleString()}</div>
+                  </li>
+                ))}
+                {pendingReimbursements.length === 0 && (
+                  <li className="text-slate-500 text-sm font-medium text-center py-12">
+                    精算待ちの項目はありません
+                  </li>
+                )}
+              </ul>
+              <div className="mt-12">
+                <button 
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-all shadow-lg shadow-indigo-500/20"
+                  onClick={() => navigate('/expense-splitter')}
+                >
+                  精算管理を開く
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Recent Transactions */}
+          <section className="col-span-12 lg:col-span-7 mb-24">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <List className="text-slate-400" size={24} />
+                <h3 className="text-xl font-bold">最近の明細</h3>
+              </div>
               <button 
-                className="btn-primary w-full btn-small"
-                onClick={() => navigate('/expense-splitter')}
+                className="text-indigo-400 hover:text-indigo-300 text-sm font-bold flex items-center gap-2"
+                onClick={() => navigate('/transactions')}
               >
-                精算管理を開く
+                すべて表示 <ExternalLink size={14} />
               </button>
             </div>
-          </div>
-        </section>
-
-        {/* Recent Transactions */}
-        <section className="card section-transactions">
-          <div className="card-header">
-            <h3><List size={20} /> 最近の明細</h3>
-            <button 
-              className="btn-text text-sm flex items-center gap-2"
-              onClick={() => navigate('/transactions')}
-            >
-              すべて表示 <ExternalLink size={14} />
-            </button>
-          </div>
-          <div className="card-body">
             <div className="overflow-x-auto">
-              <table className="transaction-table">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr>
-                    <th>日付</th>
-                    <th>カテゴリ</th>
-                    <th>摘要</th>
-                    <th>金額</th>
+                  <tr className="border-b border-slate-800">
+                    <th className="py-4 font-bold text-slate-500 text-xs uppercase tracking-widest">日付</th>
+                    <th className="py-4 font-bold text-slate-500 text-xs uppercase tracking-widest">カテゴリ</th>
+                    <th className="py-4 font-bold text-slate-500 text-xs uppercase tracking-widest">摘要</th>
+                    <th className="py-4 font-bold text-slate-500 text-xs uppercase tracking-widest text-right">金額</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-800/50">
                   {transactions.slice(0, 8).map((tx) => (
-                    <tr key={tx.transaction_id}>
-                      <td className="font-mono text-sm">{tx.transaction_date.slice(5)}</td>
-                      <td><span className="badge badge-split">{tx.category}</span></td>
-                      <td className="font-medium">{tx.comment || '-'}</td>
-                      <td className="font-bold text-right">¥{tx.amount.toLocaleString()}</td>
+                    <tr key={tx.transaction_id} className="hover:bg-slate-800/30 transition-colors group">
+                      <td className="py-4 font-mono text-sm text-slate-400">{tx.transaction_date.slice(5)}</td>
+                      <td className="py-4">
+                        <span className="px-2 py-1 text-[10px] font-black uppercase tracking-tighter bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded">
+                          {tx.category}
+                        </span>
+                      </td>
+                      <td className="py-4 font-medium text-slate-200">{tx.comment || '-'}</td>
+                      <td className="py-4 font-bold text-right text-slate-100">¥{tx.amount.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </>
   );
