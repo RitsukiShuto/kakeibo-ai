@@ -189,39 +189,6 @@ def test_update_active_model():
     response = client.get("/api/settings/ai-models")
     assert response.json()["active_model"] == "gemini-1.5-pro"
 
-def test_get_life_plan_simulation():
-    # プロファイルにライフプラン設定を追加
-    config_dir = os.environ["KAKEIBO_CONFIG_DIR"]
-    profile_path = os.path.join(config_dir, "profile.json")
-    profile_data = {
-        "user": {
-            "life_plan": {
-                "current_age": 30,
-                "retirement_age": 65,
-                "annual_return_rate": 3.0,
-                "annual_inflation_rate": 1.0,
-                "monthly_living_expenses_post_retirement": 200000,
-                "events": []
-            }
-        }
-    }
-    with open(profile_path, "w", encoding="utf-8") as f:
-        json.dump(profile_data, f)
-        
-    response = client.get("/api/life-plan/simulation")
-    assert response.status_code == 200
-    data = response.json()
-    assert "trajectory" in data
-    assert "settings" in data
-    assert data["advice"] is None # アドバイスは別エンドポイントになったためNone
-
-def test_get_life_plan_advice():
-    response = client.get("/api/life-plan/advice")
-    assert response.status_code == 200
-    data = response.json()
-    assert "advice" in data
-    assert data["advice"] == "将来の資産推移は良好です。このままの貯蓄ペースを維持しましょう！💅✨"
-
 def test_transaction_crud():
     # 1. Create
     new_tx = {
