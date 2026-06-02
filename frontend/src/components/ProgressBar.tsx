@@ -32,14 +32,14 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ label, actual, budget, paceLi
       </div>
       <div className="relative h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
         <div 
-          className={`h-full rounded-full transition-all duration-700 ease-out ${
-            isOverPace ? 'bg-amber-500' : 'bg-indigo-500'
+          className={`progress-bar h-full rounded-full transition-all duration-700 ease-out ${
+            isOverPace ? 'bg-amber-500 warning' : 'bg-indigo-500'
           }`} 
           style={{ width: `${percentage}%` }}
         />
         {pacePercentage !== null && (
           <div 
-            className="absolute top-0 w-0.5 h-full bg-amber-500 z-10 shadow-[0_0_8px_rgba(245,158,11,0.6)]" 
+            className="pace-marker absolute top-0 w-0.5 h-full bg-amber-500 z-10 shadow-[0_0_8px_rgba(245,158,11,0.6)]" 
             style={{ left: `${pacePercentage}%` }}
             title="Pace Limit"
           />
