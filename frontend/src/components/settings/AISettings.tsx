@@ -47,7 +47,7 @@ const AISettings: React.FC<AISettingsProps> = ({ aiSettings, handleModelChange, 
                 key={persona.id}
                 id={persona.id}
                 name={persona.name}
-                description={persona.description}
+                description={persona.description || ''}
                 isActive={aiSettings.active_persona === persona.id}
                 onClick={() => handlePersonaChange(persona.id)}
               />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, User, Heart, Shield, Terminal, Zap } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 interface PersonaCardProps {
   id: string;
@@ -10,21 +10,6 @@ interface PersonaCardProps {
 }
 
 const PersonaCard: React.FC<PersonaCardProps> = ({ id, name, description, isActive, onClick }) => {
-  const getIcon = () => {
-    switch (id) {
-      case 'gal':
-        return <Zap size={32} className={isActive ? 'text-primary' : 'text-muted'} />;
-      case 'butler':
-        return <Shield size={32} className={isActive ? 'text-primary' : 'text-muted'} />;
-      case 'zen':
-        return <Heart size={32} className={isActive ? 'text-primary' : 'text-muted'} />;
-      case 'sergeant':
-        return <Terminal size={32} className={isActive ? 'text-primary' : 'text-muted'} />;
-      default:
-        return <User size={32} className={isActive ? 'text-primary' : 'text-muted'} />;
-    }
-  };
-
   const getEmoji = () => {
     switch (id) {
       case 'gal': return '✨';
