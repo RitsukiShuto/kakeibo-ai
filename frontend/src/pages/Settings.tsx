@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Wallet, Code, ArrowRightLeft, TrendingUp, Upload, Server } from 'lucide-react';
+import { Settings as SettingsIcon, Save, AlertTriangle, Bot, User, Wallet, Code, ArrowRightLeft, Upload, Server } from 'lucide-react';
 import client from '../api/client';
 import type { AISettings as AISettingsType } from '../api/client';
 import TopHeader from '../components/TopHeader';
@@ -9,7 +9,6 @@ import AISettings from '../components/settings/AISettings';
 import ProfileSettings from '../components/settings/ProfileSettings';
 import BudgetSettings from '../components/settings/BudgetSettings';
 import MappingSettings from '../components/settings/MappingSettings';
-import LifePlanSettings from '../components/settings/LifePlanSettings';
 import ImportSettings from '../components/settings/ImportSettings';
 import ServiceSettings from '../components/settings/ServiceSettings';
 
@@ -22,7 +21,7 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [activeMode, setActiveMode] = useState<'ui' | 'json'>('ui');
-  const [activeTab, setActiveTab] = useState<'ai' | 'profile' | 'budget' | 'mapping' | 'lifeplan' | 'import' | 'services'>('ai');
+  const [activeTab, setActiveTab] = useState<'ai' | 'profile' | 'budget' | 'mapping' | 'import' | 'system'>('budget');
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, modelId: string | null }>({ isOpen: false, modelId: null });
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
@@ -291,25 +290,25 @@ const Settings: React.FC = () => {
 
   return (
     <>
-      <TopHeader title="設定" onRefresh={fetchSettings} />
+      <TopHeader title="システム設定" onRefresh={fetchSettings} />
       
-      <div className="page-content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <div className="timeframe-tabs">
+      <div className="page-content" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <div className="timeframe-tabs glass" style={{ padding: '4px' }}>
             <button className={`tab-btn ${activeMode === 'ui' ? 'active' : ''}`} onClick={() => setActiveMode('ui')}>
-              <SettingsIcon size={16} style={{ marginRight: '8px' }} /> かんたん設定
+              <SettingsIcon size={16} /> かんたん設定
             </button>
             <button className={`tab-btn ${activeMode === 'json' ? 'active' : ''}`} onClick={() => setActiveMode('json')}>
-              <Code size={16} style={{ marginRight: '8px' }} /> 高度な設定 (JSON)
+              <Code size={16} /> 高度な設定 (JSON)
             </button>
           </div>
-          <button className="btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="btn-primary" onClick={handleSave} disabled={saving} style={{ padding: '8px 20px', borderRadius: '10px' }}>
             <Save size={18} style={{ marginRight: '8px' }} /> 設定を保存
           </button>
         </div>
 
         {message && (
-          <div className={`review-summary mb-4 ${message.type === 'error' ? 'border-danger' : ''}`} 
+          <div className={`review-summary mb-6 ${message.type === 'error' ? 'border-danger' : ''}`} 
                style={{ borderLeftColor: message.type === 'error' ? 'var(--danger)' : 'var(--success)' }}>
             {message.type === 'error' && <AlertTriangle size={16} className="text-danger inline mr-2" />}
             {message.text}
@@ -317,33 +316,30 @@ const Settings: React.FC = () => {
         )}
 
         {activeMode === 'ui' && (
-          <div className="timeframe-tabs mb-6" style={{ background: 'transparent', border: 'none', padding: 0, gap: '1.5rem' }}>
+          <div className="timeframe-tabs mb-8" style={{ background: 'transparent', border: 'none', padding: 0, gap: '2rem', justifyContent: 'center' }}>
+            <button className={`tab-link ${activeTab === 'budget' ? 'active' : ''}`} onClick={() => setActiveTab('budget')}>
+              <Wallet size={18} /> 予算
+            </button>
             <button className={`tab-link ${activeTab === 'ai' ? 'active' : ''}`} onClick={() => setActiveTab('ai')}>
-              <Bot size={18} /> AIモデル
+              <Bot size={18} /> AI人格
             </button>
             <button className={`tab-link ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
               <User size={18} /> プロフィール
             </button>
-            <button className={`tab-link ${activeTab === 'budget' ? 'active' : ''}`} onClick={() => setActiveTab('budget')}>
-              <Wallet size={18} /> 予算設定
-            </button>
             <button className={`tab-link ${activeTab === 'mapping' ? 'active' : ''}`} onClick={() => setActiveTab('mapping')}>
-              <ArrowRightLeft size={18} /> カテゴリ変換
-            </button>
-            <button className={`tab-link ${activeTab === 'lifeplan' ? 'active' : ''}`} onClick={() => setActiveTab('lifeplan')}>
-              <TrendingUp size={18} /> ライフプラン設定
+              <ArrowRightLeft size={18} /> 分類変換
             </button>
             <button className={`tab-link ${activeTab === 'import' ? 'active' : ''}`} onClick={() => setActiveTab('import')}>
-              <Upload size={18} /> データインポート
+              <Upload size={18} /> インポート
             </button>
-            <button className={`tab-link ${activeTab === 'services' ? 'active' : ''}`} onClick={() => setActiveTab('services')}>
-              <Server size={18} /> 外部サービス連携
+            <button className={`tab-link ${activeTab === 'system' ? 'active' : ''}`} onClick={() => setActiveTab('system')}>
+              <Server size={18} /> システム
             </button>
           </div>
         )}
 
         {activeMode === 'ui' ? (
-          <div className="settings-content">
+          <div className="settings-content animate-in">
             {activeTab === 'ai' && (
               <AISettings aiSettings={aiSettings} handleModelChange={handleModelChange} handlePersonaChange={handlePersonaChange} />
             )}
@@ -365,16 +361,13 @@ const Settings: React.FC = () => {
                 setMapping={setMapping} setMappingJson={setMappingJson}
               />
             )}
-            {activeTab === 'lifeplan' && (
-              <LifePlanSettings profile={profile} updateProfileField={updateProfileField} />
-            )}
             {activeTab === 'import' && (
               <ImportSettings 
                 importFiles={importFiles} setImportFiles={setImportFiles} 
                 handleImportCsv={handleImportCsv} importing={importing} importResult={importResult} 
               />
             )}
-            {activeTab === 'services' && (
+            {activeTab === 'system' && (
               <ServiceSettings 
                 envSettings={envSettings} updateEnvField={updateEnvField} 
                 cronSettings={cronSettings} setCronSettings={setCronSettings} 
@@ -387,7 +380,7 @@ const Settings: React.FC = () => {
               <div className="card-header"><h3>budget.json</h3></div>
               <textarea 
                 className="form-control" 
-                style={{ height: '500px', fontFamily: 'monospace', fontSize: '12px' }}
+                style={{ height: '500px', fontFamily: 'monospace', fontSize: '13px', background: 'rgba(0,0,0,0.2)' }}
                 value={budgetJson}
                 onChange={(e) => setBudgetJson(e.target.value)}
               />
@@ -396,7 +389,7 @@ const Settings: React.FC = () => {
               <div className="card-header"><h3>profile.json</h3></div>
               <textarea 
                 className="form-control" 
-                style={{ height: '500px', fontFamily: 'monospace', fontSize: '12px' }}
+                style={{ height: '500px', fontFamily: 'monospace', fontSize: '13px', background: 'rgba(0,0,0,0.2)' }}
                 value={profileJson}
                 onChange={(e) => setProfileJson(e.target.value)}
               />
@@ -405,7 +398,7 @@ const Settings: React.FC = () => {
               <div className="card-header"><h3>mapping.json</h3></div>
               <textarea 
                 className="form-control" 
-                style={{ height: '500px', fontFamily: 'monospace', fontSize: '12px' }}
+                style={{ height: '500px', fontFamily: 'monospace', fontSize: '13px', background: 'rgba(0,0,0,0.2)' }}
                 value={mappingJson}
                 onChange={(e) => setMappingJson(e.target.value)}
               />

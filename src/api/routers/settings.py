@@ -102,7 +102,6 @@ async def update_active_persona(data: dict = Body(...)):
 @router.get("/env")
 async def get_env_settings():
     env_keys = [
-        "MF_USER_ID", "MF_PASSWORD", 
         "SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "SLACK_USER_ID",
         "GEMINI_API_KEY", "LLM_PROVIDER"
     ]
