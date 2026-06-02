@@ -66,7 +66,7 @@ describe('Dashboard Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Kakeibo-ai')).toBeInTheDocument();
+      expect(screen.getByText('ダッシュボード')).toBeInTheDocument();
     });
 
     // Overview KPIs
@@ -77,11 +77,10 @@ describe('Dashboard Component', () => {
     expect(screen.getByText('順調です。')).toBeInTheDocument();
 
     // Operations
-    expect(screen.getByText('Operations')).toBeInTheDocument();
-    expect(screen.getByText('変動費の予実管理')).toBeInTheDocument();
+    expect(screen.getByText('予算管理')).toBeInTheDocument();
     expect(screen.getByText('食費')).toBeInTheDocument();
 
     // Sankey section title
-    expect(screen.getByText('Cash Flow Analysis')).toBeInTheDocument();
+    expect(screen.getByText('資産推移 / キャッシュフロー')).toBeInTheDocument();
   });
 });
