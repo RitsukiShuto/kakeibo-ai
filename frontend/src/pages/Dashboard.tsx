@@ -7,7 +7,7 @@ import AssetPieChart from '../components/AssetPieChart';
 import MonthSelector from '../components/MonthSelector';
 import SankeyChart from '../components/SankeyChart';
 import BudgetPacemaker from '../components/BudgetPacemaker';
-import BudgetForm from '../components/BudgetForm';
+import WeeklyForm from '../components/WeeklyForm';
 import TopHeader from '../components/TopHeader';
 
 const Dashboard: React.FC = () => {
@@ -138,7 +138,7 @@ const Dashboard: React.FC = () => {
             </div>
             <div>
               <div className="mb-12">
-                <BudgetForm history={weeklyForm} />
+                <WeeklyForm history={weeklyForm} />
               </div>
               <BudgetPacemaker 
                 timeframe={timeframe} 
