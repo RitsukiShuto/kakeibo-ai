@@ -19,13 +19,13 @@ describe('ProgressBar', () => {
   it('shows over-pace color when actual > paceLimit', () => {
     const { container } = render(<ProgressBar label="Food" actual={16000} budget={30000} paceLimit={15000} />);
     const progressBar = container.querySelector('.progress-bar');
-    expect(progressBar).toHaveClass('bg-amber-500');
+    expect(progressBar).toHaveClass('warning');
   });
 
   it('shows normal color when actual <= paceLimit', () => {
     const { container } = render(<ProgressBar label="Food" actual={14000} budget={30000} paceLimit={15000} />);
     const progressBar = container.querySelector('.progress-bar');
-    expect(progressBar).toHaveClass('bg-indigo-600');
+    expect(progressBar).not.toHaveClass('warning');
   });
 
   it('handles zero budget correctly', () => {

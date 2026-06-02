@@ -17,28 +17,28 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ label, actual, budget, paceLi
   const isOverPace = paceLimit !== undefined && actual > paceLimit;
 
   return (
-    <div className="progress-item mb-10">
-      <div className="flex justify-between items-baseline mb-3">
-        <span className="font-bold text-lg">{label}</span>
-        <span className="text-sm font-medium text-slate-500">
-          <b className="text-slate-900">¥{actual.toLocaleString()}</b>
+    <div className="progress-item">
+      <div className="progress-info items-baseline">
+        <span className="font-bold text-lg text-[var(--text-main)]">{label}</span>
+        <span className="text-sm font-medium text-[var(--text-muted)]">
+          <b className="text-[var(--text-main)]">¥{actual.toLocaleString()}</b>
           {showDiff && paceLimit !== undefined && (
-            <span className={diff <= 0 ? 'text-emerald-500 ml-2' : 'text-rose-500 ml-2'}>
+            <span className={diff <= 0 ? 'text-[var(--success)] ml-2' : 'text-[var(--danger)] ml-2'}>
               ({diff > 0 ? '+' : ''}¥{Math.abs(diff).toLocaleString()})
             </span>
           )}
           {" / ¥"}{budget.toLocaleString()}
         </span>
       </div>
-      <div className="h-2.5 bg-slate-100 rounded-full relative">
+      <div className="progress-bar-container relative">
         <div 
-          className={`progress-bar h-full rounded-full transition-all duration-500 ${isOverPace ? 'bg-amber-500' : 'bg-indigo-600'}`} 
+          className={`progress-bar ${isOverPace ? 'warning' : ''}`} 
           style={{ width: `${percentage}%` }}
         />
         {pacePercentage !== null && (
           <div 
-            className="pace-marker absolute top-[-5px] w-0.5 h-5 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" 
-            style={{ left: `${pacePercentage}%` }}
+            className="pace-marker absolute top-0 w-0.5 h-full bg-[var(--warning)] z-10" 
+            style={{ left: `${pacePercentage}%`, boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)' }}
           />
         )}
       </div>

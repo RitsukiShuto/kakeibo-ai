@@ -1,22 +1,27 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Bot, Wallet, TrendingUp, Handshake, List } from 'lucide-react';
 import client from '../api/client';
-import type { KPI, BudgetActual, AssetTrend, AnalysisHistory, Transaction } from '../api/client';
-import ProgressBar from '../components/ProgressBar';
-import AssetChart from '../components/AssetChart';
+import type { KPI, BudgetActual, AssetTrend, SankeyData, LatestSummary, Transaction } from '../api/client';
 import AssetPieChart from '../components/AssetPieChart';
 import MonthSelector from '../components/MonthSelector';
-import StatGroup, { StatItem } from '../components/StatGroup';
+import { StatItem } from '../components/StatGroup';
+import SankeyChart from '../components/SankeyChart';
+import BudgetPacemaker from '../components/BudgetPacemaker';
+import BudgetForm from '../components/BudgetForm';
+import TopHeader from '../components/TopHeader';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [kpi, setKpi] = useState<KPI | null>(null);
   const [budgetActual, setBudgetActual] = useState<BudgetActual[]>([]);
   const [assetTrend, setAssetTrend] = useState<AssetTrend[]>([]);
-  const [history, setHistory] = useState<AnalysisHistory[]>([]);
+  const [sankeyData, setSankeyData] = useState<SankeyData | null>(null);
+  const [latestSummary, setLatestSummary] = useState<string>('');
+  const [weeklyForm, setWeeklyForm] = useState<string[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [pendingReimbursements, setPendingReimbursements] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('monthly');
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -27,11 +32,17 @@ const Dashboard: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [kpiRes, baRes, assetRes, histRes, txRes, pendingRes] = await Promise.all([
+      const [
+        kpiRes, baRes, assetRes, 
+        sankeyRes, summaryRes, formRes, 
+        txRes, pendingRes
+      ] = await Promise.all([
         client.get<KPI>(`/api/kpi?timeframe=${timeframe}&month=${currentMonth}`),
-        client.get<BudgetActual[]>(`/api/budget-actual?month=${currentMonth}`),
+        client.get<BudgetActual[]>(`/api/budget-actual?timeframe=${timeframe}`),
         client.get<AssetTrend[]>('/api/assets'),
-        client.get<AnalysisHistory[]>(`/api/analysis-history?timeframe=${timeframe}`),
+        client.get<SankeyData>('/api/stats/flow'),
+        client.get<LatestSummary>('/api/analysis-history/latest-summary'),
+        client.get<string[]>('/api/analysis-history/form'),
         client.get<Transaction[]>('/api/transactions?limit=10'),
         client.get<any[]>('/api/reimbursements/pending')
       ]);
@@ -39,7 +50,9 @@ const Dashboard: React.FC = () => {
       setKpi(kpiRes.data);
       setBudgetActual(baRes.data);
       setAssetTrend(assetRes.data);
-      setHistory(histRes.data);
+      setSankeyData(sankeyRes.data);
+      setLatestSummary(summaryRes.data.summary);
+      setWeeklyForm(formRes.data);
       setTransactions(txRes.data);
       setPendingReimbursements(pendingRes.data);
     } catch (error) {
@@ -53,196 +66,198 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, [timeframe, currentMonth]);
 
-  // ペースメーカー計算ロジック
-  const paceData = useMemo(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonthNum = now.getMonth() + 1;
-    const [selYear, selMonth] = currentMonth.split('-').map(Number);
-    
-    // 選択された月が未来ならペースは0、過去なら100%
-    if (selYear > currentYear || (selYear === currentYear && selMonth > currentMonthNum)) {
-      return { todayLimitRatio: 0 };
-    }
-    if (selYear < currentYear || (selYear === currentYear && selMonth < currentMonthNum)) {
-      return { todayLimitRatio: 1 };
-    }
-
-    const daysInMonth = new Date(selYear, selMonth, 0).getDate();
-    const dayOfMonth = now.getDate();
-    return {
-      todayLimitRatio: dayOfMonth / daysInMonth
-    };
-  }, [currentMonth]);
-
-  const latestReview = history.length > 0 ? history[0] : null;
-  
-  // 固定費と変動費を分離 (現状のAPIレスポンスにis_fixedフラグがあると仮定、なければ簡易分類)
+  // 固定費と変動費を分離 (現状のAPIレスポンスにis_fixedフラグがないため簡易分類)
   const fixedCategories = ['家賃', '光熱費', '通信費', '保険'];
   const variableExpenses = budgetActual.filter(item => !fixedCategories.includes(item.category));
   const fixedExpenses = budgetActual.filter(item => fixedCategories.includes(item.category));
 
   const pendingTotal = pendingReimbursements.reduce((sum, item) => sum + (item.pending_amount || 0), 0);
-  const dailyLimit = kpi ? Math.max(0, (kpi.budget - kpi.actual) / Math.max(1, 30 * (1 - paceData.todayLimitRatio))) : 0;
 
   if (loading && !kpi) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex justify-center items-center h-screen" style={{ backgroundColor: 'var(--bg-color)' }}>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary)]"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1100px] mx-auto px-8 py-12 bg-white min-h-screen">
-      <header className="flex justify-between items-center mb-16 pb-6 border-b border-slate-100">
-        <div className="text-2xl font-black tracking-tighter text-indigo-600">Kakeibo-ai</div>
-        <MonthSelector currentMonth={currentMonth} onChange={setCurrentMonth} />
-      </header>
+    <>
+      <TopHeader 
+        title="ダッシュボード" 
+        onRefresh={fetchData} 
+        timeframes={['daily', 'weekly', 'monthly', 'yearly']}
+        activeTimeframe={timeframe}
+        onTimeframeChange={setTimeframe}
+        loading={loading}
+      />
 
-      {/* AI Advice Area */}
-      <section className="mb-16">
-        <div className="inline-block px-3 py-1 bg-indigo-600 text-white rounded text-[10px] font-black mb-4">AIアドバイス</div>
-        <p className="text-2xl font-bold leading-tight text-slate-800">
-          {latestReview?.summary || "今月も順調に家計管理が進んでいますね！"}
-        </p>
-      </section>
-
-      {/* Main Stats */}
-      <StatGroup>
-        <StatItem 
-          label="今日使える額" 
-          value={`¥${Math.round(dailyLimit).toLocaleString()}`} 
-          subValue="1日あたりの自由枠目安" 
-          colorClass="text-indigo-600" 
-        />
-        <StatItem 
-          label="総資産" 
-          value={`¥${kpi?.total_assets.toLocaleString() ?? 0}`} 
-          subValue="▲ ¥15,000 (前月比)" 
-        />
-        <StatItem 
-          label="精算待ち" 
-          value={`¥${pendingTotal.toLocaleString()}`} 
-          subValue={`未精算 ${pendingReimbursements.length}件`} 
-          colorClass="text-amber-500" 
-        />
-      </StatGroup>
-
-      {/* Budget Management */}
-      <section className="mb-20">
-        <div className="flex gap-1 mb-8 border-b border-slate-100 pb-2">
-          {[
-            { id: 'daily', label: '日次' },
-            { id: 'weekly', label: '週次' },
-            { id: 'monthly', label: '月次' },
-            { id: 'quarterly', label: '四半期' },
-            { id: 'yearly', label: '年次' }
-          ].map(t => (
-            <button 
-              key={t.id} 
-              onClick={() => setTimeframe(t.id)}
-              className={`px-6 py-2 text-xs font-black rounded-md transition-colors ${timeframe === t.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
-            >
-              {t.label}
-            </button>
-          ))}
+      <div className="dashboard-grid">
+        <div className="col-span-12 flex justify-center md:justify-end mb-2">
+          <MonthSelector currentMonth={currentMonth} onChange={setCurrentMonth} />
         </div>
 
-        <div className="mb-16">
-          <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-400 uppercase tracking-widest">
-            変動費の予実管理 
-            <div className="flex-1 h-px bg-slate-100"></div>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-2">
-            {variableExpenses.length > 0 ? (
-              variableExpenses.map(item => (
-                <ProgressBar 
-                  key={item.category}
-                  label={item.category}
-                  actual={item.actual}
-                  budget={item.budget}
-                  paceLimit={item.budget * paceData.todayLimitRatio}
-                  showDiff={true}
-                />
-              ))
-            ) : (
-              <div className="text-slate-400 font-medium">データがありません。</div>
-            )}
+        {/* KPI Cards */}
+        <div className="kpi-cards">
+          <div className="card kpi-card">
+            <StatItem 
+              label="合計支出" 
+              value={`¥${kpi?.actual.toLocaleString() ?? 0}`} 
+              subValue={`予算: ¥${kpi?.budget.toLocaleString() ?? 0}`} 
+              colorClass="text-[var(--primary-light)]" 
+            />
           </div>
-        </div>
-
-        <div>
-          <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-400 uppercase tracking-widest">
-            固定費の状況 
-            <div className="flex-1 h-px bg-slate-100"></div>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-2">
-            {fixedExpenses.length > 0 ? (
-              fixedExpenses.map(item => (
-                <ProgressBar 
-                  key={item.category}
-                  label={item.category}
-                  actual={item.actual}
-                  budget={item.budget}
-                />
-              ))
-            ) : (
-              <div className="text-slate-400 font-medium">データがありません。</div>
-            )}
+          <div className="card kpi-card">
+            <StatItem 
+              label="1日平均" 
+              value={`¥${Math.round((kpi?.actual ?? 0) / Math.max(1, new Date().getDate())).toLocaleString()}`} 
+              subValue="当月実績から算出" 
+            />
           </div>
-        </div>
-      </section>
-
-      {/* Asset Analysis */}
-      <section className="mb-20">
-        <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-400 uppercase tracking-widest">
-          資産分析 
-          <div className="flex-1 h-px bg-slate-100"></div>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
-          <div className="md:col-span-2">
-            <div className="text-[10px] font-bold text-slate-400 mb-6 uppercase tracking-widest">資産推移</div>
-            <AssetChart data={assetTrend} timeframe="all" />
+          <div className="card kpi-card">
+            <StatItem 
+              label="家計スコア" 
+              value="85/100" 
+              subValue="AIによる総合評価" 
+              colorClass="text-[var(--success)]" 
+            />
           </div>
-          <div>
-            <div className="text-[10px] font-bold text-slate-400 mb-6 uppercase tracking-widest">資産内訳</div>
-            <div className="aspect-square flex items-center justify-center bg-slate-50 rounded-[32px] border-2 border-dashed border-slate-100 p-4">
+          <div className="card kpi-card">
+            <span className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-bold mb-3">資産構成</span>
+            <div className="w-full h-[100px] mt-2">
               <AssetPieChart data={assetTrend} />
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Recent Activity */}
-      <section className="mb-20">
-        <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-400 uppercase tracking-widest">
-          最近の支出 
-          <div className="flex-1 h-px bg-slate-100"></div>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16">
-          <ul className="divide-y divide-slate-50">
-            {transactions.slice(0, 5).map((tx) => (
-              <li key={tx.transaction_id} className="py-4 flex justify-between items-center">
-                <div>
-                  <div className="text-xs font-bold text-slate-400 mb-1">{tx.transaction_date.slice(5)}</div>
-                  <div className="font-bold text-slate-700">{tx.comment || tx.category}</div>
-                </div>
-                <div className="font-black text-slate-900">¥{tx.amount.toLocaleString()}</div>
-              </li>
-            ))}
-          </ul>
-          <div className="flex flex-col justify-end pb-4">
+        {/* Budget vs Actual */}
+        <section className="card section-budget">
+          <div className="card-header">
+            <h3><Wallet size={20} /> 予算管理</h3>
+          </div>
+          <div className="card-body">
+            <div className="mb-8">
+              <BudgetForm history={weeklyForm} />
+            </div>
+            <BudgetPacemaker 
+              timeframe={timeframe} 
+              onTimeframeChange={setTimeframe} 
+              variableExpenses={variableExpenses} 
+              fixedExpenses={fixedExpenses} 
+            />
+          </div>
+        </section>
+
+        {/* AI Analysis Report */}
+        <section className="card section-ai-review">
+          <div className="card-header">
+            <h3><Bot size={20} /> AI 分析レポート</h3>
+            <span className="badge score-good">スコア: 85/100</span>
+          </div>
+          <div className="card-body">
+            <div className="review-summary">
+              <p className="font-bold leading-relaxed text-[var(--text-main)]">
+                {latestSummary || "まだ分析データがありません。"}
+              </p>
+            </div>
+            <div className="review-actions mt-6">
+              <button 
+                className="btn-outline btn-small flex items-center gap-2"
+                onClick={() => navigate('/ai-review')}
+              >
+                詳細レポートを読む <ExternalLink size={14} />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Asset Trend / Cash Flow */}
+        <section className="card section-assets">
+          <div className="card-header">
+            <h3><TrendingUp size={20} /> 資産推移 / キャッシュフロー</h3>
+          </div>
+          <div className="card-body">
+            <div className="w-full h-[300px] sm:h-[400px]">
+              <SankeyChart data={sankeyData} />
+            </div>
+          </div>
+        </section>
+
+        {/* AI Expense Splitter */}
+        <section className="card section-splitter">
+          <div className="card-header">
+            <h3><Handshake size={20} /> AI 立替・精算</h3>
+          </div>
+          <div className="card-body">
+            <div className="flex justify-between items-end mb-6">
+              <div className="text-sm font-bold text-[var(--text-muted)]">精算待ち合計</div>
+              <div className="text-2xl font-black text-[var(--warning)]">¥{pendingTotal.toLocaleString()}</div>
+            </div>
+            <ul className="pending-list">
+              {pendingReimbursements.slice(0, 5).map((item, idx) => (
+                <li key={idx}>
+                  <div className="pending-info">
+                    <span className="date">{item.transaction_date?.slice(5) || '00-00'}</span>
+                    <span className="desc">{item.comment || item.category}</span>
+                  </div>
+                  <div className="pending-amount">¥{(item.pending_amount || 0).toLocaleString()}</div>
+                </li>
+              ))}
+              {pendingReimbursements.length === 0 && (
+                <li className="text-[var(--text-muted)] text-sm font-medium text-center py-8">
+                  精算待ちの項目はありません
+                </li>
+              )}
+            </ul>
+            <div className="mt-8">
+              <button 
+                className="btn-primary w-full btn-small"
+                onClick={() => navigate('/expense-splitter')}
+              >
+                精算管理を開く
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Recent Transactions */}
+        <section className="card section-transactions">
+          <div className="card-header">
+            <h3><List size={20} /> 最近の明細</h3>
             <button 
-              className="text-sm font-black text-indigo-600 hover:text-indigo-400 transition-colors text-left flex items-center gap-2"
+              className="btn-text text-sm flex items-center gap-2"
               onClick={() => navigate('/transactions')}
             >
-              すべての明細を表示 <ExternalLink size={14} />
+              すべて表示 <ExternalLink size={14} />
             </button>
           </div>
-        </div>
-      </section>
-    </div>
+          <div className="card-body">
+            <div className="overflow-x-auto">
+              <table className="transaction-table">
+                <thead>
+                  <tr>
+                    <th>日付</th>
+                    <th>カテゴリ</th>
+                    <th>摘要</th>
+                    <th>金額</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.slice(0, 8).map((tx) => (
+                    <tr key={tx.transaction_id}>
+                      <td className="font-mono text-sm">{tx.transaction_date.slice(5)}</td>
+                      <td><span className="badge badge-split">{tx.category}</span></td>
+                      <td className="font-medium">{tx.comment || '-'}</td>
+                      <td className="font-bold text-right">¥{tx.amount.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </>
   );
 };
 

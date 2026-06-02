@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ListTodo, Bot, Handshake, Settings, Circle, MessageSquare, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, ListTodo, Bot, Handshake, Settings, Circle } from 'lucide-react';
 import client from '../api/client';
 
 interface SystemStatus {
@@ -34,7 +34,7 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <LayoutDashboard size={24} style={{ marginRight: '8px', color: 'var(--primary)', verticalAlign: 'middle' }} />
+        <LayoutDashboard size={24} />
         <span>Kakeibo AI</span>
       </div>
       <nav className="sidebar-nav">
@@ -58,18 +58,6 @@ const Sidebar: React.FC = () => {
             </NavLink>
           </li>
           <li>
-            <NavLink to="/ai-chat" className={({ isActive }) => (isActive ? 'active' : '')}>
-              <MessageSquare size={20} />
-              <span>AIチャット</span>
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/life-plan" className={({ isActive }) => (isActive ? 'active' : '')}>
-              <TrendingUp size={20} />
-              <span>ライフプラン</span>
-            </NavLink>
-          </li>
-          <li>
             <NavLink to="/expense-splitter" className={({ isActive }) => (isActive ? 'active' : '')}>
               <Handshake size={20} />
               <span>立替・精算</span>
@@ -84,11 +72,11 @@ const Sidebar: React.FC = () => {
         </ul>
       </nav>
       
-      <div className="sidebar-footer" style={{ padding: '20px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
-        <div className="flex items-center text-sm" style={{ color: 'var(--text-muted)' }}>
+      <div className="sidebar-footer" style={{ padding: '20px', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
+        <div className="flex items-center text-sm text-muted">
           <Circle 
             size={10} 
-            fill={status === 'online' ? '#10b981' : (status === 'loading' ? '#f59e0b' : '#ef4444')} 
+            fill={status === 'online' ? 'var(--success)' : (status === 'loading' ? 'var(--warning)' : 'var(--danger)')} 
             color="transparent" 
             style={{ marginRight: '8px' }} 
           />
