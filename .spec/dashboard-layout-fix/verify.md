@@ -30,5 +30,5 @@ PASS
 ## PR
 - Target branch: staging
 - Pushed: yes
-- PR URL: https://github.com/RitsukiShuto/kakeibo-ai/pull/26
+- PR URL: https://github.com/RitsukiShuto/kakeibo-ai/pull/124
 - Reason (if FAIL or n/a): n/a
