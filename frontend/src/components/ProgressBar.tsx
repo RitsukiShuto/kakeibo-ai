@@ -17,28 +17,31 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ label, actual, budget, paceLi
   const isOverPace = paceLimit !== undefined && actual > paceLimit;
 
   return (
-    <div className="progress-item">
-      <div className="progress-info items-baseline">
-        <span className="font-bold text-lg text-[var(--text-main)]">{label}</span>
-        <span className="text-sm font-medium text-[var(--text-muted)]">
-          <b className="text-[var(--text-main)]">¥{actual.toLocaleString()}</b>
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-between items-end">
+        <span className="font-bold text-sm text-slate-200">{label}</span>
+        <div className="text-right">
+          <span className="text-sm font-black text-slate-100">¥{actual.toLocaleString()}</span>
+          <span className="text-[10px] font-bold text-slate-500 ml-1">/ ¥{budget.toLocaleString()}</span>
           {showDiff && paceLimit !== undefined && (
-            <span className={diff <= 0 ? 'text-[var(--success)] ml-2' : 'text-[var(--danger)] ml-2'}>
-              ({diff > 0 ? '+' : ''}¥{Math.abs(diff).toLocaleString()})
-            </span>
+            <div className={`text-[10px] font-black tracking-tight ${diff <= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+              {diff > 0 ? '+' : '-'}¥{Math.abs(diff).toLocaleString()}
+            </div>
           )}
-          {" / ¥"}{budget.toLocaleString()}
-        </span>
+        </div>
       </div>
-      <div className="progress-bar-container relative">
+      <div className="relative h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
         <div 
-          className={`progress-bar ${isOverPace ? 'warning' : ''}`} 
+          className={`progress-bar h-full rounded-full transition-all duration-700 ease-out ${
+            isOverPace ? 'bg-amber-500 warning' : 'bg-indigo-500'
+          }`} 
           style={{ width: `${percentage}%` }}
         />
         {pacePercentage !== null && (
           <div 
-            className="pace-marker absolute top-0 w-0.5 h-full bg-[var(--warning)] z-10" 
-            style={{ left: `${pacePercentage}%`, boxShadow: '0 0 8px rgba(245, 158, 11, 0.5)' }}
+            className="pace-marker absolute top-0 w-0.5 h-full bg-amber-500 z-10 shadow-[0_0_8px_rgba(245,158,11,0.6)]" 
+            style={{ left: `${pacePercentage}%` }}
+            title="Pace Limit"
           />
         )}
       </div>

@@ -8,6 +8,7 @@ vi.mock('../api/client', () => {
   return {
     default: {
       get: vi.fn(),
+      post: vi.fn(),
     },
   };
 });
@@ -19,6 +20,7 @@ describe('Dashboard Component', () => {
 
   it('renders loading state initially', () => {
     (client.get as any).mockImplementation(() => new Promise(() => {})); // Never resolves
+    (client.post as any).mockImplementation(() => new Promise(() => {})); // Never resolves
     render(
       <MemoryRouter>
         <Dashboard />
@@ -59,6 +61,8 @@ describe('Dashboard Component', () => {
       return Promise.resolve({ data: {} });
     });
 
+    (client.post as any).mockResolvedValue({ data: [] });
+
     render(
       <MemoryRouter>
         <Dashboard />
@@ -70,7 +74,7 @@ describe('Dashboard Component', () => {
     });
 
     // Overview KPIs
-    expect(screen.getByText('合計支出')).toBeInTheDocument();
+    expect(screen.getByText('Total Expense')).toBeInTheDocument();
     expect(screen.getByText('¥185,400')).toBeInTheDocument();
 
     // AI Insights
@@ -81,6 +85,6 @@ describe('Dashboard Component', () => {
     expect(screen.getByText('食費')).toBeInTheDocument();
 
     // Sankey section title
-    expect(screen.getByText('資産推移 / キャッシュフロー')).toBeInTheDocument();
+    expect(screen.getByText('Cash Flow')).toBeInTheDocument();
   });
 });

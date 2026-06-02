@@ -36,8 +36,8 @@ describe('ProgressBar', () => {
 
   it('renders pace marker and difference when provided', () => {
     render(<ProgressBar label="Food" actual={18000} budget={30000} paceLimit={15000} showDiff={true} />);
-    // Note: The code produces (+¥3,000) for excess
-    expect(screen.getByText('(+¥3,000)')).toBeInTheDocument(); 
+    // Note: The code produces +¥3,000 for excess
+    expect(screen.getByText('+¥3,000')).toBeInTheDocument(); 
     const marker = document.querySelector('.pace-marker');
     expect(marker).toBeInTheDocument();
   });

@@ -19,23 +19,25 @@ const SankeyChart: React.FC<SankeyChartProps> = ({ data }) => {
   };
 
   return (
-    <div className="w-full h-full min-h-[450px]">
+    <div className="w-full h-full">
       <ResponsiveContainer width="100%" height="100%">
         <Sankey
           data={chartData}
-          node={{ stroke: '#4f46e5', strokeWidth: 2, fill: '#6366f1' }}
-          link={{ stroke: '#c7d2fe' }}
+          node={{ stroke: '#4f46e5', strokeWidth: 1, fill: '#6366f1' }}
+          link={{ stroke: '#334155', strokeOpacity: 0.2 }}
           nodePadding={50}
-          margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
           linkCurvature={0.5}
+          iterations={64}
         >
           <Tooltip 
             contentStyle={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-              border: 'none', 
+              backgroundColor: '#0f172a', 
+              border: '1px solid #1e293b', 
               borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+              color: '#f1f5f9'
             }}
+            itemStyle={{ color: '#f1f5f9' }}
           />
         </Sankey>
       </ResponsiveContainer>
