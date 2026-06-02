@@ -94,32 +94,32 @@ const Dashboard: React.FC = () => {
         loading={loading}
       />
 
-      <div className="max-w-[1400px] mx-auto px-6 py-12 text-slate-100">
-        <div className="flex justify-between items-end mb-16">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 md:py-12 text-slate-100">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-16 gap-4">
           <h2 className="text-2xl font-bold tracking-tight text-slate-400">Overview</h2>
           <MonthSelector currentMonth={currentMonth} onChange={setCurrentMonth} />
         </div>
 
         {/* Overview Section */}
-        <section className="grid grid-cols-12 gap-12 items-center mb-24">
-          <div className="col-span-12 lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <section className="grid grid-cols-12 gap-8 md:gap-12 items-center mb-16 md:mb-24">
+          <div className="col-span-12 lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Total Expense</span>
-              <span className="text-7xl font-black text-indigo-500 tracking-tighter">
+              <span className="text-5xl sm:text-6xl md:text-7xl font-black text-indigo-500 tracking-tighter transition-all">
                 ¥{kpi?.actual.toLocaleString() ?? 0}
               </span>
               <span className="text-sm text-slate-500 font-bold mt-2">Budget: ¥{kpi?.budget.toLocaleString() ?? 0}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Daily Average</span>
-              <span className="text-6xl font-black text-slate-100 tracking-tighter">
+              <span className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-100 tracking-tighter transition-all">
                 ¥{Math.round((kpi?.actual ?? 0) / Math.max(1, new Date().getDate())).toLocaleString()}
               </span>
               <span className="text-sm text-slate-500 font-bold mt-2">Current Month</span>
             </div>
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Kakeibo Score</span>
-              <span className="text-7xl font-black text-emerald-500 tracking-tighter">
+              <span className="text-5xl sm:text-6xl md:text-7xl font-black text-emerald-500 tracking-tighter transition-all">
                 85
               </span>
               <span className="text-sm text-slate-500 font-bold mt-2">Out of 100</span>
@@ -130,33 +130,33 @@ const Dashboard: React.FC = () => {
           </div>
         </section>
 
-        <hr className="border-slate-800 mb-24" />
+        <hr className="border-slate-800 mb-16 md:mb-24" />
 
         {/* AI Analysis Report */}
-        <section className="mb-24">
+        <section className="mb-16 md:mb-24">
           <div className="mb-6">
             <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">AI Insights</h3>
             <div className="h-px bg-slate-800 mt-2"></div>
           </div>
           <div>
-            <p className="text-xl italic text-slate-300 leading-relaxed max-w-4xl">
+            <p className="text-lg md:text-xl italic text-slate-300 leading-relaxed max-w-4xl">
               {latestSummary || "まだ分析データがありません。"}
             </p>
           </div>
         </section>
 
         {/* Asset Trend / Cash Flow */}
-        <section className="mb-24">
+        <section className="mb-16 md:mb-24">
           <div className="mb-6">
             <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">Cash Flow</h3>
             <div className="h-px bg-slate-800 mt-2"></div>
           </div>
-          <div className="w-full h-[450px]">
+          <div className="w-full h-[300px] md:h-[450px]">
             <SankeyChart data={sankeyData} />
           </div>
         </section>
 
-        <div className="grid grid-cols-12 gap-16 mb-24">
+        <div className="grid grid-cols-12 gap-8 md:gap-16 mb-16 md:mb-24">
           {/* Budget vs Actual (Operations Part 1) */}
           <section className="col-span-12 lg:col-span-6">
             <div className="flex items-center gap-3 mb-8">
@@ -164,7 +164,7 @@ const Dashboard: React.FC = () => {
               <h3 className="text-xl font-bold">予算管理</h3>
             </div>
             <div>
-              <div className="mb-12">
+              <div className="mb-8 md:mb-12">
                 <WeeklyForm history={weeklyForm} />
               </div>
               <BudgetPacemaker 
@@ -194,8 +194,8 @@ const Dashboard: React.FC = () => {
             <div className="flex flex-col space-y-px">
               {transactions.slice(0, 10).map((tx) => (
                 <div key={tx.transaction_id} className="flex items-center justify-between py-2 border-b border-slate-900/50 hover:bg-slate-800/20 px-2 rounded-sm transition-colors group">
-                  <div className="flex items-center gap-6">
-                    <span className="text-[10px] font-mono text-slate-500 w-10">{tx.transaction_date.slice(5)}</span>
+                  <div className="flex items-center gap-4 md:gap-6">
+                    <span className="text-[10px] font-mono text-slate-500 w-8 md:w-10">{tx.transaction_date.slice(5)}</span>
                     <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-tighter bg-indigo-500/5 text-indigo-400/70 border border-indigo-500/10 rounded-sm">
                       {tx.category}
                     </span>
@@ -208,13 +208,13 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Reimbursements (Bottom Section) */}
-        <section className="mb-24">
-          <div className="mb-12">
+        <section className="mb-16 md:mb-24">
+          <div className="mb-8 md:mb-12">
             <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">Reimbursements</h3>
             <div className="h-px bg-slate-800 mt-2"></div>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-16">
             {/* Pending List */}
             <div>
               <div className="flex items-center justify-between mb-8">
