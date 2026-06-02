@@ -19,12 +19,12 @@ const timeframes = [
 const BudgetPacemaker: React.FC<BudgetPacemakerProps> = ({ timeframe, onTimeframeChange, variableExpenses, fixedExpenses }) => {
   return (
     <div className="budget-pacemaker">
-      <div className="flex gap-1 mb-8 border-b border-slate-100 pb-2">
+      <div className="timeframe-tabs mb-8">
         {timeframes.map(t => (
           <button 
             key={t.id} 
             onClick={() => onTimeframeChange(t.id)}
-            className={`px-6 py-2 text-xs font-black rounded-md transition-colors ${timeframe === t.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+            className={`tab-btn ${timeframe === t.id ? 'active' : ''}`}
           >
             {t.label}
           </button>
@@ -32,9 +32,9 @@ const BudgetPacemaker: React.FC<BudgetPacemakerProps> = ({ timeframe, onTimefram
       </div>
 
       <div className="mb-16">
-        <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-400 uppercase tracking-widest">
+        <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-[var(--text-muted)] uppercase tracking-widest">
           変動費の予実管理 
-          <div className="flex-1 h-px bg-slate-100"></div>
+          <div className="flex-1 h-px bg-[var(--border)]"></div>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-2">
           {variableExpenses.length > 0 ? (
@@ -49,15 +49,15 @@ const BudgetPacemaker: React.FC<BudgetPacemakerProps> = ({ timeframe, onTimefram
               />
             ))
           ) : (
-            <div className="text-slate-400 font-medium">データがありません。</div>
+            <div className="text-[var(--text-muted)] font-medium">データがありません。</div>
           )}
         </div>
       </div>
 
       <div>
-        <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-400 uppercase tracking-widest">
+        <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-[var(--text-muted)] uppercase tracking-widest">
           固定費の状況 
-          <div className="flex-1 h-px bg-slate-100"></div>
+          <div className="flex-1 h-px bg-[var(--border)]"></div>
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-2">
           {fixedExpenses.length > 0 ? (
@@ -70,7 +70,7 @@ const BudgetPacemaker: React.FC<BudgetPacemakerProps> = ({ timeframe, onTimefram
               />
             ))
           ) : (
-            <div className="text-slate-400 font-medium">データがありません。</div>
+            <div className="text-[var(--text-muted)] font-medium">データがありません。</div>
           )}
         </div>
       </div>
