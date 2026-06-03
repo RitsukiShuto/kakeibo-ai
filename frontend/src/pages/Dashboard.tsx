@@ -122,7 +122,7 @@ const Dashboard: React.FC = () => {
         loading={loading}
       />
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 md:py-12 text-slate-100">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 md:py-12 text-slate-100 overflow-x-hidden">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-16 gap-4">
           <h2 className="text-2xl font-bold tracking-tight text-slate-400">Overview</h2>
           <MonthSelector currentMonth={currentMonth} onChange={handleMonthChange} />
@@ -131,29 +131,29 @@ const Dashboard: React.FC = () => {
         {/* Overview Section */}
         <section className="grid grid-cols-12 gap-8 md:gap-12 items-center mb-16 md:mb-24">
           <div className="col-span-12 lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Total Expense</span>
-              <span className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-indigo-500 tracking-tighter transition-all overflow-hidden">
+              <span className="text-4xl sm:text-4xl md:text-5xl font-black text-indigo-500 tracking-tighter transition-all truncate">
                 ¥{kpi?.actual.toLocaleString() ?? 0}
               </span>
-              <span className="text-sm text-slate-500 font-bold mt-2">Budget: ¥{kpi?.budget.toLocaleString() ?? 0}</span>
+              <span className="text-sm text-slate-500 font-bold mt-2 truncate">Budget: ¥{kpi?.budget.toLocaleString() ?? 0}</span>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Daily Average</span>
-              <span className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-100 tracking-tighter transition-all">
+              <span className="text-4xl sm:text-4xl md:text-5xl font-black text-slate-100 tracking-tighter transition-all truncate">
                 ¥{Math.round((kpi?.actual ?? 0) / Math.max(1, new Date().getDate())).toLocaleString()}
               </span>
-              <span className="text-sm text-slate-500 font-bold mt-2">Selected Month</span>
+              <span className="text-sm text-slate-500 font-bold mt-2 truncate">Selected Month</span>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Kakeibo Score</span>
-              <span className="text-5xl sm:text-6xl md:text-7xl font-black text-emerald-500 tracking-tighter transition-all">
+              <span className="text-4xl sm:text-4xl md:text-5xl font-black text-emerald-500 tracking-tighter transition-all truncate">
                 85
               </span>
-              <span className="text-sm text-slate-500 font-bold mt-2">Out of 100</span>
+              <span className="text-sm text-slate-500 font-bold mt-2 truncate">Out of 100</span>
             </div>
           </div>
-          <div className="col-span-12 lg:col-span-4 h-[240px]">
+          <div className="col-span-12 lg:col-span-4 h-[240px] min-w-0">
             <AssetPieChart data={assetTrend} />
           </div>
         </section>
@@ -167,7 +167,7 @@ const Dashboard: React.FC = () => {
             <div className="h-px bg-slate-800 mt-2"></div>
           </div>
           <div>
-            <p className="text-lg md:text-xl italic text-slate-300 leading-relaxed max-w-4xl">
+            <p className="text-lg md:text-xl italic text-slate-300 leading-relaxed max-w-4xl break-words">
               {latestSummary || "まだ分析データがありません。"}
             </p>
           </div>
@@ -179,20 +179,20 @@ const Dashboard: React.FC = () => {
             <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">Cash Flow</h3>
             <div className="h-px bg-slate-800 mt-2"></div>
           </div>
-          <div className="w-full" style={{ height: Math.max(450, (sankeyData?.nodes?.length || 0) * 45) }}>
+          <div className="w-full overflow-hidden" style={{ height: Math.max(450, (sankeyData?.nodes?.length || 0) * 45) }}>
             <SankeyChart data={sankeyData} />
           </div>
         </section>
 
         <div className="grid grid-cols-12 gap-8 md:gap-16 mb-16 md:mb-24">
           {/* Budget vs Actual (Operations Part 1) */}
-          <section className="col-span-12 lg:col-span-7">
+          <section className="col-span-12 lg:col-span-7 min-w-0">
             <div className="flex items-center gap-3 mb-8">
               <Wallet className="text-amber-500" size={24} />
               <h3 className="text-xl font-bold">予算管理</h3>
             </div>
             <div>
-              <div className="mb-8 md:mb-12">
+              <div className="mb-8 md:mb-12 overflow-x-auto">
                 <WeeklyForm 
                   history={weeklyForm} 
                   selectedWeek={selectedWeek}
@@ -212,14 +212,14 @@ const Dashboard: React.FC = () => {
           </section>
 
           {/* Recent Transactions (Operations Part 2) */}
-          <section className="col-span-12 lg:col-span-5">
+          <section className="col-span-12 lg:col-span-5 min-w-0">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
                 <List className="text-slate-400" size={24} />
                 <h3 className="text-xl font-bold font-mono tracking-tight uppercase">Recent</h3>
               </div>
               <button 
-                className="text-indigo-400 hover:text-indigo-300 text-xs font-bold flex items-center gap-1 group"
+                className="text-indigo-400 hover:text-indigo-300 text-xs font-bold flex items-center gap-1 group whitespace-nowrap"
                 onClick={() => navigate('/transactions')}
               >
                 VIEW ALL <ExternalLink size={12} className="group-hover:translate-x-0.5 transition-transform" />
@@ -229,13 +229,13 @@ const Dashboard: React.FC = () => {
             <div className="flex flex-col space-y-px">
               {transactions.slice(0, 10).map((tx) => (
                 <div key={tx.transaction_id} className="flex items-center justify-between py-2 border-b border-slate-900/50 hover:bg-slate-800/20 px-2 rounded-sm transition-colors group">
-                  <div className="flex items-center gap-4 md:gap-6">
-                    <span className="text-[10px] font-mono text-slate-500 w-8 md:w-10">{tx.transaction_date.slice(5)}</span>
-                    <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-tighter bg-indigo-500/5 text-indigo-400/70 border border-indigo-500/10 rounded-sm">
+                  <div className="flex items-center gap-4 md:gap-6 min-w-0">
+                    <span className="text-[10px] font-mono text-slate-500 w-8 md:w-10 shrink-0">{tx.transaction_date.slice(5)}</span>
+                    <span className="px-1.5 py-0.5 text-[9px] font-black uppercase tracking-tighter bg-indigo-500/5 text-indigo-400/70 border border-indigo-500/10 rounded-sm truncate">
                       {tx.category}
                     </span>
                   </div>
-                  <span className="text-sm font-bold text-slate-100 font-mono group-hover:text-indigo-400 transition-colors">¥{tx.amount.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-slate-100 font-mono group-hover:text-indigo-400 transition-colors shrink-0 ml-2">¥{tx.amount.toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -251,23 +251,23 @@ const Dashboard: React.FC = () => {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-16">
             {/* Pending List */}
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                   <Handshake className="text-indigo-400" size={20} />
                   <h4 className="text-lg font-bold">精算待ち</h4>
                 </div>
-                <div className="text-2xl font-black text-amber-500">¥{pendingTotal.toLocaleString()}</div>
+                <div className="text-2xl font-black text-amber-500 truncate ml-4">¥{pendingTotal.toLocaleString()}</div>
               </div>
               
               <ul className="space-y-2">
                 {pendingReimbursements.slice(0, 5).map((item, idx) => (
-                  <li key={idx} className="flex items-center justify-between p-3 bg-slate-900/30 rounded-lg border border-slate-800/50">
-                    <div className="flex flex-col">
+                  <li key={idx} className="flex items-center justify-between p-3 bg-slate-900/30 rounded-lg border border-slate-800/50 min-w-0">
+                    <div className="flex flex-col min-w-0 pr-4">
                       <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">{item.transaction_date || '00-00'}</span>
-                      <span className="font-bold text-slate-200">{item.comment || item.category}</span>
+                      <span className="font-bold text-slate-200 truncate">{item.comment || item.category}</span>
                     </div>
-                    <div className="text-lg font-bold text-amber-500 font-mono">¥{(item.pending_amount || 0).toLocaleString()}</div>
+                    <div className="text-lg font-bold text-amber-500 font-mono shrink-0">¥{(item.pending_amount || 0).toLocaleString()}</div>
                   </li>
                 ))}
                 {pendingReimbursements.length === 0 && (
@@ -285,7 +285,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* AI Detection Suggestions */}
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-3 mb-8">
                 <Sparkles className="text-amber-400" size={20} />
                 <h4 className="text-lg font-bold">AI 立替検知</h4>
@@ -297,7 +297,7 @@ const Dashboard: React.FC = () => {
                   reimbursementSuggestions.slice(0, 5).map((suggestion) => {
                     const tx = transactions.find(t => t.transaction_id === suggestion.transaction_id);
                     return (
-                      <div key={suggestion.transaction_id} className="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-lg flex items-start justify-between gap-4">
+                      <div key={suggestion.transaction_id} className="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-lg flex items-start justify-between gap-4 min-w-0">
                         <div className="flex flex-col gap-1 min-w-0">
                           <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Potential Split</span>
                           <span className="text-sm font-bold text-slate-200 truncate">{tx?.comment || tx?.category || 'Unknown'}</span>
