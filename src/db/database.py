@@ -53,6 +53,11 @@ class Database:
             )
         """)
         
+        # 索引の追加
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(transaction_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_mode ON transactions(mode)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category)")
+        
         # 2. Assets テーブル (acquired_date, institution, source の組み合わせで一意にする)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS assets (
