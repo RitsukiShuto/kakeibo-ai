@@ -10,12 +10,10 @@ interface SankeyChartProps {
 const CustomNode = (props: any) => {
   const { x, y, width, height, index, payload } = props;
   
-  // payload.value が未定義の場合は 0 にフォールバック
   const value = payload?.value || 0;
   
-  // textのx位置：幅が十分にあれば箱の中（左寄り）、なければ箱の右外側
-  // x位置から画面右端のノードかどうかを簡易判定（xが大きな値の場合は右端）
-  const isRightMost = x > 200; 
+  // 右端のノード（出力先がないノード）かどうかを判定
+  const isRightMost = !payload.sourceLinks || payload.sourceLinks.length === 0;
   
   return (
     <g>
@@ -23,7 +21,7 @@ const CustomNode = (props: any) => {
         x={x}
         y={y}
         width={width}
-        height={Math.max(height, 2)} // 最低でも2pxの高さを確保
+        height={Math.max(height, 2)} 
         fill={VIVID_PALETTE[index % VIVID_PALETTE.length]}
         fillOpacity={1}
         rx={2}
@@ -50,25 +48,27 @@ const SankeyChart: React.FC<SankeyChartProps> = ({ data }) => {
     return <div className="text-slate-400 text-xs text-center p-8">データがありません</div>;
   }
 
-  // Nodes format for recharts Sankey is simple array, links are {source, target, value}
-  // Recharts requires nodes to just be the array of nodes, but it mutates them, so we clone.
   const chartData = {
     nodes: data.nodes.map(n => ({ ...n, name: n.name })),
     links: data.links.map(l => ({ ...l }))
   };
 
-  // 項目数が多い場合はpaddingを減らしてボックスの描画領域を確保する
   const nodePadding = Math.max(10, Math.min(40, Math.floor(200 / data.nodes.length)));
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative" style={{ overflow: 'visible' }}>
+      {/* 
+        RechartsのSankeyはsvgのoverflow: hiddenによってテキストが見切れることがあるため、
+        ResponsiveContainerの幅を少し小さめにし、余白(margin)を使ってテキスト領域を確保します。
+      */}
       <ResponsiveContainer width="100%" height="100%">
         <Sankey
           data={chartData}
           node={CustomNode}
           link={{ stroke: '#475569', strokeOpacity: 0.3 }}
           nodePadding={nodePadding}
-          margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+          nodeWidth={15}
+          margin={{ top: 20, right: 180, bottom: 20, left: 160 }} 
           linkCurvature={0.5}
           iterations={32}
         >
@@ -77,7 +77,8 @@ const SankeyChart: React.FC<SankeyChartProps> = ({ data }) => {
               backgroundColor: '#0f172a', 
               border: '1px solid #1e293b', 
               borderRadius: '8px',
-              color: '#f1f5f9'
+              color: '#f1f5f9',
+              zIndex: 1000
             }}
             itemStyle={{ color: '#f1f5f9' }}
             formatter={(value: any) => [`¥${Math.round(Number(value)).toLocaleString()}`, '金額']}

@@ -324,22 +324,11 @@ async def get_stats_flow(month: Optional[str] = None):
         if total_variable > 0:
             links.append({"source": total_income_node, "target": variable_node, "value": total_variable})
 
-        # 余剰（浮いたお金）を「投資信託」と「預金・現金」にプールする
+        # 余剰（浮いたお金）を「余剰金(繰り越し)」として表示
         savings = total_income_val - total_expense_val
         if savings > 0:
-            monthly_budget_data = budget.get("monthly", {})
-            inv_goal = monthly_budget_data.get("investment_goal", monthly_budget_data.get("categories", {}).get("投資", 0))
-            
-            inv_amount = min(savings, inv_goal)
-            cash_amount = savings - inv_amount
-            
-            if inv_amount > 0:
-                inv_node = add_node("投資信託")
-                links.append({"source": total_income_node, "target": inv_node, "value": inv_amount})
-            
-            if cash_amount > 0:
-                cash_node = add_node("預金・現金")
-                links.append({"source": total_income_node, "target": cash_node, "value": cash_amount})
+            savings_node = add_node("余剰金(繰り越し)")
+            links.append({"source": total_income_node, "target": savings_node, "value": savings})
 
         return {"nodes": nodes, "links": links}
 
