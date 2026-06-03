@@ -127,7 +127,7 @@ const Dashboard: React.FC = () => {
           <div className="col-span-12 lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Total Expense</span>
-              <span className="text-5xl sm:text-6xl md:text-7xl font-black text-indigo-500 tracking-tighter transition-all">
+              <span className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-indigo-500 tracking-tighter transition-all overflow-hidden">
                 ¥{kpi?.actual.toLocaleString() ?? 0}
               </span>
               <span className="text-sm text-slate-500 font-bold mt-2">Budget: ¥{kpi?.budget.toLocaleString() ?? 0}</span>
@@ -180,7 +180,7 @@ const Dashboard: React.FC = () => {
 
         <div className="grid grid-cols-12 gap-8 md:gap-16 mb-16 md:mb-24">
           {/* Budget vs Actual (Operations Part 1) */}
-          <section className="col-span-12 lg:col-span-6">
+          <section className="col-span-12 lg:col-span-7">
             <div className="flex items-center gap-3 mb-8">
               <Wallet className="text-amber-500" size={24} />
               <h3 className="text-xl font-bold">予算管理</h3>
@@ -206,7 +206,7 @@ const Dashboard: React.FC = () => {
           </section>
 
           {/* Recent Transactions (Operations Part 2) */}
-          <section className="col-span-12 lg:col-span-6">
+          <section className="col-span-12 lg:col-span-5">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
                 <List className="text-slate-400" size={24} />
@@ -291,16 +291,16 @@ const Dashboard: React.FC = () => {
                   reimbursementSuggestions.slice(0, 5).map((suggestion) => {
                     const tx = transactions.find(t => t.transaction_id === suggestion.transaction_id);
                     return (
-                      <div key={suggestion.transaction_id} className="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-lg flex items-start justify-between">
-                        <div className="flex flex-col gap-1">
+                      <div key={suggestion.transaction_id} className="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-lg flex items-start justify-between gap-4">
+                        <div className="flex flex-col gap-1 min-w-0">
                           <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Potential Split</span>
-                          <span className="text-sm font-bold text-slate-200">{tx?.comment || tx?.category || 'Unknown'}</span>
-                          <p className="text-xs text-slate-500 italic">"{suggestion.reason}"</p>
+                          <span className="text-sm font-bold text-slate-200 truncate">{tx?.comment || tx?.category || 'Unknown'}</span>
+                          <p className="text-xs text-slate-500 italic truncate">"{suggestion.reason}"</p>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-col items-end gap-2 shrink-0">
                           <span className="text-sm font-black text-indigo-400 font-mono">¥{tx?.amount.toLocaleString()}</span>
                           <button 
-                            className="px-2 py-1 bg-indigo-500 hover:bg-indigo-400 text-white text-[10px] font-black uppercase rounded shadow-lg shadow-indigo-500/20 transition-all"
+                            className="w-16 px-2 py-1 bg-indigo-500 hover:bg-indigo-400 text-white text-[10px] font-black uppercase rounded shadow-lg shadow-indigo-500/20 transition-all"
                             onClick={() => navigate('/expense-splitter')}
                           >
                             Mark
