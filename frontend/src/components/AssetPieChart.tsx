@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { AssetTrend } from '../api/client';
+import { VIVID_PALETTE } from '../utils/constants';
 
 interface AssetPieChartProps {
   data: AssetTrend[];
@@ -26,9 +27,6 @@ const AssetPieChart: React.FC<AssetPieChartProps> = ({ data }) => {
       .filter(item => item.value > 0);
   }, [data]);
 
-  // Indigo系カラーパレット
-  const COLORS = ['#4f46e5', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'];
-
   if (pieData.length === 0) {
     return <div className="text-slate-400 text-xs text-center p-8">データがありません</div>;
   }
@@ -45,25 +43,28 @@ const AssetPieChart: React.FC<AssetPieChartProps> = ({ data }) => {
             outerRadius={80}
             paddingAngle={5}
             dataKey="value"
+            label={{ fill: '#fff', fontSize: 10, fontWeight: 'bold' }}
           >
             {pieData.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              <Cell key={`cell-${index}`} fill={VIVID_PALETTE[index % VIVID_PALETTE.length]} />
             ))}
           </Pie>
           <Tooltip 
             contentStyle={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.9)', 
-              border: 'none', 
+              backgroundColor: '#0f172a', 
+              border: '1px solid #1e293b', 
               borderRadius: '8px',
-              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+              color: '#f1f5f9'
             }}
+            itemStyle={{ color: '#f1f5f9' }}
             formatter={(value: any) => [`¥${Number(value).toLocaleString()}`, '金額']}
           />
           <Legend 
             verticalAlign="bottom" 
             align="center" 
             iconType="circle" 
-            wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} 
+            wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px', color: '#fff' }} 
           />
         </PieChart>
       </ResponsiveContainer>
