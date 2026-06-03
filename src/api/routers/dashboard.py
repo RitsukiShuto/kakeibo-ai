@@ -240,8 +240,8 @@ async def get_stats_flow(month: Optional[str] = None):
         current_month = month if month else datetime.now().strftime("%Y-%m")
         conn = sqlite3.connect(db_path)
         
-        # 1. 収入源の取得
-        query_income = "SELECT source, SUM(amount) as amount FROM transactions WHERE transaction_date LIKE ? AND mode='income' GROUP BY source"
+        # 1. 収入源の取得 (Moneyforwardなどのアグリゲーターを特定ラベルにマッピングするため、category/genreも取得)
+        query_income = "SELECT source, category, genre, SUM(amount) as amount FROM transactions WHERE transaction_date LIKE ? AND mode='income' GROUP BY source, category, genre"
         df_income = pd.read_sql_query(query_income, conn, params=(f"{current_month}%",))
         
         # 2. 支出カテゴリ（実績）の取得
@@ -265,10 +265,31 @@ async def get_stats_flow(month: Optional[str] = None):
 
         # 収入源 → 総収入
         total_income_val = 0
+        income_mapped_totals = {} # 複数行が同じラベルにマップされる場合のため集計用
+        
         for _, row in df_income.iterrows():
-            src_node = add_node(row['source'])
-            links.append({"source": src_node, "target": total_income_node, "value": int(row['amount'])})
+            source_name = row['source']
+            # Moneyforwardなどの汎用アグリゲーターの場合、内容に基づいてラベルを付与
+            if source_name in ["MoneyForward", "マネーフォワード", "Moneyforward"]:
+                category = row['category'] or ""
+                genre = row['genre'] or ""
+                if genre == '給与' or category == '給与':
+                    label = "Salary"
+                elif '配当' in genre or '配当' in category:
+                    label = "Investment"
+                elif any(x in genre or x in category for x in ['貯金', '資産', '振替']):
+                    label = "Savings"
+                else:
+                    label = "Other Income"
+            else:
+                label = source_name
+            
+            income_mapped_totals[label] = income_mapped_totals.get(label, 0) + int(row['amount'])
             total_income_val += int(row['amount'])
+
+        for label, amount in income_mapped_totals.items():
+            src_node = add_node(label)
+            links.append({"source": src_node, "target": total_income_node, "value": amount})
 
         # 予算設定から固定/変動の分類を取得
         monthly_budget = budget.get("monthly", {}).get("budget", {}) if budget else {}

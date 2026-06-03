@@ -79,6 +79,7 @@ async def get_weekly_form(month: Optional[str] = None):
     """
     指定月、または直近の予算達成状況（勝敗データ）を取得。
     W: 実績 <= 予算, L: 実績 > 予算
+    ※やりくり費（variable）のみを対象とする
     """
     conn = None
     try:
@@ -87,9 +88,21 @@ async def get_weekly_form(month: Optional[str] = None):
         db_path = get_db_path()
         config_dir = get_config_dir()
         budget = load_budget(config_dir)
-        budget_categories = get_budget_category_totals(budget)
-        total_monthly_budget = sum(budget_categories.values()) if budget_categories else 0
-        weekly_budget = (total_monthly_budget * 12) / 52
+        
+        # 予算設定から「やりくり費（variable）」のみを抽出
+        monthly_budget_config = budget.get("monthly", {}).get("budget", {}) if budget else {}
+        variable_budget_config = monthly_budget_config.get("variable", {})
+        variable_cats = list(variable_budget_config.keys())
+        
+        # やりくり費の合計予算
+        variable_total_monthly = 0
+        for subcats in variable_budget_config.values():
+            if isinstance(subcats, dict):
+                variable_total_monthly += sum(subcats.values())
+            else:
+                variable_total_monthly += subcats
+        
+        weekly_budget = (variable_total_monthly * 12) / 52
         
         conn = sqlite3.connect(db_path)
         now = datetime.now()
@@ -120,8 +133,21 @@ async def get_weekly_form(month: Optional[str] = None):
             start_date = base_date - timedelta(days=base_date.weekday() + 7 * i)
             end_date = start_date + timedelta(days=6)
             
-            query = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date BETWEEN ? AND ? AND mode='payment'"
-            actual = pd.read_sql_query(query, conn, params=(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))['total'].iloc[0]
+            # やりくり費に該当するカテゴリのみを合計
+            if variable_cats:
+                placeholders = ', '.join(['?'] * len(variable_cats))
+                query = f"""
+                    SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total 
+                    FROM transactions 
+                    WHERE transaction_date BETWEEN ? AND ? 
+                    AND mode='payment'
+                    AND category IN ({placeholders})
+                """
+                params = [start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")] + variable_cats
+                actual = pd.read_sql_query(query, conn, params=params)['total'].iloc[0]
+            else:
+                actual = 0
+                
             actual = int(actual) if pd.notnull(actual) else 0
             
             # 進行中の週（本日を含む週）かどうかの判定
