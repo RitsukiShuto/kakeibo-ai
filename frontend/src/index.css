@@ -48,6 +48,8 @@ body {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
+    overflow-y: scroll; /* Prevent horizontal layout shift */
+    overflow-x: hidden;
 }
 
 /* Glassmorphism utility */

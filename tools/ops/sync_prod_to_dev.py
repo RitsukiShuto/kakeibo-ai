@@ -25,7 +25,11 @@ def sync_prod_to_dev():
         # Fallback if no prod_local found, assume it might be in local/ (dangerous if running on prod)
         prod_db_path = Path("local/kakeibo.db").absolute()
     
-    dev_db_path = Path("local/kakeibo.db").absolute()
+    env_dev_db = os.getenv("KAKEIBO_DB_PATH")
+    if env_dev_db:
+        dev_db_path = Path(env_dev_db).absolute()
+    else:
+        dev_db_path = Path("local/kakeibo.db").absolute()
 
     print(f"Source (Prod): {prod_db_path}")
     print(f"Destination (Dev): {dev_db_path}")

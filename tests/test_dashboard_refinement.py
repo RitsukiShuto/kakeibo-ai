@@ -114,7 +114,7 @@ def test_stats_flow_income_mapping(mock_db_and_config):
             income_labels.append(nodes[link["source"]])
             
     # Should include mapped labels instead of "MoneyForward"
-    assert "Salary" in income_labels
-    assert "Investment" in income_labels
-    assert "Other Income" in income_labels
+    assert "給与所得" in income_labels
+    assert "投資信託" in income_labels
+    assert "その他収入" in income_labels
     assert "MoneyForward" not in income_labels
