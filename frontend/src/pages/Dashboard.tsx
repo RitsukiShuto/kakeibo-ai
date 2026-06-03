@@ -81,8 +81,14 @@ const Dashboard: React.FC = () => {
   }, [fetchData]);
 
   useEffect(() => {
-    fetchAIContent();
-  }, [fetchAIContent]);
+    // 初回読み込み完了後にAI解析を実行
+    if (!loading) {
+      const timer = setTimeout(() => {
+        fetchAIContent();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, fetchAIContent]);
 
   // APIの'section'フィールドを使用して固定費と変動費を分離
   const variableExpenses = budgetActual.filter(item => item.section === 'variable');
@@ -173,7 +179,7 @@ const Dashboard: React.FC = () => {
             <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">Cash Flow</h3>
             <div className="h-px bg-slate-800 mt-2"></div>
           </div>
-          <div className="w-full h-[300px] md:h-[450px]">
+          <div className="w-full" style={{ height: Math.max(450, (sankeyData?.nodes?.length || 0) * 45) }}>
             <SankeyChart data={sankeyData} />
           </div>
         </section>
@@ -298,7 +304,7 @@ const Dashboard: React.FC = () => {
                           <p className="text-xs text-slate-500 italic truncate">"{suggestion.reason}"</p>
                         </div>
                         <div className="flex flex-col items-end gap-2 shrink-0">
-                          <span className="text-sm font-black text-indigo-400 font-mono">¥{tx?.amount.toLocaleString()}</span>
+                          <span className="text-sm font-black text-indigo-400 font-mono">¥{tx?.amount?.toLocaleString() ?? '---'}</span>
                           <button 
                             className="w-16 px-2 py-1 bg-indigo-500 hover:bg-indigo-400 text-white text-[10px] font-black uppercase rounded shadow-lg shadow-indigo-500/20 transition-all"
                             onClick={() => navigate('/expense-splitter')}
