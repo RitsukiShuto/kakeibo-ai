@@ -3,6 +3,7 @@ import os
 import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
+from typing import Optional, List
 from src.db.database import Database
 from src.api.utils import get_db_path, get_config_dir, load_budget, get_budget_category_totals
 
@@ -41,7 +42,7 @@ async def get_status():
         }
 
 @router.get("/kpi")
-async def get_kpi(timeframe: str = "monthly"):
+async def get_kpi(timeframe: str = "monthly", month: Optional[str] = None):
     conn = None
     try:
         db_path = get_db_path()
@@ -51,20 +52,29 @@ async def get_kpi(timeframe: str = "monthly"):
         total_budget = sum(budget_categories.values()) if budget_categories else 0
         
         now = datetime.now()
+        if month:
+            try:
+                ref_date = datetime.strptime(month, "%Y-%m")
+            except:
+                ref_date = now
+        else:
+            ref_date = now
+
         if timeframe == "daily":
-            date_pattern = now.strftime("%Y-%m-%d")
+            date_pattern = ref_date.strftime("%Y-%m-%d")
         elif timeframe == "weekly":
-            monday = now - timedelta(days=now.weekday())
+            monday = ref_date - timedelta(days=ref_date.weekday())
             date_pattern = None
         else:
-            date_pattern = now.strftime("%Y-%m")
+            date_pattern = ref_date.strftime("%Y-%m")
         
         conn = sqlite3.connect(db_path)
         
         if timeframe == "weekly":
-            monday = now - timedelta(days=now.weekday())
+            monday = ref_date - timedelta(days=ref_date.weekday())
+            sunday = monday + timedelta(days=6)
             query_total = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date BETWEEN ? AND ? AND mode='payment'"
-            actual_total = pd.read_sql_query(query_total, conn, params=(monday.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")))['total'].iloc[0]
+            actual_total = pd.read_sql_query(query_total, conn, params=(monday.strftime("%Y-%m-%d"), sunday.strftime("%Y-%m-%d")))['total'].iloc[0]
         else:
             query_total = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date LIKE ? AND mode='payment'"
             actual_total = pd.read_sql_query(query_total, conn, params=(f"{date_pattern}%",))['total'].iloc[0]
@@ -89,7 +99,7 @@ async def get_kpi(timeframe: str = "monthly"):
             conn.close()
 
 @router.get("/budget-actual")
-async def get_budget_actual(timeframe: str = "monthly"):
+async def get_budget_actual(timeframe: str = "monthly", month: Optional[str] = None, week: Optional[str] = None):
     conn = None
     try:
         db_path = get_db_path()
@@ -100,44 +110,97 @@ async def get_budget_actual(timeframe: str = "monthly"):
             return []
             
         now = datetime.now()
-        
+        if month:
+            try:
+                ref_date = datetime.strptime(month, "%Y-%m")
+            except:
+                ref_date = now
+        else:
+            ref_date = now
+
         # timeframeに応じた期間と予算倍率の設定
-        if timeframe == "weekly":
-            start_date = now - timedelta(days=now.weekday()) # Monday
+        if week and timeframe == "weekly":
+            try:
+                start_date = datetime.strptime(week, "%Y-%m-%d")
+                end_date = start_date + timedelta(days=6)
+                days_in_period = 7
+                # もし未来の週なら全日経過として扱うか、現在週なら本日まで
+                if start_date <= now <= end_date:
+                    days_elapsed = (now - start_date).days + 1
+                elif now < start_date:
+                    days_elapsed = 0
+                else:
+                    days_elapsed = 7
+                multiplier = 7 / 30.44
+            except:
+                start_date = now - timedelta(days=now.weekday())
+                end_date = start_date + timedelta(days=6)
+                days_in_period = 7
+                days_elapsed = (now - start_date).days + 1
+                multiplier = 7 / 30.44
+        elif timeframe == "weekly":
+            start_date = ref_date - timedelta(days=ref_date.weekday()) # Monday
             end_date = start_date + timedelta(days=6)
             days_in_period = 7
-            days_elapsed = (now - start_date).days + 1
-            multiplier = 7 / 30.44 # 平均的な月の日数で按分
-        elif timeframe == "quarterly":
-            quarter = (now.month - 1) // 3 + 1
-            start_date = datetime(now.year, 3 * quarter - 2, 1)
-            if quarter == 4:
-                end_date = datetime(now.year, 12, 31)
+            if start_date <= now <= end_date:
+                days_elapsed = (now - start_date).days + 1
+            elif now < start_date:
+                days_elapsed = 0
             else:
-                end_date = datetime(now.year, 3 * quarter + 1, 1) - timedelta(days=1)
+                days_elapsed = 7
+            multiplier = 7 / 30.44
+        elif timeframe == "quarterly":
+            quarter = (ref_date.month - 1) // 3 + 1
+            start_date = datetime(ref_date.year, 3 * quarter - 2, 1)
+            if quarter == 4:
+                end_date = datetime(ref_date.year, 12, 31)
+            else:
+                end_date = datetime(ref_date.year, 3 * quarter + 1, 1) - timedelta(days=1)
             days_in_period = (end_date - start_date).days + 1
-            days_elapsed = (now - start_date).days + 1
+            if start_date <= now <= end_date:
+                days_elapsed = (now - start_date).days + 1
+            elif now < start_date:
+                days_elapsed = 0
+            else:
+                days_elapsed = days_in_period
             multiplier = 3.0
         elif timeframe == "yearly":
-            start_date = datetime(now.year, 1, 1)
-            end_date = datetime(now.year, 12, 31)
-            days_in_period = 365 if now.year % 4 != 0 else 366
-            days_elapsed = (now - start_date).days + 1
+            start_date = datetime(ref_date.year, 1, 1)
+            end_date = datetime(ref_date.year, 12, 31)
+            days_in_period = 365 if ref_date.year % 4 != 0 else 366
+            if start_date <= now <= end_date:
+                days_elapsed = (now - start_date).days + 1
+            elif now < start_date:
+                days_elapsed = 0
+            else:
+                days_elapsed = days_in_period
             multiplier = 12.0
         else: # monthly
-            start_date = datetime(now.year, now.month, 1)
-            if now.month == 12:
-                end_date = datetime(now.year, 12, 31)
+            start_date = datetime(ref_date.year, ref_date.month, 1)
+            if ref_date.month == 12:
+                end_date = datetime(ref_date.year, 12, 31)
             else:
-                end_date = datetime(now.year, now.month + 1, 1) - timedelta(days=1)
+                end_date = datetime(ref_date.year, ref_date.month + 1, 1) - timedelta(days=1)
             days_in_period = (end_date - start_date).days + 1
-            days_elapsed = now.day
+            if start_date <= now <= end_date:
+                days_elapsed = now.day
+            elif now < start_date:
+                days_elapsed = 0
+            else:
+                days_elapsed = days_in_period
             multiplier = 1.0
 
         conn = sqlite3.connect(db_path)
         query = "SELECT category, SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as actual FROM transactions WHERE transaction_date BETWEEN ? AND ? AND mode='payment' GROUP BY category"
-        df_actual = pd.read_sql_query(query, conn, params=(start_date.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d")))
+        df_actual = pd.read_sql_query(query, conn, params=(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))
         
+        # 予算設定からセクション情報を取得
+        monthly_budget_config = budget.get("monthly", {}).get("budget", {}) if budget else {}
+        cat_to_section = {}
+        for section in ["fixed", "variable"]:
+            for cat in monthly_budget_config.get(section, {}).keys():
+                cat_to_section[cat] = section
+
         result = []
         for cat, b_amt in budget_categories.items():
             actual_row = df_actual[df_actual['category'] == cat]
@@ -146,10 +209,11 @@ async def get_budget_actual(timeframe: str = "monthly"):
             # 期間に応じた予算額の計算
             adjusted_budget = int(b_amt * multiplier)
             # Pace Limit (理想的な進捗ライン) の計算
-            pace_limit = int((adjusted_budget / days_in_period) * days_elapsed)
+            pace_limit = int((adjusted_budget / days_in_period) * days_elapsed) if days_in_period > 0 else 0
             
             result.append({
                 "category": cat,
+                "section": cat_to_section.get(cat, "variable"),
                 "budget": adjusted_budget,
                 "actual": a_amt,
                 "pace_limit": pace_limit
@@ -162,7 +226,7 @@ async def get_budget_actual(timeframe: str = "monthly"):
             conn.close()
 
 @router.get("/stats/flow")
-async def get_stats_flow():
+async def get_stats_flow(month: Optional[str] = None):
     """
     Sankey Diagram用の多階層フローデータを生成。
     収入源 → 総収入 → カテゴリ(固定/変動) → 詳細カテゴリ
@@ -173,7 +237,7 @@ async def get_stats_flow():
         config_dir = get_config_dir()
         budget = load_budget(config_dir)
         
-        current_month = datetime.now().strftime("%Y-%m")
+        current_month = month if month else datetime.now().strftime("%Y-%m")
         conn = sqlite3.connect(db_path)
         
         # 1. 収入源の取得

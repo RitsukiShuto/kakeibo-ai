@@ -75,9 +75,9 @@ async def get_latest_summary():
             conn.close()
 
 @router.get("/analysis-history/form")
-async def get_weekly_form():
+async def get_weekly_form(month: Optional[str] = None):
     """
-    直近4週間の予算達成状況（勝敗データ）を取得。
+    指定月、または直近の予算達成状況（勝敗データ）を取得。
     W: 実績 <= 予算, L: 実績 > 予算
     """
     conn = None
@@ -93,30 +93,53 @@ async def get_weekly_form():
         
         conn = sqlite3.connect(db_path)
         now = datetime.now()
+        
+        if month:
+            try:
+                # 指定月の末日を基準にする
+                ref_date = datetime.strptime(month, "%Y-%m")
+                if ref_date.month == 12:
+                    next_month = datetime(ref_date.year + 1, 1, 1)
+                else:
+                    next_month = datetime(ref_date.year, ref_date.month + 1, 1)
+                last_day_of_month = next_month - timedelta(days=1)
+                base_date = last_day_of_month
+                # 指定月が未来の場合は現在日に制限
+                if base_date > now:
+                    base_date = now
+            except:
+                base_date = now
+        else:
+            base_date = now
+
         results = []
         
-        # 直近4週間（今週を含む）
+        # 基準日から遡って4週間
         for i in range(3, -1, -1):
-            start_date = now - timedelta(days=now.weekday() + 7 * i)
+            # 週の月曜日を計算
+            start_date = base_date - timedelta(days=base_date.weekday() + 7 * i)
             end_date = start_date + timedelta(days=6)
             
             query = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date BETWEEN ? AND ? AND mode='payment'"
             actual = pd.read_sql_query(query, conn, params=(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d")))['total'].iloc[0]
             actual = int(actual) if pd.notnull(actual) else 0
             
-            if i == 0:
-                # 今週は進行中なので Pace Limit で判定
+            # 進行中の週（本日を含む週）かどうかの判定
+            is_current_week = start_date <= now <= end_date
+            
+            if is_current_week:
+                # 進行中なので Pace Limit で判定
                 days_elapsed = (now - start_date).days + 1
                 current_pace_budget = (weekly_budget / 7) * days_elapsed
-                if actual <= current_pace_budget:
-                    results.append("W")
-                else:
-                    results.append("L")
+                status = "W" if actual <= current_pace_budget else "L"
             else:
-                if actual <= weekly_budget:
-                    results.append("W")
-                else:
-                    results.append("L")
+                status = "W" if actual <= weekly_budget else "L"
+            
+            results.append({
+                "status": status,
+                "start_date": start_date.strftime("%Y-%m-%d"),
+                "end_date": end_date.strftime("%Y-%m-%d")
+            })
                     
         return results
     except Exception as e:
