@@ -128,4 +128,7 @@ def test_get_analysis_history_form(mock_db_and_budget):
     data = response.json()
     assert isinstance(data, list)
     assert len(data) > 0
-    assert all(res in ["W", "L", "D", "-"] for res in data)
+    assert all(isinstance(item, dict) for item in data)
+    assert all("status" in item for item in data)
+    assert all("start_date" in item for item in data)
+    assert all(item["status"] in ["W", "L", "D", "-"] for item in data)
