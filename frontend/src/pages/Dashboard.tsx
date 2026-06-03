@@ -122,7 +122,7 @@ const Dashboard: React.FC = () => {
         loading={loading}
       />
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 md:py-12 text-slate-100 overflow-x-hidden">
+      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-8 lg:px-12 py-8 md:py-12 text-slate-100 overflow-x-hidden">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-16 gap-4">
           <h2 className="text-2xl font-bold tracking-tight text-slate-400">Overview</h2>
           <MonthSelector currentMonth={currentMonth} onChange={handleMonthChange} />
