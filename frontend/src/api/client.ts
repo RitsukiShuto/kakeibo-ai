@@ -38,9 +38,16 @@ export interface KPI {
 
 export interface BudgetActual {
   category: string;
+  section: 'fixed' | 'variable';
   budget: number;
   actual: number;
   pace_limit?: number;
+}
+
+export interface WeeklyFormItem {
+  status: 'W' | 'L' | 'D';
+  start_date: string;
+  end_date: string;
 }
 
 export interface SankeyNode {

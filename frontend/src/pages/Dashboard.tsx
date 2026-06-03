@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, Wallet, Handshake, List, Sparkles } from 'lucide-react';
 import client from '../api/client';
-import type { KPI, BudgetActual, AssetTrend, SankeyData, LatestSummary, Transaction, ReimbursementSuggestion } from '../api/client';
+import type { KPI, BudgetActual, AssetTrend, SankeyData, LatestSummary, Transaction, ReimbursementSuggestion, WeeklyFormItem } from '../api/client';
 import AssetPieChart from '../components/AssetPieChart';
 import MonthSelector from '../components/MonthSelector';
 import SankeyChart from '../components/SankeyChart';
@@ -17,35 +17,36 @@ const Dashboard: React.FC = () => {
   const [assetTrend, setAssetTrend] = useState<AssetTrend[]>([]);
   const [sankeyData, setSankeyData] = useState<SankeyData | null>(null);
   const [latestSummary, setLatestSummary] = useState<string>('');
-  const [weeklyForm, setWeeklyForm] = useState<string[]>([]);
+  const [weeklyForm, setWeeklyForm] = useState<WeeklyFormItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [pendingReimbursements, setPendingReimbursements] = useState<any[]>([]);
   const [reimbursementSuggestions, setReimbursementSuggestions] = useState<ReimbursementSuggestion[]>([]);
   
   const [loading, setLoading] = useState(true);
+  const [detectLoading, setDetectLoading] = useState(false);
   const [timeframe, setTimeframe] = useState('monthly');
+  const [selectedWeek, setSelectedWeek] = useState<string | undefined>(undefined);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const [
         kpiRes, baRes, assetRes, 
         sankeyRes, summaryRes, formRes, 
-        txRes, pendingRes, detectRes
+        txRes, pendingRes
       ] = await Promise.all([
         client.get<KPI>(`/api/kpi?timeframe=${timeframe}&month=${currentMonth}`),
-        client.get<BudgetActual[]>(`/api/budget-actual?timeframe=${timeframe}`),
+        client.get<BudgetActual[]>(`/api/budget-actual?timeframe=${timeframe}&month=${currentMonth}${selectedWeek ? `&week=${selectedWeek}` : ''}`),
         client.get<AssetTrend[]>('/api/assets'),
-        client.get<SankeyData>('/api/stats/flow'),
+        client.get<SankeyData>(`/api/stats/flow?month=${currentMonth}`),
         client.get<LatestSummary>('/api/analysis-history/latest-summary'),
-        client.get<string[]>('/api/analysis-history/form'),
+        client.get<WeeklyFormItem[]>(`/api/analysis-history/form?month=${currentMonth}`),
         client.get<Transaction[]>('/api/transactions?limit=10'),
-        client.get<any[]>('/api/reimbursements/pending'),
-        client.post<ReimbursementSuggestion[]>('/api/expense-splitter/detect')
+        client.get<any[]>('/api/reimbursements/pending')
       ]);
 
       setKpi(kpiRes.data);
@@ -56,24 +57,48 @@ const Dashboard: React.FC = () => {
       setWeeklyForm(formRes.data);
       setTransactions(txRes.data);
       setPendingReimbursements(pendingRes.data);
-      setReimbursementSuggestions(detectRes.data);
     } catch (error) {
       console.error('Failed to fetch dashboard data', error);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, [timeframe, currentMonth, selectedWeek]);
+
+  const fetchAIContent = useCallback(async () => {
+    setDetectLoading(true);
+    try {
+      const detectRes = await client.post<ReimbursementSuggestion[]>('/api/expense-splitter/detect');
+      setReimbursementSuggestions(detectRes.data);
+    } catch (error) {
+      console.error('Failed to fetch AI suggestions', error);
+    } finally {
+      setDetectLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, [timeframe, currentMonth]);
+  }, [fetchData]);
 
-  // 固定費と変動費を分離 (現状のAPIレスポンスにis_fixedフラグがないため簡易分類)
-  const fixedCategories = ['家賃', '光熱費', '通信費', '保険'];
-  const variableExpenses = budgetActual.filter(item => !fixedCategories.includes(item.category));
-  const fixedExpenses = budgetActual.filter(item => fixedCategories.includes(item.category));
+  useEffect(() => {
+    fetchAIContent();
+  }, [fetchAIContent]);
+
+  // APIの'section'フィールドを使用して固定費と変動費を分離
+  const variableExpenses = budgetActual.filter(item => item.section === 'variable');
+  const fixedExpenses = budgetActual.filter(item => item.section === 'fixed');
 
   const pendingTotal = pendingReimbursements.reduce((sum, item) => sum + (item.pending_amount || 0), 0);
+
+  const handleWeekClick = (startDate: string) => {
+    setTimeframe('weekly');
+    setSelectedWeek(startDate);
+  };
+
+  const handleMonthChange = (newMonth: string) => {
+    setCurrentMonth(newMonth);
+    setSelectedWeek(undefined); // 月が変わったら週選択をクリア
+  };
 
   if (loading && !kpi) {
     return (
@@ -87,17 +112,14 @@ const Dashboard: React.FC = () => {
     <>
       <TopHeader 
         title="ダッシュボード" 
-        onRefresh={fetchData} 
-        timeframes={['daily', 'weekly', 'monthly', 'yearly']}
-        activeTimeframe={timeframe}
-        onTimeframeChange={setTimeframe}
+        onRefresh={() => fetchData(false)} 
         loading={loading}
       />
 
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 md:py-12 text-slate-100">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 md:mb-16 gap-4">
           <h2 className="text-2xl font-bold tracking-tight text-slate-400">Overview</h2>
-          <MonthSelector currentMonth={currentMonth} onChange={setCurrentMonth} />
+          <MonthSelector currentMonth={currentMonth} onChange={handleMonthChange} />
         </div>
 
         {/* Overview Section */}
@@ -115,7 +137,7 @@ const Dashboard: React.FC = () => {
               <span className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-100 tracking-tighter transition-all">
                 ¥{Math.round((kpi?.actual ?? 0) / Math.max(1, new Date().getDate())).toLocaleString()}
               </span>
-              <span className="text-sm text-slate-500 font-bold mt-2">Current Month</span>
+              <span className="text-sm text-slate-500 font-bold mt-2">Selected Month</span>
             </div>
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-2">Kakeibo Score</span>
@@ -165,11 +187,18 @@ const Dashboard: React.FC = () => {
             </div>
             <div>
               <div className="mb-8 md:mb-12">
-                <WeeklyForm history={weeklyForm} />
+                <WeeklyForm 
+                  history={weeklyForm} 
+                  selectedWeek={selectedWeek}
+                  onWeekClick={handleWeekClick}
+                />
               </div>
               <BudgetPacemaker 
                 timeframe={timeframe} 
-                onTimeframeChange={setTimeframe} 
+                onTimeframeChange={(tf) => {
+                  setTimeframe(tf);
+                  if (tf !== 'weekly') setSelectedWeek(undefined);
+                }} 
                 variableExpenses={variableExpenses} 
                 fixedExpenses={fixedExpenses} 
               />
@@ -254,6 +283,7 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center gap-3 mb-8">
                 <Sparkles className="text-amber-400" size={20} />
                 <h4 className="text-lg font-bold">AI 立替検知</h4>
+                {detectLoading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-400"></div>}
               </div>
               
               <div className="space-y-2">
@@ -281,7 +311,7 @@ const Dashboard: React.FC = () => {
                   })
                 ) : (
                   <div className="text-slate-600 text-sm font-medium text-center py-10 bg-slate-900/20 rounded-lg border border-dashed border-slate-800">
-                    新しい立替候補は見つかりませんでした
+                    {detectLoading ? "立替候補をスキャン中..." : "新しい立替候補は見つかりませんでした"}
                   </div>
                 )}
               </div>

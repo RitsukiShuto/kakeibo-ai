@@ -36,8 +36,8 @@ describe('Dashboard Component', () => {
       }
       if (url.includes('/api/budget-actual')) {
         return Promise.resolve({ data: [
-          { category: '食費', budget: 60000, actual: 45000, pace_limit: 50000 },
-          { category: '家賃', budget: 80000, actual: 80000, pace_limit: 80000 }
+          { category: '食費', section: 'variable', budget: 60000, actual: 45000, pace_limit: 50000 },
+          { category: '家賃', section: 'fixed', budget: 80000, actual: 80000, pace_limit: 80000 }
         ] });
       }
       if (url.includes('/api/assets')) {
@@ -50,7 +50,12 @@ describe('Dashboard Component', () => {
         return Promise.resolve({ data: { summary: "順調です。" } });
       }
       if (url.includes('/api/analysis-history/form')) {
-        return Promise.resolve({ data: ["W", "L", "W", "W"] });
+        return Promise.resolve({ data: [
+          { status: "W", start_date: "2026-05-11", end_date: "2026-05-17" },
+          { status: "L", start_date: "2026-05-18", end_date: "2026-05-24" },
+          { status: "W", start_date: "2026-05-25", end_date: "2026-05-31" },
+          { status: "W", start_date: "2026-06-01", end_date: "2026-06-07" }
+        ] });
       }
       if (url.includes('/api/transactions')) {
         return Promise.resolve({ data: [] });
