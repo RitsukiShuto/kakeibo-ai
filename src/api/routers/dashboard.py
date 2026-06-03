@@ -269,27 +269,20 @@ async def get_stats_flow(month: Optional[str] = None):
         
         for _, row in df_income.iterrows():
             source_name = row['source']
-            # Moneyforwardなどの汎用アグリゲーターの場合、内容に基づいてラベルを付与
-            if source_name in ["MoneyForward", "マネーフォワード", "Moneyforward"]:
-                category = row['category'] or ""
-                genre = row['genre'] or ""
-                if genre == '給与' or category == '給与':
-                    label = "Salary"
-                elif '配当' in genre or '配当' in category:
-                    label = "Investment"
-                elif any(x in genre or x in category for x in ['貯金', '資産', '振替']):
-                    label = "Savings"
-                else:
-                    label = "Other Income"
+            category = row['category'] or ""
+            genre = row['genre'] or ""
+            
+            if genre == '給与' or category == '給与':
+                label = "給与所得"
+            elif any(x in genre or x in category for x in ['配当', '投信', '投資']):
+                label = "投資信託"
+            elif any(x in genre or x in category for x in ['貯金', '資産', '振替', '現金', '預金']):
+                label = "預金・現金"
             else:
-                label = source_name
+                label = "その他収入"
             
             income_mapped_totals[label] = income_mapped_totals.get(label, 0) + int(row['amount'])
             total_income_val += int(row['amount'])
-
-        for label, amount in income_mapped_totals.items():
-            src_node = add_node(label)
-            links.append({"source": src_node, "target": total_income_node, "value": amount})
 
         # 予算設定から固定/変動の分類を取得
         monthly_budget = budget.get("monthly", {}).get("budget", {}) if budget else {}
@@ -311,6 +304,20 @@ async def get_stats_flow(month: Optional[str] = None):
                 links.append({"source": variable_node, "target": cat_node, "value": amt})
                 total_variable += amt
 
+        # 赤字の場合、不足分を「預金・現金 (補填)」として左側の収入源に追加
+        total_expense_val = total_fixed + total_variable
+        if total_income_val < total_expense_val:
+            deficit = total_expense_val - total_income_val
+            label = "預金・現金 (補填)"
+            income_mapped_totals[label] = income_mapped_totals.get(label, 0) + deficit
+            total_income_val += deficit
+
+        # マッピングされた収入源ノードをリンク
+        for label, amount in income_mapped_totals.items():
+            if amount > 0:
+                src_node = add_node(label)
+                links.append({"source": src_node, "target": total_income_node, "value": amount})
+
         # 総収入 → 固定費/変動費
         if total_fixed > 0:
             links.append({"source": total_income_node, "target": fixed_node, "value": total_fixed})
@@ -318,7 +325,7 @@ async def get_stats_flow(month: Optional[str] = None):
             links.append({"source": total_income_node, "target": variable_node, "value": total_variable})
 
         # 余剰（浮いたお金）を「投資信託」と「預金・現金」にプールする
-        savings = total_income_val - (total_fixed + total_variable)
+        savings = total_income_val - total_expense_val
         if savings > 0:
             monthly_budget_data = budget.get("monthly", {})
             inv_goal = monthly_budget_data.get("investment_goal", monthly_budget_data.get("categories", {}).get("投資", 0))
