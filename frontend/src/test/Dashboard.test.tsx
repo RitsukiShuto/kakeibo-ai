@@ -47,7 +47,7 @@ describe('Dashboard Component', () => {
         return Promise.resolve({ data: { nodes: [{id:0, name:"給与"}], links: [] } });
       }
       if (url.includes('/api/analysis-history/latest-summary')) {
-        return Promise.resolve({ data: { summary: "順調です。" } });
+        return Promise.resolve({ data: { summary: "今月は順調！節約ペース良好🎉", body: "食費は先月比10%減。自炊を増やしたことが主因です。来月は交通費に注意しましょう。" } });
       }
       if (url.includes('/api/analysis-history/form')) {
         return Promise.resolve({ data: [
@@ -82,8 +82,9 @@ describe('Dashboard Component', () => {
     expect(screen.getByText('Total Expense')).toBeInTheDocument();
     expect(screen.getByText('¥185,400')).toBeInTheDocument();
 
-    // AI Insights
-    expect(screen.getByText('順調です。')).toBeInTheDocument();
+    // AI Insights — Summary と Body の両方が表示されること
+    expect(screen.getByText('今月は順調！節約ペース良好🎉')).toBeInTheDocument();
+    expect(screen.getByText('食費は先月比10%減。自炊を増やしたことが主因です。来月は交通費に注意しましょう。')).toBeInTheDocument();
 
     // Operations
     expect(screen.getByText('予算管理')).toBeInTheDocument();

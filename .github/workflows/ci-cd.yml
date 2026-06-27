@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, staging ]
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # 1. 高速フィードバック用の検証 (マージ前チェック)
   validate:
@@ -55,21 +59,35 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Update code and restart containers
+        timeout-minutes: 15
         run: |
           cd /home/r410/kakeibo-ai
           git fetch origin main
           git reset --hard origin/main
-          
-          # Docker containers update
+
+          # Docker containers update (remove orphaned containers from renamed services)
           docker compose build
-          docker compose up -d
-          
+          docker compose up -d --remove-orphans
+
           # Systemd services update (API, Slack, Dashboard, Timer)
-          # setup_systemd.sh を実行して最新のサービス定義を反映・有効化
           chmod +x tools/ops/setup_systemd.sh
-          # パスワード入力なしで実行できるよう、一部の権限は事前にユーザー側で設定されている前提
-          # または、sudoers で設定されている前提。ここでは実行を試みる。
           ./tools/ops/setup_systemd.sh
+
+      - name: Health Check (API)
+        timeout-minutes: 3
+        run: |
+          echo "Waiting for API to become healthy..."
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:8000/ > /dev/null 2>&1; then
+              echo "✅ API health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "Attempt $i/12 failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "❌ API health check failed after 60 seconds"
+          docker compose logs backend --tail=50
+          exit 1
 
       - name: Slack Notification (Success)
         if: success()
@@ -119,9 +137,25 @@ jobs:
             fi
           fi
 
-          # Docker containers update
+          # Docker containers update (remove orphaned containers from renamed services)
           docker compose -f docker-compose.staging.yml build
-          docker compose -f docker-compose.staging.yml up -d
+          docker compose -f docker-compose.staging.yml up -d --remove-orphans
+
+      - name: Health Check (Staging API)
+        timeout-minutes: 3
+        run: |
+          echo "Waiting for Staging API to become healthy..."
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:8001/ > /dev/null 2>&1; then
+              echo "✅ Staging API health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "Attempt $i/12 failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "❌ Staging API health check failed after 60 seconds"
+          docker compose -f docker-compose.staging.yml logs backend --tail=50
+          exit 1
 
       - name: Slack Notification (Success)
         if: success()

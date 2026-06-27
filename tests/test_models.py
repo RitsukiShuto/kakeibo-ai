@@ -27,6 +27,8 @@ def test_transaction_validation():
 def test_ai_response_validation():
     # 正常系テスト
     resp = AIResponse(
+        summary="今月は順調！",
+        body="食費は適正範囲内でした。来月も継続しましょう。",
         slack_report="Full report text",
         obsidian_report="# Report",
         actions=[AIAction(command="Cmd", description="Desc")],

@@ -197,10 +197,11 @@ def run_review(timeframe: str, source: str = "mf", headless: bool = True, skip_f
 
         # 4. 分析履歴を保存
         db.save_analysis(
-            timeframe=timeframe, 
-            summary=ai_response.slack_report, 
-            report_path=saved_path or "", 
-            score=ai_response.totonoi_score, 
+            timeframe=timeframe,
+            summary=ai_response.summary,
+            body=ai_response.body,
+            report_path=saved_path or "",
+            score=ai_response.totonoi_score,
             raw_response=json.dumps(ai_response.model_dump(), ensure_ascii=False),
             model_name=ai_response.model_name,
             prompt_tokens=ai_response.prompt_tokens,
