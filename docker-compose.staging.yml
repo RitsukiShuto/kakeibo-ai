@@ -21,6 +21,7 @@ services:
     ports:
       - "8001:8000"
     environment:
+      - TZ=Asia/Tokyo
       - ACTIVE_MODEL=gemini-1.5-flash
     env_file:
       - staging/local/.env
@@ -49,6 +50,7 @@ services:
     container_name: kakeibo-staging-cron
     restart: unless-stopped
     environment:
+      - TZ=Asia/Tokyo
       - ACTIVE_MODEL=gemini-1.5-flash
     env_file:
       - staging/local/.env
