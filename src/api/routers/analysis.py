@@ -11,6 +11,35 @@ from src.api.utils import get_db_path, get_config_dir, load_config, df_to_json_s
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
+@router.get("/analysis-history/usage-stats")
+async def get_usage_stats(months: int = 6):
+    """直近N ヶ月のAI使用量を月別・モデル別に集計して返す。"""
+    conn = None
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path)
+        query = """
+            SELECT
+                strftime('%Y-%m', created_at) AS month,
+                COALESCE(model_name, 'unknown') AS model,
+                COUNT(*) AS count,
+                SUM(COALESCE(total_tokens, 0)) AS total_tokens,
+                SUM(COALESCE(prompt_tokens, 0)) AS prompt_tokens,
+                SUM(COALESCE(response_tokens, 0)) AS response_tokens
+            FROM analysis_history
+            WHERE created_at >= date('now', ?)
+            GROUP BY month, model
+            ORDER BY month ASC, total_tokens DESC
+        """
+        since = f"-{months} months"
+        df = pd.read_sql_query(query, conn, params=(since,))
+        return df_to_json_safe_dict(df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
 @router.get("/analysis-history")
 async def get_analysis_history(timeframe: str = "monthly"):
     conn = None

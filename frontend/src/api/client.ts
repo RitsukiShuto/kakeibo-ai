@@ -113,3 +113,12 @@ export interface ReimbursementSuggestion {
   transaction_id: string;
   reason: string;
 }
+
+export interface UsageStat {
+  month: string;
+  model: string;
+  count: number;
+  total_tokens: number;
+  prompt_tokens: number;
+  response_tokens: number;
+}

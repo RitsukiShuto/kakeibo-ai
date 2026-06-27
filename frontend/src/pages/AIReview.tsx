@@ -2,8 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { Info, AlertTriangle, AlertCircle, CheckCircle, Bot, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import client from '../api/client';
-import type { AnalysisHistory } from '../api/client';
+import type { AnalysisHistory, UsageStat } from '../api/client';
+
+// モデル別の固定カラーパレット
+const MODEL_COLORS: Record<string, string> = {
+  'gemini-2.0-flash': '#6366f1',
+  'gemini-1.5-flash': '#8b5cf6',
+  'gemini-1.5-pro': '#a78bfa',
+  'gemini-2.5-flash': '#4f46e5',
+  'unknown': '#475569',
+};
+const fallbackColors = ['#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
+const getModelColor = (model: string, index: number) =>
+  MODEL_COLORS[model] ?? fallbackColors[index % fallbackColors.length];
 
 const AIReview: React.FC = () => {
   const [history, setHistory] = useState<AnalysisHistory[]>([]);
@@ -11,6 +24,7 @@ const AIReview: React.FC = () => {
   const [reportContent, setReportContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('monthly');
+  const [usageStats, setUsageStats] = useState<UsageStat[]>([]);
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -51,8 +65,26 @@ const AIReview: React.FC = () => {
     }
   }, [selectedId]);
 
+  useEffect(() => {
+    client.get<UsageStat[]>('/api/analysis-history/usage-stats?months=6')
+      .then(res => setUsageStats(res.data))
+      .catch(() => {});
+  }, []);
+
   const selectedReview = history.find(h => h.id === selectedId);
   const pastReviews = history.filter(h => h.id !== selectedId);
+
+  // 月別チャート用にピボット変換（モデルを列方向に展開）
+  const models = [...new Set(usageStats.map(s => s.model))];
+  const months = [...new Set(usageStats.map(s => s.month))].sort();
+  const chartData = months.map(month => {
+    const row: Record<string, string | number> = { month };
+    models.forEach(model => {
+      const entry = usageStats.find(s => s.month === month && s.model === model);
+      row[model] = entry ? entry.total_tokens : 0;
+    });
+    return row;
+  });
 
   return (
     <div className="max-w-[1100px] mx-auto px-8 py-12 min-h-screen text-slate-100">
@@ -81,6 +113,42 @@ const AIReview: React.FC = () => {
         </div>
       ) : (
         <>
+          {/* Model Usage Chart */}
+          {usageStats.length > 0 && (
+            <section className="mb-20">
+              <h2 className="text-lg font-black mb-10 flex items-center gap-4 text-slate-500 uppercase tracking-widest">
+                Model Usage
+                <div className="flex-1 h-px bg-slate-800"></div>
+              </h2>
+              <div className="bg-slate-900/50 rounded-3xl p-8 border border-slate-800">
+                <div className="flex items-center justify-between mb-6">
+                  <p className="text-sm text-slate-400">直近6ヶ月のモデル別トークン使用量</p>
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                    <span>合計: {usageStats.reduce((s, r) => s + r.total_tokens, 0).toLocaleString()} tokens</span>
+                    <span>•</span>
+                    <span>分析数: {usageStats.reduce((s, r) => s + r.count, 0)} 件</span>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} />
+                    <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                    <Tooltip
+                      contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8 }}
+                      labelStyle={{ color: '#94a3b8', fontWeight: 700 }}
+                      formatter={(value: unknown, name: unknown) => [`${Number(value).toLocaleString()} tokens`, String(name ?? '')]}
+                    />
+                    <Legend wrapperStyle={{ color: '#64748b', fontSize: 11 }} />
+                    {models.map((model, i) => (
+                      <Bar key={model} dataKey={model} stackId="a" fill={getModelColor(model, i)} radius={i === models.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          )}
+
           {/* Main Selected Report */}
           {selectedReview && (
             <section className="mb-20">
