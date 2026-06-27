@@ -68,6 +68,7 @@ export interface SankeyData {
 
 export interface LatestSummary {
   summary: string;
+  body: string;
 }
 
 export interface AssetTrend {

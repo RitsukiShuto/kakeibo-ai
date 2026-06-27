@@ -63,11 +63,14 @@ async def get_latest_summary():
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT summary FROM analysis_history ORDER BY created_at DESC LIMIT 1")
+        cursor.execute("SELECT summary, body FROM analysis_history ORDER BY created_at DESC LIMIT 1")
         row = cursor.fetchone()
         if not row:
-            return {"summary": "まだ分析データがありません。"}
-        return {"summary": row[0]}
+            return {
+                "summary": "まだ分析データがありません。",
+                "body": "分析を実行すると、ここに詳細な分析結果とアドバイスが表示されます。",
+            }
+        return {"summary": row[0] or "", "body": row[1] or ""}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:

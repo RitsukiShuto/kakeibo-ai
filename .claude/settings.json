@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python tools/cli.py qa regression)",
+      "Bash(python tools/cli.py qa:*)",
+      "Bash(python tools/cli.py fetch:*)",
+      "Bash(python -m pytest*)",
+      "Bash(pytest*)",
+      "Bash(cd frontend && npm run build)",
+      "Bash(cd frontend && npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(npm run lint)",
+      "Bash(bash scripts/dev.sh up)",
+      "Bash(bash scripts/dev.sh down)",
+      "Bash(bash scripts/dev.sh logs)",
+      "Bash(bash scripts/dev.sh test)",
+      "Bash(docker compose ps)",
+      "Bash(docker compose logs*)",
+      "Bash(docker compose -f docker-compose.dev.yml ps)",
+      "Bash(docker compose -f docker-compose.dev.yml logs*)",
+      "Bash(git status)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git fetch*)",
+      "Bash(gh issue list*)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr view*)",
+      "Bash(gh run list*)",
+      "Bash(gh run view*)",
+      "Bash(find . -name*)",
+      "Bash(grep -r*)"
+    ]
+  }
+}
