@@ -51,6 +51,14 @@ def mock_kakeibo_analyzer(monkeypatch):
     
     return mock_instance
 
+@pytest.fixture(autouse=True)
+def clear_dashboard_cache():
+    """テスト間のキャッシュ汚染を防ぐ。"""
+    from src.api.cache import dashboard_cache
+    dashboard_cache.clear()
+    yield
+    dashboard_cache.clear()
+
 @pytest.fixture
 def mock_db(tmp_path):
     """

@@ -6,6 +6,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 from src.models import Transaction as TransactionModel
 from src.api.utils import get_db_path, get_config_dir, load_budget, df_to_json_safe_dict
+from src.api.cache import dashboard_cache
 
 router = APIRouter(prefix="/api", tags=["transactions"])
 
@@ -76,6 +77,7 @@ async def create_transaction(transaction: TransactionModel):
             transaction.reimbursement_status
         ))
         conn.commit()
+        dashboard_cache.clear()
         return {"status": "success", "transaction_id": transaction.transaction_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -102,6 +104,7 @@ async def update_transaction(transaction_id: str, update: TransactionUpdate):
         query = f"UPDATE transactions SET {', '.join(fields)} WHERE transaction_id = ?"
         cursor.execute(query, values)
         conn.commit()
+        dashboard_cache.clear()
         return {"status": "success"}
     except HTTPException:
         raise
@@ -122,6 +125,7 @@ async def delete_transaction(transaction_id: str):
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Transaction not found")
         conn.commit()
+        dashboard_cache.clear()
         return {"status": "success"}
     except HTTPException:
         raise
@@ -191,6 +195,8 @@ async def import_transactions_csv(files: list[UploadFile] = File(...)):
                 os.remove(temp_path)
         except Exception as e:
             errors.append({"file": file.filename, "status": "error", "reason": str(e)})
+    if total_imported > 0:
+        dashboard_cache.clear()
     return {
         "status": "success" if not errors else "partial_success",
         "total_files": len(files),
