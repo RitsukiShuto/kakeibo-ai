@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 from src.db.database import Database
 from src.api.utils import get_db_path, get_config_dir, load_budget, get_budget_category_totals
+from src.api.cache import dashboard_cache
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
@@ -43,6 +44,11 @@ async def get_status():
 
 @router.get("/kpi")
 async def get_kpi(timeframe: str = "monthly", month: Optional[str] = None):
+    cache_key = f"kpi:{timeframe}:{month or 'current'}"
+    cached = dashboard_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     conn = None
     try:
         db_path = get_db_path()
@@ -50,7 +56,7 @@ async def get_kpi(timeframe: str = "monthly", month: Optional[str] = None):
         budget = load_budget(config_dir)
         budget_categories = get_budget_category_totals(budget)
         total_budget = sum(budget_categories.values()) if budget_categories else 0
-        
+
         now = datetime.now()
         if month:
             try:
@@ -67,9 +73,9 @@ async def get_kpi(timeframe: str = "monthly", month: Optional[str] = None):
             date_pattern = None
         else:
             date_pattern = ref_date.strftime("%Y-%m")
-        
+
         conn = sqlite3.connect(db_path)
-        
+
         if timeframe == "weekly":
             monday = ref_date - timedelta(days=ref_date.weekday())
             sunday = monday + timedelta(days=6)
@@ -78,19 +84,21 @@ async def get_kpi(timeframe: str = "monthly", month: Optional[str] = None):
         else:
             query_total = "SELECT SUM(CASE WHEN is_reimbursement=1 AND self_amount IS NOT NULL THEN self_amount ELSE amount END) as total FROM transactions WHERE transaction_date LIKE ? AND mode='payment'"
             actual_total = pd.read_sql_query(query_total, conn, params=(f"{date_pattern}%",))['total'].iloc[0]
-        
+
         actual_total = int(actual_total) if pd.notnull(actual_total) else 0
 
         query_assets = "SELECT SUM(amount) as total FROM assets WHERE acquired_date = (SELECT MAX(acquired_date) FROM assets)"
         total_assets = pd.read_sql_query(query_assets, conn)['total'].iloc[0]
         total_assets = int(total_assets) if pd.notnull(total_assets) else 0
 
-        return {
+        result = {
             "budget": total_budget,
             "actual": actual_total,
             "remaining": max(0, total_budget - actual_total),
             "total_assets": total_assets
         }
+        dashboard_cache.set(cache_key, result)
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -100,6 +108,11 @@ async def get_kpi(timeframe: str = "monthly", month: Optional[str] = None):
 
 @router.get("/budget-actual")
 async def get_budget_actual(timeframe: str = "monthly", month: Optional[str] = None, week: Optional[str] = None):
+    cache_key = f"budget-actual:{timeframe}:{month or 'current'}:{week or ''}"
+    cached = dashboard_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     conn = None
     try:
         db_path = get_db_path()
@@ -205,12 +218,10 @@ async def get_budget_actual(timeframe: str = "monthly", month: Optional[str] = N
         for cat, b_amt in budget_categories.items():
             actual_row = df_actual[df_actual['category'] == cat]
             a_amt = int(actual_row['actual'].iloc[0]) if not actual_row.empty else 0
-            
-            # 期間に応じた予算額の計算
+
             adjusted_budget = int(b_amt * multiplier)
-            # Pace Limit (理想的な進捗ライン) の計算
             pace_limit = int((adjusted_budget / days_in_period) * days_elapsed) if days_in_period > 0 else 0
-            
+
             result.append({
                 "category": cat,
                 "section": cat_to_section.get(cat, "variable"),
@@ -218,6 +229,7 @@ async def get_budget_actual(timeframe: str = "monthly", month: Optional[str] = N
                 "actual": a_amt,
                 "pace_limit": pace_limit
             })
+        dashboard_cache.set(cache_key, result)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -231,13 +243,17 @@ async def get_stats_flow(month: Optional[str] = None):
     Sankey Diagram用の多階層フローデータを生成。
     収入源 → 総収入 → カテゴリ(固定/変動) → 詳細カテゴリ
     """
+    current_month = month if month else datetime.now().strftime("%Y-%m")
+    cache_key = f"stats-flow:{current_month}"
+    cached = dashboard_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     conn = None
     try:
         db_path = get_db_path()
         config_dir = get_config_dir()
         budget = load_budget(config_dir)
-        
-        current_month = month if month else datetime.now().strftime("%Y-%m")
         conn = sqlite3.connect(db_path)
         
         # 1. 収入源の取得 (Moneyforwardなどのアグリゲーターを特定ラベルにマッピングするため、category/genreも取得)
@@ -330,7 +346,9 @@ async def get_stats_flow(month: Optional[str] = None):
             savings_node = add_node("余剰金(繰り越し)")
             links.append({"source": total_income_node, "target": savings_node, "value": savings})
 
-        return {"nodes": nodes, "links": links}
+        result = {"nodes": nodes, "links": links}
+        dashboard_cache.set(cache_key, result)
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -340,6 +358,11 @@ async def get_stats_flow(month: Optional[str] = None):
 
 @router.get("/assets")
 async def get_assets():
+    cache_key = "assets"
+    cached = dashboard_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     conn = None
     try:
         db_path = get_db_path()
@@ -352,7 +375,9 @@ async def get_assets():
         """
         df = pd.read_sql_query(query, conn)
         from src.api.utils import df_to_json_safe_dict
-        return df_to_json_safe_dict(df)
+        result = df_to_json_safe_dict(df)
+        dashboard_cache.set(cache_key, result)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
