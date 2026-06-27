@@ -16,7 +16,7 @@ const Dashboard: React.FC = () => {
   const [budgetActual, setBudgetActual] = useState<BudgetActual[]>([]);
   const [assetTrend, setAssetTrend] = useState<AssetTrend[]>([]);
   const [sankeyData, setSankeyData] = useState<SankeyData | null>(null);
-  const [latestSummary, setLatestSummary] = useState<string>('');
+  const [latestInsight, setLatestInsight] = useState<{ summary: string; body: string }>({ summary: '', body: '' });
   const [weeklyForm, setWeeklyForm] = useState<WeeklyFormItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [pendingReimbursements, setPendingReimbursements] = useState<any[]>([]);
@@ -53,7 +53,7 @@ const Dashboard: React.FC = () => {
       setBudgetActual(baRes.data);
       setAssetTrend(assetRes.data);
       setSankeyData(sankeyRes.data);
-      setLatestSummary(summaryRes.data.summary);
+      setLatestInsight({ summary: summaryRes.data.summary, body: summaryRes.data.body });
       setWeeklyForm(formRes.data);
       setTransactions(txRes.data);
       setPendingReimbursements(pendingRes.data);
@@ -166,10 +166,15 @@ const Dashboard: React.FC = () => {
             <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em]">AI Insights</h3>
             <div className="h-px bg-slate-800 mt-2"></div>
           </div>
-          <div>
-            <p className="text-lg md:text-xl italic text-slate-300 leading-relaxed max-w-4xl break-words">
-              {latestSummary || "まだ分析データがありません。"}
+          <div className="space-y-4">
+            <p className="text-lg md:text-xl font-semibold text-slate-100 leading-snug">
+              {latestInsight.summary || "まだ分析データがありません。"}
             </p>
+            {latestInsight.body && (
+              <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-4xl break-words">
+                {latestInsight.body}
+              </p>
+            )}
           </div>
         </section>
 

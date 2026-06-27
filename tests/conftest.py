@@ -19,6 +19,8 @@ def mock_kakeibo_analyzer(monkeypatch):
     # analyze_kakeibo のデフォルトレスポンス
     from src.models import AIResponse
     mock_ai_response = AIResponse(
+        summary="今月は順調！節約ペース良好🎉",
+        body="食費は先月比10%減。自炊を増やしたことが主因です。来月は交通費に注意しましょう。",
         slack_report="ギャル風のテストレポートだよ！✨",
         obsidian_report="## テストレポート\n分析内容は正常です。",
         actions=[{"command": "Keep", "description": "このまま頑張って！"}],

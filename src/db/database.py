@@ -78,6 +78,7 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timeframe TEXT NOT NULL,
                 summary TEXT,
+                body TEXT,
                 report_path TEXT,
                 score INTEGER,
                 model_name TEXT,
@@ -101,6 +102,9 @@ class Database:
         except sqlite3.OperationalError: pass
         try:
             cursor.execute("ALTER TABLE analysis_history ADD COLUMN total_tokens INTEGER")
+        except sqlite3.OperationalError: pass
+        try:
+            cursor.execute("ALTER TABLE analysis_history ADD COLUMN body TEXT")
         except sqlite3.OperationalError: pass
 
         # 4. System Status テーブル (サービス稼働確認用)
@@ -193,17 +197,18 @@ class Database:
             conn.close()
         return result
 
-    def save_analysis(self, timeframe: str, summary: str, report_path: str, score: int, raw_response: str, 
+    def save_analysis(self, timeframe: str, summary: str, report_path: str, score: int, raw_response: str,
+                      body: str = None,
                       model_name: str = None, prompt_tokens: int = None, response_tokens: int = None, total_tokens: int = None):
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO analysis_history (
-                timeframe, summary, report_path, score, raw_response, 
+                timeframe, summary, body, report_path, score, raw_response,
                 model_name, prompt_tokens, response_tokens, total_tokens
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (timeframe, summary, report_path, score, raw_response, 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (timeframe, summary, body, report_path, score, raw_response,
               model_name, prompt_tokens, response_tokens, total_tokens))
         conn.commit()
         if self.db_path != ":memory:":

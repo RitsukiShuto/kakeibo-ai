@@ -19,6 +19,8 @@ def mock_env():
 def test_analyze_kakeibo_success(mock_provider, mock_env):
     mock_provider.get_model_name.return_value = "gemini-2.0-flash"
     mock_provider.generate_content.return_value = '''{
+        "summary": "今月は順調！節約ペース良好🎉",
+        "body": "食費は先月比10%減。自炊を増やしたことが主因です。",
         "slack_report": "テスト詳細レポート",
         "obsidian_report": "# テストレポート",
         "actions": [{"command": "KEEP", "description": "いい感じ"}],
@@ -66,6 +68,8 @@ def test_daily_prompt_includes_date_info(mock_provider, mock_env):
     """daily timeframe が集計日・残り日数・固定費情報を含むことをテスト"""
     mock_provider.get_model_name.return_value = "gemini-2.0-flash"
     mock_provider.generate_content.return_value = '''{
+        "summary": "今日も節約できたよ！✨",
+        "body": "本日の支出は適正範囲内です。引き続き自炊を心がけましょう。",
         "slack_report": "テスト詳細レポート",
         "obsidian_report": "# テストレポート",
         "actions": [],

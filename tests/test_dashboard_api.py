@@ -38,6 +38,7 @@ def mock_db_and_budget(tmp_path):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timeframe TEXT NOT NULL,
             summary TEXT,
+            body TEXT,
             report_path TEXT,
             score INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -55,8 +56,8 @@ def mock_db_and_budget(tmp_path):
                    ("tx2", yesterday, "給与", "", 300000, "1月分", "manual", "income", None, 0, None, yesterday))
     
     # Analysis History
-    cursor.execute("INSERT INTO analysis_history (timeframe, summary, report_path, score, created_at) VALUES (?, ?, ?, ?, ?)",
-                   ("monthly", "今月は食費が少し多いです。節約しましょう。", "reports/test.md", 80, today))
+    cursor.execute("INSERT INTO analysis_history (timeframe, summary, body, report_path, score, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                   ("monthly", "今月は食費が少し多いです。節約しましょう。", "食費が先月比15%増加。外食を減らしてみましょう。", "reports/test.md", 80, today))
     
     conn.commit()
     conn.close()
@@ -120,7 +121,9 @@ def test_get_analysis_history_latest_summary(mock_db_and_budget):
     assert response.status_code == 200
     data = response.json()
     assert "summary" in data
+    assert "body" in data
     assert data["summary"] == "今月は食費が少し多いです。節約しましょう。"
+    assert data["body"] == "食費が先月比15%増加。外食を減らしてみましょう。"
 
 def test_get_analysis_history_form(mock_db_and_budget):
     response = client.get("/api/analysis-history/form")
